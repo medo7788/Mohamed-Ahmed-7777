@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,23 +18,26 @@ import com.example.ui.screens.*
 import com.example.ui.theme.AppThemeKey
 import com.example.ui.theme.ClevCalcTheme
 import com.example.ui.theme.getThemeColors
+import com.example.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         setContent {
-            var currentThemeKey by remember { mutableStateOf(AppThemeKey.ELEGANT_DARK) }
-            var currentCalcKey by remember { mutableStateOf(CalcKey.BASIC) }
-            var searchQuery by remember { mutableStateOf("") }
+            val currentThemeKey by viewModel.currentThemeKey.collectAsState()
+            val currentCalcKey by viewModel.currentCalcKey.collectAsState()
+            val searchQuery by viewModel.searchQuery.collectAsState()
+            val showThemesModal by viewModel.showThemesModal.collectAsState()
+            val showAboutModal by viewModel.showAboutModal.collectAsState()
 
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val coroutineScope = rememberCoroutineScope()
-
-            var showThemesModal by remember { mutableStateOf(false) }
-            var showAboutModal by remember { mutableStateOf(false) }
 
             val colors = getThemeColors(currentThemeKey)
 
@@ -49,14 +53,14 @@ class MainActivity : ComponentActivity() {
                                 AppDrawerContent(
                                     currentKey = currentCalcKey,
                                     searchQuery = searchQuery,
-                                    onSearchChange = { searchQuery = it },
+                                    onSearchChange = { viewModel.setSearchQuery(it) },
                                     colors = colors,
                                     onSelectCalc = { key ->
-                                        currentCalcKey = key
+                                        viewModel.setCalcKey(key)
                                         coroutineScope.launch { drawerState.close() }
                                     },
                                     onOpenThemes = {
-                                        showThemesModal = true
+                                        viewModel.setShowThemesModal(true)
                                         coroutineScope.launch { drawerState.close() }
                                     }
                                 )
@@ -69,8 +73,8 @@ class MainActivity : ComponentActivity() {
                                     currentCalc = currentCalcKey,
                                     colors = colors,
                                     onOpenDrawer = { coroutineScope.launch { drawerState.open() } },
-                                    onOpenThemes = { showThemesModal = true },
-                                    onOpenAbout = { showAboutModal = true }
+                                    onOpenThemes = { viewModel.setShowThemesModal(true) },
+                                    onOpenAbout = { viewModel.setShowAboutModal(true) }
                                 )
                             },
                             containerColor = colors.appBg
@@ -122,17 +126,17 @@ class MainActivity : ComponentActivity() {
                                 currentTheme = currentThemeKey,
                                 colors = colors,
                                 onSelectTheme = {
-                                    currentThemeKey = it
-                                    showThemesModal = false
+                                    viewModel.setTheme(it)
+                                    viewModel.setShowThemesModal(false)
                                 },
-                                onDismiss = { showThemesModal = false }
+                                onDismiss = { viewModel.setShowThemesModal(false) }
                             )
                         }
 
                         if (showAboutModal) {
                             AboutModal(
                                 colors = colors,
-                                onDismiss = { showAboutModal = false }
+                                onDismiss = { viewModel.setShowAboutModal(false) }
                             )
                         }
                     }

@@ -25,7 +25,8 @@ data class CurrentWeatherData(
     val icon: String,
     val dailyMaxTemp: List<Double>,
     val dailyMinTemp: List<Double>,
-    val dailyWeatherCodes: List<Int>
+    val dailyWeatherCodes: List<Int>,
+    val isOfflineFallback: Boolean = false
 )
 
 object WeatherRepository {
@@ -133,11 +134,12 @@ object WeatherRepository {
             icon = iconText,
             dailyMaxTemp = listOf(33.0, 34.0, 32.0, 31.0, 35.0, 33.0, 32.0),
             dailyMinTemp = listOf(22.0, 23.0, 21.0, 20.0, 24.0, 22.0, 21.0),
-            dailyWeatherCodes = listOf(0, 1, 0, 2, 0, 1, 0)
+            dailyWeatherCodes = listOf(0, 1, 0, 2, 0, 1, 0),
+            isOfflineFallback = true
         )
     }
 
-    suspend fun getAIWeatherAdvice(cityName: String, weather: CurrentWeatherData): String {
+    suspend fun getAIWeatherAdvice(context: android.content.Context? = null, cityName: String, weather: CurrentWeatherData): String {
         val prompt = """
             أنت خبير طقس وأرصاد جوية ذكي ومستشار أنشطة يومية.
             حالة الطقس الحالية في مدينة $cityName:
@@ -152,6 +154,6 @@ object WeatherRepository {
             3. 🏃 مدى ملائمة الطقس للأنشطة الخارجية والرياضة
         """.trimIndent()
 
-        return GeminiRepository.generateContent(prompt)
+        return GeminiRepository.generateContent(context, prompt)
     }
 }

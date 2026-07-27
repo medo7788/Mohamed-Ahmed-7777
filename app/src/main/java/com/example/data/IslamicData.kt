@@ -129,6 +129,98 @@ object IslamicData {
         return qibla
     }
 
+    data class DynamicPrayerTimes(
+        val fajr: String,
+        val sunrise: String,
+        val dhuhr: String,
+        val asr: String,
+        val maghrib: String,
+        val isha: String
+    )
+
+    fun calculatePrayerTimes(
+        lat: Double,
+        lng: Double,
+        timezoneOffsetHours: Double,
+        calendar: java.util.Calendar = java.util.Calendar.getInstance()
+    ): DynamicPrayerTimes {
+        val dayOfYear = calendar.get(java.util.Calendar.DAY_OF_YEAR)
+        val year = calendar.get(java.util.Calendar.YEAR)
+        val isLeap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+        val daysInYear = if (isLeap) 366.0 else 365.0
+
+        val gamma = 2.0 * Math.PI / daysInYear * (dayOfYear - 1)
+
+        val decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma) -
+                0.006758 * Math.cos(2 * gamma) + 0.000907 * Math.sin(2 * gamma) -
+                0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma)
+
+        val eqTime = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma) -
+                0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma))
+
+        val noon = 12.0 + timezoneOffsetHours - (lng / 15.0) - (eqTime / 60.0)
+        val latRad = Math.toRadians(lat)
+
+        fun hourAngle(angleBelowHorizon: Double): Double {
+            val zenithRad = Math.toRadians(90.0 + angleBelowHorizon)
+            val cosH = (Math.cos(zenithRad) - Math.sin(latRad) * Math.sin(decl)) / (Math.cos(latRad) * Math.cos(decl))
+            val clamped = cosH.coerceIn(-1.0, 1.0)
+            return Math.toDegrees(Math.acos(clamped))
+        }
+
+        val hSunrise = hourAngle(0.833) / 15.0
+        val sunriseVal = noon - hSunrise
+        val sunsetVal = noon + hSunrise
+
+        val hFajr = hourAngle(19.5) / 15.0
+        val fajrVal = noon - hFajr
+
+        val latMinusDecl = Math.abs(latRad - decl)
+        val asrAngleRad = Math.atan(1.0 / (1.0 + Math.tan(latMinusDecl)))
+        val asrZenithDeg = 90.0 - Math.toDegrees(asrAngleRad)
+        val hAsr = hourAngle(asrZenithDeg - 90.0) / 15.0
+        val asrVal = noon + hAsr
+
+        val maghribVal = sunsetVal
+
+        val hIsha = hourAngle(17.5) / 15.0
+        val ishaVal = noon + hIsha
+
+        fun formatHours(hours: Double): String {
+            val hNorm = (hours % 24.0 + 24.0) % 24.0
+            var hrs = Math.floor(hNorm).toInt()
+            var mins = Math.round((hNorm - Math.floor(hNorm)) * 60.0).toInt()
+            if (mins >= 60) {
+                hrs = (hrs + 1) % 24
+                mins = 0
+            }
+            return String.format("%02d:%02d", hrs, mins)
+        }
+
+        return DynamicPrayerTimes(
+            fajr = formatHours(fajrVal),
+            sunrise = formatHours(sunriseVal),
+            dhuhr = formatHours(noon),
+            asr = formatHours(asrVal),
+            maghrib = formatHours(maghribVal),
+            isha = formatHours(ishaVal)
+        )
+    }
+
+    fun getTimezoneOffsetForCity(timezoneId: String): Double {
+        return try {
+            val tz = java.util.TimeZone.getTimeZone(timezoneId)
+            tz.getOffset(System.currentTimeMillis()) / 3600000.0
+        } catch (_: Exception) {
+            3.0
+        }
+    }
+
+    fun getDynamicPrayerTimesForCity(city: CityPrayerInfo, calendar: java.util.Calendar = java.util.Calendar.getInstance()): DynamicPrayerTimes {
+        val tzOffset = getTimezoneOffsetForCity(city.timezone)
+        return calculatePrayerTimes(city.lat, city.lng, tzOffset, calendar)
+    }
+
     val morningAdhkar = listOf(
         DhikrItem(1, "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ\n\nاللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ", 1, "من قالها حين يصبح أوجير من الجن حتى يمسي", "الحاكم، صحيح الترغيب"),
         DhikrItem(2, "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ\n\nقُلْ هُوَ اللَّهُ أَحَدٌ ۝ اللَّهُ الصَّمَدُ ۝ لَمْ يَلِدْ وَلَمْ يُولَدْ ۝ وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ", 3, "كفته من كل شيء", "أبو داود والترمذي"),

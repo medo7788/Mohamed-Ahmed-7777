@@ -40,6 +40,7 @@ import com.example.data.IslamicData
 import com.example.data.LivePricesRepository
 import com.example.data.SurahInfo
 import com.example.ui.theme.CustomThemeColors
+import com.example.util.AdhanScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -60,6 +61,61 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
     var showPrivacyNotice by remember { mutableStateOf(false) }
     val city = IslamicData.cities[selectedCityIndex]
 
+    // Calculate prayer times dynamically based on astronomical location and date
+    val dynamicTimes = remember(selectedCityIndex) {
+        IslamicData.getDynamicPrayerTimesForCity(city)
+    }
+
+    // Dynamic Gregorian and Hijri Date Calculation
+    val nowCalendar = remember { java.util.Calendar.getInstance() }
+    val gregorianDateStr = remember {
+        String.format("%02d-%02d-%04d",
+            nowCalendar.get(java.util.Calendar.DAY_OF_MONTH),
+            nowCalendar.get(java.util.Calendar.MONTH) + 1,
+            nowCalendar.get(java.util.Calendar.YEAR)
+        )
+    }
+    val hijriDateStr = remember {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                val hijrahDate = java.time.chrono.HijrahDate.now()
+                val formatter = java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy هـ", java.util.Locale("ar"))
+                hijrahDate.format(formatter)
+            } catch (_: Exception) {
+                "اليوم الهجري المبارك"
+            }
+        } else {
+            "اليوم الهجري المبارك"
+        }
+    }
+
+    // Calculate Next Prayer dynamically
+    val nextPrayerDisplay = remember(dynamicTimes) {
+        val currentMins = nowCalendar.get(java.util.Calendar.HOUR_OF_DAY) * 60 + nowCalendar.get(java.util.Calendar.MINUTE)
+        fun toMins(s: String): Int {
+            val parts = s.split(":")
+            val h = parts.getOrNull(0)?.toIntOrNull() ?: 0
+            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+            return h * 60 + m
+        }
+        val pList = listOf(
+            "الفجر" to toMins(dynamicTimes.fajr),
+            "الظهر" to toMins(dynamicTimes.dhuhr),
+            "العصر" to toMins(dynamicTimes.asr),
+            "المغرب" to toMins(dynamicTimes.maghrib),
+            "العشاء" to toMins(dynamicTimes.isha)
+        )
+        val next = pList.firstOrNull { it.second > currentMins } ?: pList.first()
+        val timeStr = when(next.first) {
+            "الفجر" -> dynamicTimes.fajr
+            "الظهر" -> dynamicTimes.dhuhr
+            "العصر" -> dynamicTimes.asr
+            "المغرب" -> dynamicTimes.maghrib
+            else -> dynamicTimes.isha
+        }
+        "${next.first} - $timeStr"
+    }
+
     // Notification states for prayers
     var fajrNotification by remember { mutableStateOf(prefs.getBoolean("adhan_fajr", true)) }
     var dhuhrNotification by remember { mutableStateOf(prefs.getBoolean("adhan_dhuhr", true)) }
@@ -73,12 +129,12 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
     ) { _ -> }
 
     val prayers = listOf(
-        Triple("الفجر", city.fajr, Pair("🌅", fajrNotification)),
-        Triple("الشروق", city.sunrise, Pair("☀️", false)),
-        Triple("الظهر", city.dhuhr, Pair("🌤️", dhuhrNotification)),
-        Triple("العصر", city.asr, Pair("🌥️", asrNotification)),
-        Triple("المغرب", city.maghrib, Pair("🌆", maghribNotification)),
-        Triple("العشاء", city.isha, Pair("🌙", ishaNotification))
+        Triple("الفجر", dynamicTimes.fajr, Pair("🌅", fajrNotification)),
+        Triple("الشروق", dynamicTimes.sunrise, Pair("☀️", false)),
+        Triple("الظهر", dynamicTimes.dhuhr, Pair("🌤️", dhuhrNotification)),
+        Triple("العصر", dynamicTimes.asr, Pair("🌥️", asrNotification)),
+        Triple("المغرب", dynamicTimes.maghrib, Pair("🌆", maghribNotification)),
+        Triple("العشاء", dynamicTimes.isha, Pair("🌙", ishaNotification))
     )
 
     Column(
@@ -160,14 +216,14 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("الاثنين 13 صَفَر 1448 هـ", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text(hijriDateStr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     Text("التاريخ الهجري الحالي", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
                 }
                 Surface(
                     color = Color.White.copy(alpha = 0.2f),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("27-07-2026", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                    Text(gregorianDateStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                 }
             }
         }
@@ -190,7 +246,7 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
                 Column {
                     Text("الصلاة القادمة", fontSize = 12.sp, color = colors.textMuted)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text("الفجر - 4:31 ص", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                    Text(nextPrayerDisplay, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = colors.accent)
                 }
                 Text("🌙", fontSize = 32.sp)
             }
@@ -244,11 +300,36 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
                                             notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                                         }
                                         when (name) {
-                                            "الفجر" -> { fajrNotification = checked; prefs.edit().putBoolean("adhan_fajr", checked).apply() }
-                                            "الظهر" -> { dhuhrNotification = checked; prefs.edit().putBoolean("adhan_dhuhr", checked).apply() }
-                                            "العصر" -> { asrNotification = checked; prefs.edit().putBoolean("adhan_asr", checked).apply() }
-                                            "المغرب" -> { maghribNotification = checked; prefs.edit().putBoolean("adhan_maghrib", checked).apply() }
-                                            "العشاء" -> { ishaNotification = checked; prefs.edit().putBoolean("adhan_isha", checked).apply() }
+                                            "الفجر" -> {
+                                                fajrNotification = checked
+                                                prefs.edit().putBoolean("adhan_fajr", checked).apply()
+                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "الفجر", dynamicTimes.fajr, 1001)
+                                                else AdhanScheduler.cancelPrayerAlarm(context, 1001)
+                                            }
+                                            "الظهر" -> {
+                                                dhuhrNotification = checked
+                                                prefs.edit().putBoolean("adhan_dhuhr", checked).apply()
+                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "الظهر", dynamicTimes.dhuhr, 1002)
+                                                else AdhanScheduler.cancelPrayerAlarm(context, 1002)
+                                            }
+                                            "العصر" -> {
+                                                asrNotification = checked
+                                                prefs.edit().putBoolean("adhan_asr", checked).apply()
+                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "العصر", dynamicTimes.asr, 1003)
+                                                else AdhanScheduler.cancelPrayerAlarm(context, 1003)
+                                            }
+                                            "المغرب" -> {
+                                                maghribNotification = checked
+                                                prefs.edit().putBoolean("adhan_maghrib", checked).apply()
+                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "المغرب", dynamicTimes.maghrib, 1004)
+                                                else AdhanScheduler.cancelPrayerAlarm(context, 1004)
+                                            }
+                                            "العشاء" -> {
+                                                ishaNotification = checked
+                                                prefs.edit().putBoolean("adhan_isha", checked).apply()
+                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "العشاء", dynamicTimes.isha, 1005)
+                                                else AdhanScheduler.cancelPrayerAlarm(context, 1005)
+                                            }
                                         }
                                     },
                                     colors = SwitchDefaults.colors(

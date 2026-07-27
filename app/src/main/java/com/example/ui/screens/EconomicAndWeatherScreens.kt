@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
+    val context = LocalContext.current
     var selectedCountryCode by remember { mutableStateOf("EG") }
     val country = remember(selectedCountryCode) { EconomicRepository.getCountryByCode(selectedCountryCode) }
 
@@ -61,7 +62,7 @@ fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
     fun generateFullReport() {
         isGeneratingReport = true
         coroutineScope.launch {
-            val report = EconomicRepository.getAIEconomicReport(country)
+            val report = EconomicRepository.getAIEconomicReport(context, country)
             aiReportText = report
             isGeneratingReport = false
         }
@@ -173,6 +174,19 @@ fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(country.economicSummaryAr, fontSize = 12.sp, color = colors.textMuted, lineHeight = 18.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                color = colors.surface2,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    "💡 أرقام مؤشرات الاقتصاد المذكورة هي بيانات إحصائية مرجعية تحديث 2024/2025 صادرة عن التقارير الرسمية للبنوك المركزية.",
+                                    fontSize = 10.sp,
+                                    color = colors.textMuted,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -429,7 +443,7 @@ fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
                                 userPromptText = ""
                                 isSendingPrompt = true
                                 coroutineScope.launch {
-                                    val answer = EconomicRepository.getAIEconomicReport(country, query)
+                                    val answer = EconomicRepository.getAIEconomicReport(context, country, query)
                                     chatMessages = chatMessages + Pair(false, answer)
                                     isSendingPrompt = false
                                 }
@@ -700,6 +714,10 @@ fun WeatherScreen(colors: CustomThemeColors) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text("${weather.tempC.toInt()}°C", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                 Text("المحسوسة: ${weather.feelsLikeC.toInt()}°C • ${weather.conditionAr}", fontSize = 13.sp, color = Color.White.copy(alpha = 0.9f))
+                                if (weather.isOfflineFallback) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text("⚠️ تعذر جلب الطقس المباشر، تم تحميل بيانات مناخية مرجعية تقريبية", fontSize = 10.sp, color = Color.Yellow)
+                                }
                             }
                         }
                     }
@@ -742,7 +760,7 @@ fun WeatherScreen(colors: CustomThemeColors) {
                                         onClick = {
                                             isGeneratingAdvice = true
                                             coroutineScope.launch {
-                                                aiAdviceText = WeatherRepository.getAIWeatherAdvice(selectedCity.nameAr, weather)
+                                                aiAdviceText = WeatherRepository.getAIWeatherAdvice(context, selectedCity.nameAr, weather)
                                                 isGeneratingAdvice = false
                                             }
                                         },

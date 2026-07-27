@@ -1,5 +1,6 @@
 package com.example.data
 
+import android.content.Context
 import com.example.data.GeminiRepository
 
 data class CountryEconomicData(
@@ -182,7 +183,7 @@ object EconomicRepository {
         return countries.firstOrNull { it.code.equals(code, ignoreCase = true) } ?: countries[0]
     }
 
-    suspend fun getAIEconomicReport(country: CountryEconomicData, query: String? = null): String {
+    suspend fun getAIEconomicReport(context: Context? = null, country: CountryEconomicData, query: String? = null): String {
         val prompt = if (query.isNullOrBlank()) {
             """
             أنت مستشار اقتصادي وخبير مالي دولي رفيع المستوى.
@@ -217,6 +218,6 @@ object EconomicRepository {
             """.trimIndent()
         }
 
-        return GeminiRepository.generateContent(prompt)
+        return GeminiRepository.generateContent(context, prompt)
     }
 }

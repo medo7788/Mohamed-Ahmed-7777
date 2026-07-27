@@ -30,15 +30,13 @@ object GeminiRepository {
         "gemini-1.5-flash"
     )
 
-    private const val DEFAULT_API_KEY = "AIzaSyBZGW8CLD9_TVE2QlpxKEJ7eihX1T27_jE"
-
     fun getStoredApiKey(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val custom = prefs.getString(KEY_CUSTOM_API_KEY, "") ?: ""
         if (custom.isNotBlank()) return custom.trim()
         val buildKey = BuildConfig.GEMINI_API_KEY
         if (buildKey.isNotBlank() && buildKey != "MY_GEMINI_API_KEY") return buildKey.trim()
-        return DEFAULT_API_KEY
+        return ""
     }
 
     fun saveApiKey(context: Context, key: String) {
@@ -51,8 +49,15 @@ object GeminiRepository {
         prefs.edit().remove(KEY_CUSTOM_API_KEY).apply()
     }
 
-    suspend fun generateContent(prompt: String): String = withContext(Dispatchers.IO) {
-        val apiKey = DEFAULT_API_KEY
+    suspend fun generateContent(context: Context?, prompt: String): String = withContext(Dispatchers.IO) {
+        val apiKey = context?.let { getStoredApiKey(it) }
+            ?: BuildConfig.GEMINI_API_KEY.takeIf { it.isNotBlank() && it != "MY_GEMINI_API_KEY" }
+            ?: ""
+
+        if (apiKey.isBlank()) {
+            return@withContext "🔑 تتطلب هذه الميزة إضافة مفتاح Gemini API. يرجى إدخال مفتاحك الخاص في شاشة إعدادات المساعد الذكي."
+        }
+
         val primaryModel = MODELS_CHAIN.first()
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$primaryModel:generateContent?key=$apiKey"
 
@@ -83,8 +88,12 @@ object GeminiRepository {
                         if (text.isNotBlank()) return@withContext text
                     }
                 }
+            } else {
+                return@withContext parseGoogleError(response.code, responseText)
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            return@withContext "عذراً، حدث خطأ في الاتصال بالشبكة: ${e.localizedMessage}"
+        }
 
         return@withContext "تعذر الحصول على الاستجابة الحية من الذكاء الاصطناعي."
     }
