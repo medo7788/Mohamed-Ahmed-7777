@@ -24,6 +24,9 @@ object GeminiRepository {
     private const val KEY_CUSTOM_API_KEY = "custom_gemini_api_key"
 
     private val MODELS_CHAIN = listOf(
+        "gemini-2.5-pro",
+        "gemini-2.0-flash",
+        "gemini-1.5-pro",
         "gemini-3.1-flash-lite"
     )
 
@@ -46,6 +49,52 @@ object GeminiRepository {
         prefs.edit().remove(KEY_CUSTOM_API_KEY).apply()
     }
 
+    suspend fun fetchGroundedData(context: Context?, prompt: String): String? = withContext(Dispatchers.IO) {
+        val apiKey = context?.let { getStoredApiKey(it) }
+            ?: BuildConfig.GEMINI_API_KEY.takeIf { it.isNotBlank() && it != "MY_GEMINI_API_KEY" }
+            ?: ""
+        if (apiKey.isBlank()) return@withContext null
+
+        val jsonBody = JSONObject().apply {
+            put("contents", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("role", "user")
+                    put("parts", JSONArray().apply { put(JSONObject().put("text", prompt)) })
+                })
+            })
+            put("tools", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("googleSearch", JSONObject())
+                })
+            })
+        }
+
+        val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+        for (model in MODELS_CHAIN) {
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
+            val request = Request.Builder().url(url).post(requestBody).build()
+            try {
+                val response = client.newCall(request).execute()
+                val responseText = response.body?.string() ?: ""
+                if (response.isSuccessful && responseText.isNotBlank()) {
+                    val jsonResponse = JSONObject(responseText)
+                    val candidates = jsonResponse.optJSONArray("candidates")
+                    if (candidates != null && candidates.length() > 0) {
+                        val firstCand = candidates.getJSONObject(0)
+                        val content = firstCand.optJSONObject("content")
+                        val parts = content?.optJSONArray("parts")
+                        if (parts != null && parts.length() > 0) {
+                            val text = parts.getJSONObject(0).optString("text")
+                            if (text.isNotBlank()) return@withContext text
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+        return@withContext null
+    }
+
     suspend fun generateContent(context: Context?, prompt: String): String = withContext(Dispatchers.IO) {
         val apiKey = context?.let { getStoredApiKey(it) }
             ?: BuildConfig.GEMINI_API_KEY.takeIf { it.isNotBlank() && it != "MY_GEMINI_API_KEY" }
@@ -58,11 +107,16 @@ object GeminiRepository {
         val primaryModel = MODELS_CHAIN.first()
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$primaryModel:generateContent?key=$apiKey"
 
-        val jsonBody = JSONObject().apply {
+                val jsonBody = JSONObject().apply {
             put("contents", JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "user")
                     put("parts", JSONArray().apply { put(JSONObject().put("text", prompt)) })
+                })
+            })
+            put("tools", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("googleSearch", JSONObject())
                 })
             })
         }
@@ -160,6 +214,11 @@ object GeminiRepository {
         val jsonBody = JSONObject().apply {
             put("contents", contentsArray)
             put("systemInstruction", systemInstruction)
+            put("tools", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("googleSearch", JSONObject())
+                })
+            })
         }
 
         val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())

@@ -599,7 +599,7 @@ fun WeatherScreen(colors: CustomThemeColors) {
     fun loadWeather() {
         isLoading = true
         coroutineScope.launch {
-            val data = WeatherRepository.fetchRealWeather(selectedCity.lat, selectedCity.lng)
+            val data = WeatherRepository.fetchRealWeather(context, selectedCity.lat, selectedCity.lng)
             weatherData = data
             isLoading = false
         }

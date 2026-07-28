@@ -39,7 +39,8 @@ data class ChatMessage(
 
 @Composable
 fun AIAssistantScreen(colors: CustomThemeColors) {
-    val context = LocalContext.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
     var inputText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
@@ -184,14 +185,17 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                             bottomStart = if (isAi) 2.dp else 16.dp,
                             bottomEnd = if (isAi) 16.dp else 2.dp
                         ),
-                        modifier = Modifier.widthIn(max = 280.dp)
+                        modifier = Modifier.widthIn(max = 300.dp)
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = msg.text,
-                                fontSize = 13.sp,
-                                color = if (isAi) colors.text else Color.White
-                            )
+                            androidx.compose.foundation.text.selection.SelectionContainer {
+                                Text(
+                                    text = msg.text,
+                                    fontSize = 14.sp,
+                                    lineHeight = 22.sp,
+                                    color = if (isAi) colors.text else Color.White
+                                )
+                            }
                         }
                     }
                 }
@@ -232,7 +236,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
         // Input Row
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Bottom
         ) {
             OutlinedTextField(
                 value = inputText,
@@ -249,7 +253,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                     focusedTextColor = colors.text,
                     unfocusedTextColor = colors.text
                 ),
-                singleLine = true
+                maxLines = 5
             )
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -372,17 +376,19 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
 
 @Composable
 fun LivePricesScreen(colors: CustomThemeColors) {
-    val context = LocalContext.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
     var selectedCurrency by remember { mutableStateOf(LivePricesRepository.getSelectedCurrency(context)) }
     var showCurrencyPicker by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     var selectedKarat by remember { mutableIntStateOf(24) }
     val coroutineScope = rememberCoroutineScope()
+    
 
     fun refreshData() {
         isRefreshing = true
         coroutineScope.launch {
-            LivePricesRepository.refreshLivePrices()
+            LivePricesRepository.refreshLivePrices(context)
             isRefreshing = false
         }
     }

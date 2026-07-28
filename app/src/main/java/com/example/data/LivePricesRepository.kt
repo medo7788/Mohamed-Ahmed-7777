@@ -136,7 +136,7 @@ object LivePricesRepository {
         MetalPrice("XPD", "البلاديوم", "جرام", palladiumGramUsd, -0.80)
     )
 
-    val commodityPrices = listOf(
+    val commodityPrices = mutableStateListOf(
         CommodityPrice("خام برنت", "BRENT", "🛢️", "برميل", 84.015, 0.65),
         CommodityPrice("نفط غرب تكساس", "WTI", "⛽", "برميل", 79.95, 0.55),
         CommodityPrice("الغاز الطبيعي", "GAS", "🔥", "MMBtu", 2.44, -1.20),
@@ -152,7 +152,7 @@ object LivePricesRepository {
         }
     }
 
-    suspend fun refreshLivePrices(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun refreshLivePrices(appContext: Context? = null): Boolean = withContext(Dispatchers.IO) {
         var success = false
         try {
             // 1. Fetch Currency Rates from open.er-api.com
@@ -218,6 +218,77 @@ object LivePricesRepository {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+
+        // 4. Fallback/Enhancement using Gemini Search Grounding
+        if (appContext != null) {
+            try {
+                val prompt = """
+                    استخدم أداة Google Search للبحث عن أحدث أسعار اليوم بالدولار الأمريكي. 
+                    قم بإرجاع كائن JSON حصراً يحتوي على المفاتيح التالية بأرقام فقط (بدون أي نصوص أو markdown):
+                    {
+                        "gold_ounce_usd": 2400.50,
+                        "silver_ounce_usd": 30.15,
+                        "platinum_ounce_usd": 950.00,
+                        "palladium_ounce_usd": 1000.00,
+                        "brent_oil_usd": 85.20,
+                        "wti_oil_usd": 81.10,
+                        "natural_gas_usd": 2.50,
+                        "copper_lb_usd": 4.10,
+                        "usd_to_egp": 48.50,
+                        "usd_to_sar": 3.75
+                    }
+                """.trimIndent()
+                val response = GeminiRepository.fetchGroundedData(appContext, prompt)
+                if (response != null) {
+                    val cleaned = response.replace("```json", "").replace("```", "").trim()
+                    val jObj = JSONObject(cleaned)
+                    
+                    if (jObj.has("gold_ounce_usd") && !success) {
+                        goldOunceUsd = jObj.getDouble("gold_ounce_usd")
+                        updateMetalList()
+                        success = true
+                    }
+                    if (jObj.has("silver_ounce_usd") && !success) {
+                        silverGramUsd = jObj.getDouble("silver_ounce_usd") / GRAMS_PER_OUNCE
+                        if (metalPrices.size > 4) metalPrices[4] = metalPrices[4].copy(priceUsd = silverGramUsd)
+                    }
+                    if (jObj.has("platinum_ounce_usd")) {
+                        platinumGramUsd = jObj.getDouble("platinum_ounce_usd") / GRAMS_PER_OUNCE
+                        if (metalPrices.size > 5) metalPrices[5] = metalPrices[5].copy(priceUsd = platinumGramUsd)
+                    }
+                    if (jObj.has("palladium_ounce_usd")) {
+                        palladiumGramUsd = jObj.getDouble("palladium_ounce_usd") / GRAMS_PER_OUNCE
+                        if (metalPrices.size > 6) metalPrices[6] = metalPrices[6].copy(priceUsd = palladiumGramUsd)
+                    }
+                    if (jObj.has("brent_oil_usd")) commodityPrices[0] = commodityPrices[0].copy(priceUsd = jObj.getDouble("brent_oil_usd"))
+                    if (jObj.has("wti_oil_usd")) commodityPrices[1] = commodityPrices[1].copy(priceUsd = jObj.getDouble("wti_oil_usd"))
+                    if (jObj.has("natural_gas_usd")) commodityPrices[2] = commodityPrices[2].copy(priceUsd = jObj.getDouble("natural_gas_usd"))
+                    if (jObj.has("copper_lb_usd")) commodityPrices[3] = commodityPrices[3].copy(priceUsd = jObj.getDouble("copper_lb_usd"))
+                    
+                    if (!success) {
+                        if (jObj.has("usd_to_egp")) {
+                            val egpRate = jObj.getDouble("usd_to_egp")
+                            val updatedList = currencies.map { c ->
+                                if (c.code == "EGP") c.copy(rateVsUsd = egpRate)
+                                else if (c.code == "SAR" && jObj.has("usd_to_sar")) c.copy(rateVsUsd = jObj.getDouble("usd_to_sar"))
+                                else c
+                            }
+                            currencies.clear()
+                            currencies.addAll(updatedList)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        if (success) {
+            isLiveDataLoaded = true
+            val sdf = java.text.SimpleDateFormat("hh:mm:ss a", java.util.Locale("ar"))
+            lastUpdatedText = "آخر تحديث: ${sdf.format(java.util.Date())}"
+        }
+
         return@withContext success
     }
 

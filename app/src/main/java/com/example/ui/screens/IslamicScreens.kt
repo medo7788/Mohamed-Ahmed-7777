@@ -87,7 +87,7 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
     ) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
             try {
-                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
+                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                     .addOnSuccessListener { location ->
                         if (location != null) {
                             customLat = location.latitude
@@ -97,6 +97,12 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
                     }
             } catch (e: SecurityException) { }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        locationPermissionLauncher.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        )
     }
 
     // Calculate prayer times dynamically based on astronomical location and date
@@ -127,6 +133,19 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
         }
     }
 
+    fun to12HourFormat(timeStr: String): String {
+        try {
+            val parts = timeStr.split(":")
+            val h = parts.getOrNull(0)?.toIntOrNull() ?: 0
+            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+            val amPm = if (h >= 12) "م" else "ص"
+            val h12 = if (h % 12 == 0) 12 else h % 12
+            return String.format("%02d:%02d %s", h12, m, amPm)
+        } catch (e: Exception) {
+            return timeStr
+        }
+    }
+
     // Calculate Next Prayer dynamically
     val nextPrayerDisplay = remember(dynamicTimes) {
         val currentMins = nowCalendar.get(java.util.Calendar.HOUR_OF_DAY) * 60 + nowCalendar.get(java.util.Calendar.MINUTE)
@@ -151,7 +170,7 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
             "المغرب" -> dynamicTimes.maghrib
             else -> dynamicTimes.isha
         }
-        "${next.first} - $timeStr"
+        "${next.first} - ${to12HourFormat(timeStr)}"
     }
 
     // Notification states for prayers
@@ -167,12 +186,12 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
     ) { _ -> }
 
     val prayers = listOf(
-        Triple("الفجر", dynamicTimes.fajr, Pair("🌅", fajrNotification)),
-        Triple("الشروق", dynamicTimes.sunrise, Pair("☀️", false)),
-        Triple("الظهر", dynamicTimes.dhuhr, Pair("🌤️", dhuhrNotification)),
-        Triple("العصر", dynamicTimes.asr, Pair("🌥️", asrNotification)),
-        Triple("المغرب", dynamicTimes.maghrib, Pair("🌆", maghribNotification)),
-        Triple("العشاء", dynamicTimes.isha, Pair("🌙", ishaNotification))
+        Triple("الفجر", to12HourFormat(dynamicTimes.fajr), Pair("🌅", fajrNotification)),
+        Triple("الشروق", to12HourFormat(dynamicTimes.sunrise), Pair("☀️", false)),
+        Triple("الظهر", to12HourFormat(dynamicTimes.dhuhr), Pair("🌤️", dhuhrNotification)),
+        Triple("العصر", to12HourFormat(dynamicTimes.asr), Pair("🌥️", asrNotification)),
+        Triple("المغرب", to12HourFormat(dynamicTimes.maghrib), Pair("🌆", maghribNotification)),
+        Triple("العشاء", to12HourFormat(dynamicTimes.isha), Pair("🌙", ishaNotification))
     )
 
     Column(
@@ -440,8 +459,40 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
     var isCompassActive by remember { mutableStateOf(true) }
     var locationName by remember { mutableStateOf("") }
 
+    var customLat by remember { mutableStateOf<Double?>(null) }
+    var customLng by remember { mutableStateOf<Double?>(null) }
+
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            try {
+                fusedLocationClient.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null)
+                    .addOnSuccessListener { location ->
+                        if (location != null) {
+                            customLat = location.latitude
+                            customLng = location.longitude
+                            locationName = "موقعي الحالي"
+                        }
+                    }
+            } catch (e: SecurityException) { }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        // Request GPS permission on first load
+        locationPermissionLauncher.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        )
+    }
+
     val city = IslamicData.cities[selectedCityIndex]
-    val qiblaAngle = IslamicData.calculateQiblaAngle(city.lat, city.lng)
+    val qiblaAngle = if (customLat != null && customLng != null) {
+        IslamicData.calculateQiblaAngle(customLat!!, customLng!!)
+    } else {
+        IslamicData.calculateQiblaAngle(city.lat, city.lng)
+    }
     val currentDisplayLocation = if (locationName.isNotBlank()) locationName else city.nameAr
 
     // Hardware Compass Sensor Listener
@@ -511,25 +562,34 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
                     }
                 }
 
-                // City selector dropdown
+                // GPS and City selector
                 var cityMenuOpen by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { cityMenuOpen = true }) {
-                        Icon(Icons.Default.LocationOn, contentDescription = "تغيير المدينة", tint = Color.White)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = {
+                        locationPermissionLauncher.launch(
+                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                        )
+                    }) {
+                        Icon(Icons.Default.LocationOn, contentDescription = "تحديد موقعي (GPS)", tint = Color.White)
                     }
-                    DropdownMenu(
-                        expanded = cityMenuOpen,
-                        onDismissRequest = { cityMenuOpen = false }
-                    ) {
-                        IslamicData.cities.forEachIndexed { index, c ->
-                            DropdownMenuItem(
-                                text = { Text(c.nameAr, fontSize = 13.sp) },
-                                onClick = {
-                                    selectedCityIndex = index
-                                    locationName = c.nameAr
-                                    cityMenuOpen = false
-                                }
-                            )
+                    Box {
+                        IconButton(onClick = { cityMenuOpen = true }) {
+                            Text("▾", fontSize = 18.sp, color = Color.White)
+                        }
+                        DropdownMenu(
+                            expanded = cityMenuOpen,
+                            onDismissRequest = { cityMenuOpen = false }
+                        ) {
+                            IslamicData.cities.forEachIndexed { index, c ->
+                                DropdownMenuItem(
+                                    text = { Text(c.nameAr, fontSize = 13.sp) },
+                                    onClick = {
+                                        selectedCityIndex = index
+                                        locationName = c.nameAr
+                                        cityMenuOpen = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -769,6 +829,14 @@ fun TasbihScreen(colors: CustomThemeColors) {
 
     val allDhikrs = (defaultDhikrs + customDhikrs).distinct()
 
+    val bgOptions = listOf(
+        com.example.R.drawable.islamic_pattern_bg to Color(0xFF582CBA),
+        com.example.R.drawable.islamic_pattern_green to Color(0xFF0F766E),
+        com.example.R.drawable.islamic_pattern_blue to Color(0xFF1D4ED8)
+    )
+    var selectedBgIndex by remember { mutableStateOf(0) }
+    val currentBg = bgOptions[selectedBgIndex]
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -866,93 +934,116 @@ fun TasbihScreen(colors: CustomThemeColors) {
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Purple Decorative Main Counter Card (Image 2 style)
+        // Decorative Main Counter Card
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(24.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color(0xFF582CBA), Color(0xFF381B80))
-                    )
-                )
-                .clickable {
-                    count++
-                    IslamicData.incrementLifetimeCount(context)
-                    lifetimeCount = IslamicData.getLifetimeCount(context)
-                }
-                .padding(20.dp)
         ) {
-            // Star decorations on corners
-            Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.TopStart))
-            Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.TopEnd))
-            Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.BottomStart))
-            Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.BottomEnd))
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = currentBg.first),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            // Overlay to make text readable
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(currentBg.second.copy(alpha = 0.85f))
+            )
+            
+            Box(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+                // Star decorations on corners
+                Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.TopStart))
+                Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.TopEnd))
+                Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.BottomStart))
+                Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.BottomEnd))
 
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Top Goal Badge
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Surface(
-                        color = Color.White.copy(alpha = 0.2f),
-                        shape = RoundedCornerShape(12.dp)
+                    // Top Goal Badge and BG selector
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "🎯 $targetCount",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            bgOptions.forEachIndexed { index, option ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(option.second)
+                                        .border(2.dp, if (selectedBgIndex == index) Color.White else Color.Transparent, CircleShape)
+                                        .clickable { selectedBgIndex = index }
+                                )
+                            }
+                        }
+                        
+                        Surface(
+                            color = Color.White.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "🎯 $targetCount",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
                     }
-                }
 
-                // Dhikr Title Text
-                Text(
-                    text = dhikrName,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    textAlign = TextAlign.Center
-                )
+                    // Dhikr Title Text
+                    Text(
+                        text = dhikrName,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        textAlign = TextAlign.Center
+                    )
 
-                // Circular Counter Ring
-                Box(
-                    modifier = Modifier
-                        .size(160.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.1f))
-                        .border(4.dp, Color.White.copy(alpha = 0.8f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "$count",
-                            fontSize = 54.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "من $targetCount",
-                            fontSize = 13.sp,
-                            color = Color.White.copy(alpha = 0.8f)
-                        )
+                    // Circular Counter Ring
+                    Box(
+                        modifier = Modifier
+                            .size(170.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.15f))
+                            .border(6.dp, Color.White.copy(alpha = 0.8f), CircleShape)
+                            .clickable {
+                                count++
+                                IslamicData.incrementLifetimeCount(context)
+                                lifetimeCount = IslamicData.getLifetimeCount(context)
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "$count",
+                                fontSize = 54.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "من $targetCount",
+                                fontSize = 13.sp,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
                     }
-                }
 
-                // Tap anywhere hint
-                Text(
-                    text = "— اضغط في أي مكان للعد —",
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
+                    // Tap hint
+                    Text(
+                        text = "— اضغط داخل الدائرة للعد —",
+                        fontSize = 12.sp,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
             }
         }
 
@@ -988,17 +1079,29 @@ fun TasbihScreen(colors: CustomThemeColors) {
 
     // Add Dhikr Dialog
     if (showAddDialog) {
+        var newDhikrTargetText by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
             title = { Text("إضافة ذكر جديد", fontWeight = FontWeight.Bold, color = colors.text) },
             text = {
-                OutlinedTextField(
-                    value = newDhikrText,
-                    onValueChange = { newDhikrText = it },
-                    label = { Text("اكتب النص الخاص بالذكر") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column {
+                    OutlinedTextField(
+                        value = newDhikrText,
+                        onValueChange = { newDhikrText = it },
+                        label = { Text("اكتب النص الخاص بالذكر") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = newDhikrTargetText,
+                        onValueChange = { newDhikrTargetText = it },
+                        label = { Text("العدد المطلوب (اختياري)") },
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             },
             confirmButton = {
                 Button(
@@ -1007,6 +1110,17 @@ fun TasbihScreen(colors: CustomThemeColors) {
                             IslamicData.addCustomDhikr(context, newDhikrText)
                             customDhikrs = IslamicData.getCustomDhikrs(context)
                             dhikrName = newDhikrText.trim()
+                            
+                            val engTargetText = newDhikrTargetText
+                                .replace("٠", "0").replace("١", "1").replace("٢", "2")
+                                .replace("٣", "3").replace("٤", "4").replace("٥", "5")
+                                .replace("٦", "6").replace("٧", "7").replace("٨", "8")
+                                .replace("٩", "9")
+                                
+                            val target = engTargetText.toIntOrNull()
+                            if (target != null && target > 0) {
+                                targetCount = target
+                            }
                             count = 0
                             newDhikrText = ""
                             showAddDialog = false

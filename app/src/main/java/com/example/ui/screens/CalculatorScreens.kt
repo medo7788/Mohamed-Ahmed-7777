@@ -1,5 +1,5 @@
 package com.example.ui.screens
-
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -145,39 +145,41 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
         }
 
         // Keypad Grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.weight(0.65f)
-        ) {
-            items(basicBtns) { btn ->
-                val isOp = btn in listOf("÷", "×", "-", "+", "=")
-                val isAction = btn in listOf("C", "⌫", "%", "±")
+        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(0.65f)
+            ) {
+                items(basicBtns) { btn ->
+                    val isOp = btn in listOf("÷", "×", "-", "+", "=")
+                    val isAction = btn in listOf("C", "⌫", "%", "±")
 
-                val btnBg = when {
-                    btn == "=" -> colors.accent
-                    isOp -> colors.surface2
-                    isAction -> colors.surface2.copy(alpha = 0.7f)
-                    else -> colors.surface
-                }
+                    val btnBg = when {
+                        btn == "=" -> colors.accent
+                        isOp -> colors.surface2
+                        isAction -> colors.surface2.copy(alpha = 0.7f)
+                        else -> colors.surface
+                    }
 
-                val btnFg = when {
-                    btn == "=" -> Color.White
-                    isOp -> colors.accent
-                    else -> colors.text
-                }
+                    val btnFg = when {
+                        btn == "=" -> Color.White
+                        isOp -> colors.accent
+                        else -> colors.text
+                    }
 
-                Surface(
-                    color = btnBg,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1.2f)
-                        .clickable { onBtnClick(btn) }
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(btn, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = btnFg)
+                    Surface(
+                        color = btnBg,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1.2f)
+                            .clickable { onBtnClick(btn) }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(btn, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = btnFg)
+                        }
                     }
                 }
             }
@@ -352,6 +354,18 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GoldCalcScreen(colors: CustomThemeColors) {
+    val coroutineScope = rememberCoroutineScope()
+    var isRefreshing by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        if (!LivePricesRepository.isLiveDataLoaded) {
+            isRefreshing = true
+            LivePricesRepository.refreshLivePrices(context)
+            isRefreshing = false
+        }
+    }
+
     var gramsText by remember { mutableStateOf("10") }
     var selectedKarat by remember { mutableStateOf(21) }
     var makingFeeGrams by remember { mutableStateOf("100") } // مصنعية للجرام

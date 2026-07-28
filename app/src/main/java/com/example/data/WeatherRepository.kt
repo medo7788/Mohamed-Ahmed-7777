@@ -30,7 +30,6 @@ data class CurrentWeatherData(
 )
 
 object WeatherRepository {
-
     val defaultCities = listOf(
         WeatherCity("القاهرة", "مصر", 30.0444, 31.2357, "🇪🇬"),
         WeatherCity("الرياض", "السعودية", 24.7136, 46.6753, "🇸🇦"),
@@ -62,7 +61,8 @@ object WeatherRepository {
         }
     }
 
-    suspend fun fetchRealWeather(lat: Double, lng: Double): CurrentWeatherData = withContext(Dispatchers.IO) {
+    suspend fun fetchRealWeather(context: android.content.Context?, lat: Double, lng: Double): CurrentWeatherData = withContext(Dispatchers.IO) {
+        var result: CurrentWeatherData? = null
         try {
             val urlString = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lng&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto"
             val url = URL(urlString)
@@ -76,31 +76,31 @@ object WeatherRepository {
                 val root = JSONObject(jsonText)
                 val current = root.getJSONObject("current")
                 val daily = root.getJSONObject("daily")
-
+                
                 val temp = current.getDouble("temperature_2m")
                 val feelsLike = current.getDouble("apparent_temperature")
                 val humidity = current.getInt("relative_humidity_2m")
                 val wind = current.getDouble("wind_speed_10m")
                 val precip = current.optDouble("precipitation", 0.0)
                 val code = current.getInt("weather_code")
-
+                
                 val maxList = mutableListOf<Double>()
                 val minList = mutableListOf<Double>()
                 val codeList = mutableListOf<Int>()
-
+                
                 val maxArr = daily.getJSONArray("temperature_2m_max")
                 val minArr = daily.getJSONArray("temperature_2m_min")
                 val codeArr = daily.getJSONArray("weather_code")
-
+                
                 for (i in 0 until minOf(maxArr.length(), 7)) {
                     maxList.add(maxArr.getDouble(i))
                     minList.add(minArr.getDouble(i))
                     codeList.add(codeArr.getInt(i))
                 }
-
+                
                 val (conditionText, iconText) = decodeWmoCode(code)
-
-                CurrentWeatherData(
+                
+                result = CurrentWeatherData(
                     tempC = temp,
                     feelsLikeC = feelsLike,
                     humidityPercent = humidity,
@@ -113,12 +113,71 @@ object WeatherRepository {
                     dailyMinTemp = minList,
                     dailyWeatherCodes = codeList
                 )
-            } else {
-                getFallbackWeather()
             }
         } catch (e: Exception) {
-            getFallbackWeather()
+            e.printStackTrace()
         }
+
+        if (result == null && context != null) {
+            try {
+                val prompt = """
+                    استخدم أداة Google Search للبحث عن الطقس الحالي وتوقعات الأيام القادمة لإحداثيات خط العرض $lat وخط الطول $lng.
+                    يجب أن تُرجع الاستجابة بصيغة JSON حصراً تحتوي على أرقام فقط للمتغيرات (بدون نصوص إضافية):
+                    {
+                        "temp_c": 35.5,
+                        "feels_like_c": 38.0,
+                        "humidity": 45,
+                        "wind_speed_kmh": 12.5,
+                        "precipitation_mm": 0.0,
+                        "weather_code": 1,
+                        "daily_max": [36.0, 35.0, 37.0, 36.5, 34.0, 35.0, 36.0],
+                        "daily_min": [25.0, 24.5, 26.0, 25.5, 24.0, 24.5, 25.0],
+                        "daily_codes": [1, 1, 0, 1, 2, 1, 0]
+                    }
+                """.trimIndent()
+                val responseText = GeminiRepository.fetchGroundedData(context, prompt)
+                if (responseText != null) {
+                    val cleaned = responseText.replace("```json", "").replace("```", "").trim()
+                    val jObj = JSONObject(cleaned)
+                    
+                    val maxArr = jObj.getJSONArray("daily_max")
+                    val minArr = jObj.getJSONArray("daily_min")
+                    val codesArr = jObj.getJSONArray("daily_codes")
+                    
+                    val maxList = mutableListOf<Double>()
+                    val minList = mutableListOf<Double>()
+                    val codeList = mutableListOf<Int>()
+                    
+                    for (i in 0 until minOf(maxArr.length(), 7)) {
+                        maxList.add(maxArr.getDouble(i))
+                        minList.add(minArr.getDouble(i))
+                        codeList.add(codesArr.getInt(i))
+                    }
+                    
+                    val wCode = jObj.getInt("weather_code")
+                    val (condText, iconText) = decodeWmoCode(wCode)
+                    
+                    result = CurrentWeatherData(
+                        tempC = jObj.getDouble("temp_c"),
+                        feelsLikeC = jObj.getDouble("feels_like_c"),
+                        humidityPercent = jObj.getInt("humidity"),
+                        windSpeedKmh = jObj.getDouble("wind_speed_kmh"),
+                        precipitationMm = jObj.optDouble("precipitation_mm", 0.0),
+                        weatherCode = wCode,
+                        conditionAr = condText,
+                        icon = iconText,
+                        dailyMaxTemp = maxList,
+                        dailyMinTemp = minList,
+                        dailyWeatherCodes = codeList,
+                        isOfflineFallback = false
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        return@withContext result ?: getFallbackWeather()
     }
 
     private fun getFallbackWeather(): CurrentWeatherData {
@@ -126,34 +185,32 @@ object WeatherRepository {
         return CurrentWeatherData(
             tempC = 32.0,
             feelsLikeC = 34.5,
-            humidityPercent = 45,
-            windSpeedKmh = 14.0,
-            precipitationMm = 0.0,
-            weatherCode = 1,
-            conditionAr = conditionText,
-            icon = iconText,
-            dailyMaxTemp = listOf(33.0, 34.0, 32.0, 31.0, 35.0, 33.0, 32.0),
-            dailyMinTemp = listOf(22.0, 23.0, 21.0, 20.0, 24.0, 22.0, 21.0),
-            dailyWeatherCodes = listOf(0, 1, 0, 2, 0, 1, 0),
-            isOfflineFallback = true
-        )
-    }
-
-    suspend fun getAIWeatherAdvice(context: android.content.Context? = null, cityName: String, weather: CurrentWeatherData): String {
-        val prompt = """
-            أنت خبير طقس وأرصاد جوية ذكي ومستشار أنشطة يومية.
-            حالة الطقس الحالية في مدينة $cityName:
-            - درجة الحرارة: ${weather.tempC}°C (المحسوسة: ${weather.feelsLikeC}°C)
-            - الحالة العامة: ${weather.conditionAr}
-            - الرطوبة: ${weather.humidityPercent}%
-            - سرعة الرياح: ${weather.windSpeedKmh} كم/ساعة
-
-            يرجى تقديم نصيحة مقتضبة وجذابة ومفيدة للمستخدم باللغة العربية تشمل:
-            1. 👕 ملابس ومعدات موصى بها اليوم
-            2. 🚗 حالة السفر والقيادة على الطرقات
-            3. 🏃 مدى ملائمة الطقس للأنشطة الخارجية والرياضة
-        """.trimIndent()
-
-        return GeminiRepository.generateContent(context, prompt)
+            humidityPercent = 45,            
+            windSpeedKmh = 14.0,            
+            precipitationMm = 0.0,            
+            weatherCode = 1,            
+            conditionAr = conditionText,            
+            icon = iconText,            
+            dailyMaxTemp = listOf(33.0, 34.0, 32.0, 31.0, 35.0, 33.0, 32.0),            
+            dailyMinTemp = listOf(22.0, 23.0, 21.0, 20.0, 24.0, 22.0, 21.0),            
+            dailyWeatherCodes = listOf(0, 1, 0, 2, 0, 1, 0),            
+            isOfflineFallback = true        
+        )    
+    }    
+    
+    suspend fun getAIWeatherAdvice(context: android.content.Context? = null, cityName: String, weather: CurrentWeatherData): String {        
+        val prompt = """            
+            أنت خبير طقس وأرصاد جوية ذكي ومستشار أنشطة يومية.            
+            حالة الطقس الحالية في مدينة $cityName:            
+            - درجة الحرارة: ${weather.tempC}°C (المحسوسة: ${weather.feelsLikeC}°C)            
+            - الحالة العامة: ${weather.conditionAr}            
+            - الرطوبة: ${weather.humidityPercent}%            
+            - سرعة الرياح: ${weather.windSpeedKmh} كم/ساعة            
+            يرجى تقديم نصيحة مقتضبة وجذابة ومفيدة للمستخدم باللغة العربية تشمل:            
+            1. 👕 ملابس ومعدات موصى بها اليوم            
+            2. 🚗 حالة السفر والقيادة على الطرقات            
+            3. 🏃 مدى ملائمة الطقس للأنشطة الخارجية والرياضة        
+        """.trimIndent()        
+        return GeminiRepository.generateContent(context, prompt)    
     }
 }

@@ -21,17 +21,30 @@ import java.util.*
 
 @Composable
 fun WorldTimeScreen(colors: CustomThemeColors) {
+    // Re-calculate times every minute if we were to make it live, but for now we just compute on render.
+    var currentTimeMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            currentTimeMillis = System.currentTimeMillis()
+        }
+    }
+
     val worldCities = listOf(
-        Triple("مكة المكرمة 🕋", "GMT+3", "03:24 م"),
-        Triple("القاهرة 🇪🇬", "GMT+3", "03:24 م"),
-        Triple("الرياض 🇸🇦", "GMT+3", "03:24 م"),
-        Triple("دبي 🇦🇪", "GMT+4", "04:24 م"),
-        Triple("الكويت 🇰🇼", "GMT+3", "03:24 م"),
-        Triple("لندن 🇬🇧", "GMT+1", "01:24 م"),
-        Triple("باريس 🇫🇷", "GMT+2", "02:24 م"),
-        Triple("نيويورك 🇺🇸", "GMT-4", "08:24 ص"),
-        Triple("طوكيو 🇯🇵", "GMT+9", "09:24 م"),
-        Triple("سيدني 🇦🇺", "GMT+10", "10:24 م")
+        Triple("مكة المكرمة 🕋", "Asia/Riyadh", "GMT+3"),
+        Triple("القاهرة 🇪🇬", "Africa/Cairo", "GMT+3"),
+        Triple("الرياض 🇸🇦", "Asia/Riyadh", "GMT+3"),
+        Triple("دبي 🇦🇪", "Asia/Dubai", "GMT+4"),
+        Triple("الكويت 🇰🇼", "Asia/Kuwait", "GMT+3"),
+        Triple("الدوحة 🇶🇦", "Asia/Qatar", "GMT+3"),
+        Triple("عمان 🇯🇴", "Asia/Amman", "GMT+3"),
+        Triple("بغداد 🇮🇶", "Asia/Baghdad", "GMT+3"),
+        Triple("لندن 🇬🇧", "Europe/London", "GMT+0"),
+        Triple("باريس 🇫🇷", "Europe/Paris", "GMT+1"),
+        Triple("نيويورك 🇺🇸", "America/New_York", "GMT-4"),
+        Triple("طوكيو 🇯🇵", "Asia/Tokyo", "GMT+9"),
+        Triple("سيدني 🇦🇺", "Australia/Sydney", "GMT+10")
     )
 
     Column(
@@ -44,7 +57,12 @@ fun WorldTimeScreen(colors: CustomThemeColors) {
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            items(worldCities) { (city, tz, timeStr) ->
+            items(worldCities) { (city, tzId, label) ->
+                val tz = TimeZone.getTimeZone(tzId)
+                val sdf = SimpleDateFormat("hh:mm:ss a", Locale("ar"))
+                sdf.timeZone = tz
+                val timeStr = sdf.format(Date(currentTimeMillis))
+
                 Surface(
                     color = colors.surface,
                     shape = RoundedCornerShape(14.dp),
@@ -61,7 +79,7 @@ fun WorldTimeScreen(colors: CustomThemeColors) {
                     ) {
                         Column {
                             Text(city, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
-                            Text(tz, fontSize = 11.sp, color = colors.textMuted)
+                            Text(label, fontSize = 11.sp, color = colors.textMuted)
                         }
                         Text(timeStr, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = colors.accent)
                     }
