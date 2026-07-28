@@ -24,10 +24,7 @@ object GeminiRepository {
     private const val KEY_CUSTOM_API_KEY = "custom_gemini_api_key"
 
     private val MODELS_CHAIN = listOf(
-        "gemini-1.5-flash",
-        "gemini-2.0-flash",
-        "Gemini 3.1 Flash Lite",
-        "gemini-1.5-pro"
+        "gemini-3.1-flash-lite"
     )
 
     fun getStoredApiKey(context: Context): String {

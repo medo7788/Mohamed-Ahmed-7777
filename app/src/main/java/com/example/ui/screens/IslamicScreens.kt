@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.IslamicData
+import com.example.data.CityPrayerInfo
 import com.example.data.LivePricesRepository
 import com.example.data.SurahInfo
 import com.example.ui.theme.CustomThemeColors
@@ -55,6 +56,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.cos
 import kotlin.math.sin
+import android.annotation.SuppressLint
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,10 +69,38 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
     var selectedCityIndex by remember { mutableStateOf(0) }
     var cityExpanded by remember { mutableStateOf(false) }
     var showPrivacyNotice by remember { mutableStateOf(false) }
-    val city = IslamicData.cities[selectedCityIndex]
+    val baseCity = IslamicData.cities[selectedCityIndex]
+
+    var customLat by remember { mutableStateOf<Double?>(null) }
+    var customLng by remember { mutableStateOf<Double?>(null) }
+    var customLocationName by remember { mutableStateOf("") }
+
+    val city = if (customLat != null && customLng != null) {
+        CityPrayerInfo(customLocationName.ifBlank { "موقعي الحالي" }, customLocationName.ifBlank { "My Location" }, "", customLat!!, customLng!!, baseCity.timezone, "", "", "", "", "", "")
+    } else {
+        baseCity
+    }
+
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            try {
+                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
+                    .addOnSuccessListener { location ->
+                        if (location != null) {
+                            customLat = location.latitude
+                            customLng = location.longitude
+                            customLocationName = "موقعي الحالي"
+                        }
+                    }
+            } catch (e: SecurityException) { }
+        }
+    }
 
     // Calculate prayer times dynamically based on astronomical location and date
-    val dynamicTimes = remember(selectedCityIndex) {
+    val dynamicTimes = remember(city) {
         IslamicData.getDynamicPrayerTimesForCity(city)
     }
 
@@ -177,13 +209,22 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
                     }
 
                     Box {
-                        Button(
-                            onClick = { cityExpanded = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text("تغيير المدينة ▾", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = {
+                                locationPermissionLauncher.launch(
+                                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                                )
+                            }) {
+                                Icon(Icons.Default.LocationOn, contentDescription = "تحديد موقعي (GPS)", tint = colors.accent)
+                            }
+                            Button(
+                                onClick = { cityExpanded = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text("تغيير المدينة ▾", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
 
                         DropdownMenu(
@@ -723,6 +764,7 @@ fun TasbihScreen(colors: CustomThemeColors) {
     var customDhikrs by remember { mutableStateOf(IslamicData.getCustomDhikrs(context)) }
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var showManageDialog by remember { mutableStateOf(false) }
     var newDhikrText by remember { mutableStateOf("") }
 
     val allDhikrs = (defaultDhikrs + customDhikrs).distinct()
@@ -746,7 +788,7 @@ fun TasbihScreen(colors: CustomThemeColors) {
                 color = colors.surface,
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
-                    .clickable { showAddDialog = true }
+                    .clickable { showManageDialog = true }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -978,6 +1020,52 @@ fun TasbihScreen(colors: CustomThemeColors) {
             dismissButton = {
                 TextButton(onClick = { showAddDialog = false }) {
                     Text("إلغاء", color = colors.textMuted)
+                }
+            },
+            containerColor = colors.surface
+        )
+    }
+
+    if (showManageDialog) {
+        AlertDialog(
+            onDismissRequest = { showManageDialog = false },
+            title = { Text("إدارة الأذكار", fontWeight = FontWeight.Bold, color = colors.text) },
+            text = {
+                LazyColumn {
+                    items(customDhikrs) { dhikrItem ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(dhikrItem, modifier = Modifier.weight(1f), color = colors.text)
+                            IconButton(onClick = {
+                                IslamicData.deleteCustomDhikr(context, dhikrItem)
+                                customDhikrs = IslamicData.getCustomDhikrs(context)
+                                if (dhikrName == dhikrItem) {
+                                    dhikrName = defaultDhikrs.first()
+                                    count = 0
+                                }
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color.Red)
+                            }
+                        }
+                    }
+                    if (customDhikrs.isEmpty()) {
+                        item {
+                            Text("لا توجد أذكار مخصصة حالياً.", color = colors.textMuted, fontSize = 14.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showManageDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
+                ) {
+                    Text("تم")
                 }
             },
             containerColor = colors.surface
