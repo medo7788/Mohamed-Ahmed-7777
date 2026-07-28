@@ -37,6 +37,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -64,11 +66,15 @@ import com.google.android.gms.location.Priority
 @Composable
 fun PrayerTimesScreen(colors: CustomThemeColors) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
     val prefs = remember { context.getSharedPreferences("clevcalc_adhan_prefs", Context.MODE_PRIVATE) }
 
     var selectedCityIndex by remember { mutableStateOf(0) }
     var cityExpanded by remember { mutableStateOf(false) }
     var showPrivacyNotice by remember { mutableStateOf(false) }
+    var showAdhanSettings by remember { mutableStateOf(false) }
+    var selectedAdhanSound by remember { mutableStateOf(prefs.getString("selected_adhan_sound", "makkah") ?: "makkah") }
     val baseCity = IslamicData.cities[selectedCityIndex]
 
     var customLat by remember { mutableStateOf<Double?>(null) }
@@ -223,6 +229,9 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { showAdhanSettings = true }) {
+                        Text("⚙️", fontSize = 18.sp)
+                    }
                     IconButton(onClick = { showPrivacyNotice = true }) {
                         Text("🛡️", fontSize = 18.sp)
                     }
@@ -413,6 +422,80 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
         }
     }
 
+    // Adhan Sound & Notification Settings Dialog
+    if (showAdhanSettings) {
+        AlertDialog(
+            onDismissRequest = { showAdhanSettings = false },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        prefs.edit().putString("selected_adhan_sound", selectedAdhanSound).apply()
+                        showAdhanSettings = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
+                ) {
+                    Text("حفظ الإعدادات", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAdhanSettings = false }) {
+                    Text("إلغاء", color = colors.textMuted)
+                }
+            },
+            title = {
+                Text("🔊 اختيار صوت ونغمة المؤذن", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("اختر صوت المؤذن المفضل لتنبيهات أوقات الصلوات في مصر والخارج:", fontSize = 12.sp, color = colors.textMuted)
+                    
+                    val sounds = listOf(
+                        "makkah" to "مؤذن الحرم المكي (صوت شجي)",
+                        "madinah" to "مؤذن المسجد النبوي الشريف",
+                        "mishary" to "القارئ الشيخ مشاري العفاسي",
+                        "abdulbasit" to "الشيخ عبد الباسط عبد الصمد",
+                        "default" to "التنبيه القياسي للنظام"
+                    )
+
+                    sounds.forEach { (key, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedAdhanSound = key }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(label, fontSize = 13.sp, color = colors.text)
+                            RadioButton(
+                                selected = selectedAdhanSound == key,
+                                onClick = { selectedAdhanSound = key }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                val alarmUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+                                    ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+                                val r = android.media.RingtoneManager.getRingtone(context, alarmUri)
+                                r?.play()
+                            } catch (_: Exception) {}
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("▶️ اختبار صوت التنبيه الآن", color = colors.accent)
+                    }
+                }
+            },
+            containerColor = colors.surface,
+            titleContentColor = colors.text,
+            textContentColor = colors.text
+        )
+    }
+
     // Transparent Privacy & Permissions Explanation Dialog
     if (showPrivacyNotice) {
         AlertDialog(
@@ -454,6 +537,8 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
 @Composable
 fun QiblaDirectionScreen(colors: CustomThemeColors) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
     var selectedCityIndex by remember { mutableStateOf(0) }
     var deviceAzimuth by remember { mutableStateOf(0f) }
     var isCompassActive by remember { mutableStateOf(true) }
@@ -815,6 +900,8 @@ fun AdhkarScreen(colors: CustomThemeColors) {
 @Composable
 fun TasbihScreen(colors: CustomThemeColors) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
     var count by remember { mutableStateOf(0) }
     var targetCount by remember { mutableStateOf(33) }
     var dhikrName by remember { mutableStateOf("سُبْحَانَ اللهِ") }
@@ -1017,8 +1104,15 @@ fun TasbihScreen(colors: CustomThemeColors) {
                             .border(6.dp, Color.White.copy(alpha = 0.8f), CircleShape)
                             .clickable {
                                 count++
-                                IslamicData.incrementLifetimeCount(context)
-                                lifetimeCount = IslamicData.getLifetimeCount(context)
+                                lifetimeCount++
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                try {
+                                    IslamicData.incrementLifetimeCount(context)
+                                } catch (e: Exception) { e.printStackTrace() }
+                                
+                                if (count > 0 && count % targetCount == 0) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                }
                             },
                         contentAlignment = Alignment.Center
                     ) {
@@ -1287,6 +1381,8 @@ fun SurahDetailReader(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
     var versesList by remember(surah.number) { mutableStateOf(surah.verses) }
     var isLoading by remember(surah.number) { mutableStateOf(surah.verses.isEmpty()) }
     var loadError by remember(surah.number) { mutableStateOf<String?>(null) }

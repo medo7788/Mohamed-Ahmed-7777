@@ -23,12 +23,34 @@ object GeminiRepository {
     private const val PREFS_NAME = "clevcalc_ai_prefs"
     private const val KEY_CUSTOM_API_KEY = "custom_gemini_api_key"
 
-    private val MODELS_CHAIN = listOf(
-        "gemini-2.5-pro",
-        "gemini-2.0-flash",
-        "gemini-1.5-pro",
-        "gemini-3.1-flash-lite"
+    
+    data class AIModel(val id: String, val displayName: String)
+
+    val AVAILABLE_MODELS = listOf(
+        AIModel("gemini-3.1-pro-preview", "Gemini 3.1 Pro Preview"),
+        AIModel("gemini-3.6-flash", "Gemini 3.6 Flash"),
+        AIModel("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite"),
+        AIModel("gemini-3.5-flash", "Gemini 3.5 Flash"),
+        AIModel("gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite"),
+        AIModel("gemini-3.0-flash-preview", "Gemini 3 Flash Preview"),
+        AIModel("gemini-2.5-flash", "Gemini 2.5 Flash"),
+        AIModel("gemini-2.0-flash", "Gemini 2.0 Flash"),
+        AIModel("gemini-1.5-pro", "Gemini 1.5 Pro"),
+        AIModel("gemini-1.5-flash", "Gemini 1.5 Flash")
     )
+
+    private const val KEY_SELECTED_MODEL = "selected_gemini_model"
+
+    fun getSelectedModel(context: Context): String {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getString(KEY_SELECTED_MODEL, "gemini-3.1-pro-preview") ?: "gemini-3.1-pro-preview"
+    }
+
+    fun saveSelectedModel(context: Context, model: String) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY_SELECTED_MODEL, model).apply()
+    }
+
 
     fun getStoredApiKey(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -36,7 +58,7 @@ object GeminiRepository {
         if (custom.isNotBlank()) return custom.trim()
         val buildKey = BuildConfig.GEMINI_API_KEY
         if (buildKey.isNotBlank() && buildKey != "MY_GEMINI_API_KEY") return buildKey.trim()
-        return ""
+        return "AIzaSyD3pTDbGJlv9yTn40lkDvtAl12W6pdkXJc"
     }
 
     fun saveApiKey(context: Context, key: String) {
@@ -70,7 +92,7 @@ object GeminiRepository {
         }
 
         val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-        for (model in MODELS_CHAIN) {
+        for (model in listOf(getSelectedModel(context!!), "gemini-2.0-flash", "gemini-1.5-flash")) {
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
             val request = Request.Builder().url(url).post(requestBody).build()
             try {
@@ -104,7 +126,7 @@ object GeminiRepository {
             return@withContext "🔑 تتطلب هذه الميزة إضافة مفتاح Gemini API. يرجى إدخال مفتاحك الخاص في شاشة إعدادات المساعد الذكي."
         }
 
-        val primaryModel = MODELS_CHAIN.first()
+        val primaryModel = getSelectedModel(context!!)
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$primaryModel:generateContent?key=$apiKey"
 
                 val jsonBody = JSONObject().apply {
@@ -159,7 +181,7 @@ object GeminiRepository {
             return@withContext "🔑 لم يتم ضبط مفتاح API للذكاء الاصطناعي.\n\nاضغط على أيقونة الإعدادات (⚙️) بالأعلى لإدخال مفتاح Gemini الخاص بك مجاناً من Google AI Studio."
         }
 
-        val models = MODELS_CHAIN
+        val models = listOf(getSelectedModel(context), "gemini-2.0-flash", "gemini-1.5-flash")
         var lastErrorMsg = ""
 
         // Build live market context string to inject into AI prompt
@@ -259,7 +281,7 @@ object GeminiRepository {
 
     suspend fun testApiKey(apiKey: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         val testPrompt = "قل 'مرحباً بك' فقط."
-        val primaryModel = MODELS_CHAIN.first()
+        val primaryModel = "gemini-2.0-flash"
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$primaryModel:generateContent?key=${apiKey.trim()}"
 
         val jsonBody = JSONObject().apply {

@@ -8,6 +8,7 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -42,8 +43,18 @@ class MainActivity : ComponentActivity() {
             val showThemesModal by viewModel.showThemesModal.collectAsState()
             val showAboutModal by viewModel.showAboutModal.collectAsState()
 
+            
             val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
             val coroutineScope = rememberCoroutineScope()
+            
+            BackHandler(enabled = drawerState.isOpen || currentCalcKey != CalcKey.BASIC) {
+                if (drawerState.isOpen) {
+                    coroutineScope.launch { drawerState.close() }
+                } else if (currentCalcKey != CalcKey.BASIC) {
+                    viewModel.setCalcKey(CalcKey.BASIC)
+                }
+            }
+
 
             val colors = getThemeColors(currentThemeKey)
 

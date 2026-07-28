@@ -356,10 +356,65 @@ fun HealthCalcScreen(colors: CustomThemeColors) {
 
 @Composable
 fun OvulationCalcScreen(colors: CustomThemeColors) {
-    var cycleLengthText by remember { mutableStateOf("28") }
-    val cycleDays = cycleLengthText.toIntOrNull() ?: 28
+    var startDayText by remember { mutableStateOf("1") }
+    var startMonthText by remember { mutableStateOf("7") }
+    var startYearText by remember { mutableStateOf("2026") }
 
-    val ovulationDay = cycleDays - 14
+    var endDayText by remember { mutableStateOf("5") }
+    var endMonthText by remember { mutableStateOf("7") }
+    var endYearText by remember { mutableStateOf("2026") }
+
+    var cycleLengthText by remember { mutableStateOf("28") }
+    var periodDurationText by remember { mutableStateOf("5") }
+
+    val startDay = startDayText.toIntOrNull() ?: 1
+    val startMonth = (startMonthText.toIntOrNull() ?: 7) - 1
+    val startYear = startYearText.toIntOrNull() ?: 2026
+
+    val endDay = endDayText.toIntOrNull() ?: 5
+    val endMonth = (endMonthText.toIntOrNull() ?: 7) - 1
+    val endYear = endYearText.toIntOrNull() ?: 2026
+
+    val cycleDays = cycleLengthText.toIntOrNull() ?: 28
+    val periodDays = periodDurationText.toIntOrNull() ?: 5
+
+    // Calculate dates using Calendar
+    val startDateCal = Calendar.getInstance().apply {
+        set(startYear, startMonth, startDay)
+    }
+
+    val endDateCal = Calendar.getInstance().apply {
+        set(endYear, endMonth, endDay)
+    }
+
+    // Next period start date = start date + cycleDays
+    val nextPeriodCal = (startDateCal.clone() as Calendar).apply {
+        add(Calendar.DAY_OF_YEAR, cycleDays)
+    }
+
+    // Ovulation day = next period start - 14 days (or start date + cycleDays - 14)
+    val ovulationCal = (startDateCal.clone() as Calendar).apply {
+        add(Calendar.DAY_OF_YEAR, cycleDays - 14)
+    }
+
+    // Fertile window: 5 days before ovulation up to ovulation day
+    val fertileStartCal = (ovulationCal.clone() as Calendar).apply {
+        add(Calendar.DAY_OF_YEAR, -5)
+    }
+    val fertileEndCal = (ovulationCal.clone() as Calendar).apply {
+        add(Calendar.DAY_OF_YEAR, 1)
+    }
+
+    val sdf = SimpleDateFormat("yyyy/MM/dd (EEEE)", Locale("ar"))
+    val nextPeriodStr = sdf.format(nextPeriodCal.time)
+    val ovulationStr = sdf.format(ovulationCal.time)
+    val fertileStartStr = SimpleDateFormat("yyyy/MM/dd", Locale("ar")).format(fertileStartCal.time)
+    val fertileEndStr = SimpleDateFormat("yyyy/MM/dd", Locale("ar")).format(fertileEndCal.time)
+
+    // Calculate actual period bleeding duration entered by user
+    // diff between start and end
+    val diffMillis = endDateCal.timeInMillis - startDateCal.timeInMillis
+    val calculatedPeriodLen = if (diffMillis >= 0) (diffMillis / (1000 * 60 * 60 * 24)).toInt() + 1 else periodDays
 
     Column(
         modifier = Modifier
@@ -367,37 +422,137 @@ fun OvulationCalcScreen(colors: CustomThemeColors) {
             .background(colors.appBg)
             .padding(12.dp)
     ) {
-        Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("🌸 حاسبة حاسبة أيام الإباضة والدورة الشهرية", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = cycleLengthText,
-                    onValueChange = { cycleLengthText = it },
-                    label = { Text("طول الدورة الشهرية (بالأيام)", color = colors.textMuted) },
-                    singleLine = true,
+            item {
+                Surface(
+                    color = colors.surface,
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
-                )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("🌸 حاسبة الإباضة والدورة الشهرية المخصصة", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text)
+                        Text("أدخلي تواريخ دورتك وطولها لحساب أيام التبويض والخصوبة بدقة:", fontSize = 12.sp, color = colors.textMuted)
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text("📅 تاريخ بدء الدورة الحالية:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = startDayText,
+                                onValueChange = { startDayText = it },
+                                label = { Text("اليوم") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = startMonthText,
+                                onValueChange = { startMonthText = it },
+                                label = { Text("الشهر") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = startYearText,
+                                onValueChange = { startYearText = it },
+                                label = { Text("السنة") },
+                                modifier = Modifier.weight(1.2f),
+                                singleLine = true
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("🛑 تاريخ آخر دورة انتهت:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = endDayText,
+                                onValueChange = { endDayText = it },
+                                label = { Text("اليوم") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = endMonthText,
+                                onValueChange = { endMonthText = it },
+                                label = { Text("الشهر") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = endYearText,
+                                onValueChange = { endYearText = it },
+                                label = { Text("السنة") },
+                                modifier = Modifier.weight(1.2f),
+                                singleLine = true
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = cycleLengthText,
+                                onValueChange = { cycleLengthText = it },
+                                label = { Text("طول الدورة (تأتي كل كام يوم؟)") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = periodDurationText,
+                                onValueChange = { periodDurationText = it },
+                                label = { Text("مدة الطمث (أيام النزول)") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true
+                            )
+                        }
+                    }
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            item {
+                Surface(
+                    color = colors.surface2,
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("📊 النتائج والتواريخ المتوقعة لدورتك:", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                        
+                        Divider(color = colors.border.copy(alpha = 0.3f))
 
-        Surface(
-            color = colors.surface2,
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("النتائج التقديرية:", fontSize = 13.sp, color = colors.textMuted)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("• يوم الإباضة المتوقع: اليوم $ovulationDay من بداية الدورة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Text("• نافذة الخصوبة العالية: من اليوم ${ovulationDay - 2} إلى اليوم ${ovulationDay + 2}", fontSize = 13.sp, color = colors.text)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("مدة الطمث الفعلية:", fontSize = 13.sp, color = colors.textMuted)
+                            Text("$calculatedPeriodLen أيام", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("طول الدورة الكلي:", fontSize = 13.sp, color = colors.textMuted)
+                            Text("$cycleDays يوم", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        }
+
+                        Divider(color = colors.border.copy(alpha = 0.3f))
+
+                        Column {
+                            Text("🥚 يوم الإباضة المتوقع:", fontSize = 13.sp, color = colors.textMuted)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(ovulationStr, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                        }
+
+                        Column {
+                            Text("✨ نافذة الخصوبة العالية (أعلى فرصة للحمل):", fontSize = 13.sp, color = colors.textMuted)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("من $fertileStartStr إلى $fertileEndStr", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        }
+
+                        Column {
+                            Text("🗓️ موعد الدورة القادمة المتوقع:", fontSize = 13.sp, color = colors.textMuted)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(nextPeriodStr, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                        }
+                    }
+                }
             }
         }
     }

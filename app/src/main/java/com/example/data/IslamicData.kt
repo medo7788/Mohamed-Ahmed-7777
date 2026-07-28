@@ -207,6 +207,50 @@ object IslamicData {
         )
     }
 
+    fun getCorrectTimezoneOffset(lat: Double, lng: Double, calendar: java.util.Calendar = java.util.Calendar.getInstance()): Double {
+        // Check if location is in Egypt (lat 22 to 32, lng 25 to 37)
+        val isEgypt = (lat in 22.0..32.0 && lng in 25.0..37.0)
+        if (isEgypt) {
+            val year = calendar.get(java.util.Calendar.YEAR)
+            val dstStart = getLastFridayOf(year, java.util.Calendar.APRIL)
+            val dstEnd = getLastThursdayOf(year, java.util.Calendar.OCTOBER)
+            val timeMillis = calendar.timeInMillis
+            if (timeMillis >= dstStart.timeInMillis && timeMillis <= dstEnd.timeInMillis) {
+                return 3.0 // UTC+3 Summer Time in Egypt (التوقيت الصيفي)
+            } else {
+                return 2.0 // UTC+2 Winter Time in Egypt (التوقيت الشتوي)
+            }
+        }
+        return try {
+            val tz = java.util.TimeZone.getDefault()
+            tz.getOffset(calendar.timeInMillis) / 3600000.0
+        } catch (_: Exception) {
+            3.0
+        }
+    }
+
+    private fun getLastFridayOf(year: Int, month: Int): java.util.Calendar {
+        val cal = java.util.Calendar.getInstance()
+        cal.set(year, month + 1, 1, 0, 0, 0)
+        cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        while (cal.get(java.util.Calendar.DAY_OF_WEEK) != java.util.Calendar.FRIDAY) {
+            cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        }
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        return cal
+    }
+
+    private fun getLastThursdayOf(year: Int, month: Int): java.util.Calendar {
+        val cal = java.util.Calendar.getInstance()
+        cal.set(year, month + 1, 1, 23, 59, 59)
+        cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        while (cal.get(java.util.Calendar.DAY_OF_WEEK) != java.util.Calendar.THURSDAY) {
+            cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        }
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 23)
+        return cal
+    }
+
     fun getTimezoneOffsetForCity(timezoneId: String): Double {
         return try {
             val tz = java.util.TimeZone.getTimeZone(timezoneId)
@@ -217,7 +261,7 @@ object IslamicData {
     }
 
     fun getDynamicPrayerTimesForCity(city: CityPrayerInfo, calendar: java.util.Calendar = java.util.Calendar.getInstance()): DynamicPrayerTimes {
-        val tzOffset = getTimezoneOffsetForCity(city.timezone)
+        val tzOffset = getCorrectTimezoneOffset(city.lat, city.lng, calendar)
         return calculatePrayerTimes(city.lat, city.lng, tzOffset, calendar)
     }
 

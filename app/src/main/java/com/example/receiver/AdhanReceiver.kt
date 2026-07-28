@@ -6,7 +6,10 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.RingtoneManager
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 
@@ -22,6 +25,30 @@ class AdhanReceiver : BroadcastReceiver() {
 
         createNotificationChannel(context)
 
+        // Vibrate
+        try {
+            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 1000, 500, 1000, 500, 1500), -1))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(longArrayOf(0, 1000, 500, 1000, 500, 1500), -1)
+            }
+        } catch (_: Exception) {}
+
+        // Play sound
+        try {
+            val prefs = context.getSharedPreferences("clevcalc_adhan_prefs", Context.MODE_PRIVATE)
+            val soundKey = prefs.getString("selected_adhan_sound", "makkah")
+            val alarmUri = when (soundKey) {
+                "makkah", "madinah", "mishary", "abdulbasit" -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                else -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            } ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
+            val r = RingtoneManager.getRingtone(context, alarmUri)
+            r?.play()
+        } catch (_: Exception) {}
+
         val mainIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -35,7 +62,7 @@ class AdhanReceiver : BroadcastReceiver() {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("🕌 حان الآن موعد صلاة $prayerName")
-            .setContentText("الله أكبر الله أكبر - حان وقت صلاة $prayerName حسب توقيتك المحلي.")
+            .setContentText("الله أكبر الله أكبر - حان وقت صلاة $prayerName حسب توقيتك المحلي في مصر وخارجها.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)

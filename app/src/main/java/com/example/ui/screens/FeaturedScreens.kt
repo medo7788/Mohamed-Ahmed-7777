@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,25 +42,18 @@ data class ChatMessage(
 @Composable
 fun AIAssistantScreen(colors: CustomThemeColors) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     var inputText by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
-
+    
     val messages = remember {
         mutableStateListOf(
-            ChatMessage("ai", "أهلاً بك! أنا المساعد الذكي في ClevCalc Pro. يمكنني مساعدتك برأيك المالي، حسابات الذهب والزكاة، وفهم المعادلة الرياضية الصعبة! ✨")
+            ChatMessage("ai", "أهلاً بك! أنا المساعد الذكي الخاص بك المدعوم بـ Gemini. يمكنني مساعدتك في الحسابات المعقدة، فتاوى الزكاة، تحليل أسعار السوق، وأكثر من ذلك. كيف يمكنني مساعدتك اليوم؟ ✨")
         )
     }
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
-
-    val quickPrompts = listOf(
-        "احسب زكاة مال 100,000 جنيه مصري",
-        "كيف أحسب فائدة القرض المركبة؟",
-        "ما هو عيار الذهب الأفضل للاستثمار؟",
-        "احسب لقمة تكلفة سفر لسيارة 500 كم"
-    )
 
     fun sendMessage(msgText: String) {
         if (msgText.isBlank() || isLoading) return
@@ -66,7 +61,6 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
         inputText = ""
         messages.add(ChatMessage("user", userMsg))
         isLoading = true
-
         coroutineScope.launch {
             listState.animateScrollToItem(messages.size - 1)
             val history = messages.drop(1).chunked(2).mapNotNull {
@@ -83,147 +77,139 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
         modifier = Modifier
             .fillMaxSize()
             .background(colors.appBg)
-            .padding(12.dp)
     ) {
-        // AI Banner Card with Settings Button
+        // Professional Header
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
+            shadowElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))
-                            ),
+                            .background(Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("✨", fontSize = 22.sp)
+                        Text("✨", fontSize = 16.sp, color = Color.White)
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
-                        Text("المساعد الذكي (Gemini AI)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
-                        Text("إجابات دقيقة للعمليات الحسابية والمالية والإسلامية", fontSize = 11.sp, color = colors.textMuted)
+                        Text("ClevCalc AI", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text)
+                        Text("powered by Gemini", fontSize = 11.sp, color = colors.accent)
                     }
                 }
-
                 IconButton(onClick = { showSettingsDialog = true }) {
-                    Icon(Icons.Default.Settings, contentDescription = "إعدادات AI", tint = colors.accent)
+                    Icon(Icons.Default.Settings, contentDescription = "الإعدادات", tint = colors.textMuted)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Quick Suggestion Chips + Chat Messages
+        // Chat Area
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            item {
-                Text(
-                    text = "أسئلة مقترحة:",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.textMuted,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
+            items(messages.size) { index ->
+                val msg = messages[index]
+                val isAi = msg.sender == "ai"
+                
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = if (isAi) Arrangement.Start else Arrangement.End,
+                    verticalAlignment = Alignment.Bottom
                 ) {
-                    quickPrompts.take(2).forEach { prompt ->
-                        Surface(
-                            color = colors.surface2,
-                            shape = RoundedCornerShape(12.dp),
+                    if (isAi) {
+                        Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .clickable { sendMessage(prompt) }
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))),
+                            contentAlignment = Alignment.Center
                         ) {
+                            Text("✨", fontSize = 12.sp, color = Color.White)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    
+                    Surface(
+                        color = if (isAi) colors.surface2 else colors.accent,
+                        shape = RoundedCornerShape(
+                            topStart = 20.dp,
+                            topEnd = 20.dp,
+                            bottomStart = if (isAi) 4.dp else 20.dp,
+                            bottomEnd = if (isAi) 20.dp else 4.dp
+                        ),
+                        modifier = Modifier
+                            .widthIn(max = 280.dp)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(msg.text))
+                                        android.widget.Toast.makeText(context, "تم نسخ الرسالة", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            }
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                             Text(
-                                text = prompt,
-                                fontSize = 11.sp,
-                                color = colors.text,
-                                modifier = Modifier.padding(8.dp),
-                                textAlign = TextAlign.Center
+                                text = msg.text,
+                                fontSize = 15.sp,
+                                lineHeight = 24.sp,
+                                color = if (isAi) colors.text else Color.White
                             )
                         }
                     }
                 }
             }
-
-            items(messages) { msg ->
-                val isAi = msg.sender == "ai"
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = if (isAi) Arrangement.Start else Arrangement.End
-                ) {
-                    Surface(
-                        color = if (isAi) colors.surface else colors.accent,
-                        shape = RoundedCornerShape(
-                            topStart = 16.dp,
-                            topEnd = 16.dp,
-                            bottomStart = if (isAi) 2.dp else 16.dp,
-                            bottomEnd = if (isAi) 16.dp else 2.dp
-                        ),
-                        modifier = Modifier.widthIn(max = 300.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            androidx.compose.foundation.text.selection.SelectionContainer {
-                                Text(
-                                    text = msg.text,
-                                    fontSize = 14.sp,
-                                    lineHeight = 22.sp,
-                                    color = if (isAi) colors.text else Color.White
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
             if (isLoading) {
                 item {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.Start
+                            .padding(vertical = 6.dp),
+                        horizontalArrangement = Arrangement.Start,
+                        verticalAlignment = Alignment.Bottom
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(CircleShape)
+                                .background(Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("✨", fontSize = 12.sp, color = Color.White)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
                         Surface(
-                            color = colors.surface,
-                            shape = RoundedCornerShape(16.dp)
+                            color = colors.surface2,
+                            shape = RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp)
                         ) {
                             Row(
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    color = colors.accent,
+                                    modifier = Modifier.size(14.dp),
+                                    color = colors.textMuted,
                                     strokeWidth = 2.dp
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("جاري التفكير وصياغة الإجابة...", fontSize = 12.sp, color = colors.textMuted)
+                                Text("جاري معالجة الرد...", fontSize = 13.sp, color = colors.textMuted)
                             }
                         }
                     }
@@ -231,46 +217,56 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Input Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Bottom
+        // Modern Input Area
+        Surface(
+            color = colors.surface,
+            shadowElevation = 8.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                placeholder = { Text("اسأل الذكاء الاصطناعي أي سؤال...", fontSize = 13.sp) },
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(24.dp)),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = colors.surface,
-                    unfocusedContainerColor = colors.surface,
-                    focusedBorderColor = colors.accent,
-                    unfocusedBorderColor = colors.border,
-                    focusedTextColor = colors.text,
-                    unfocusedTextColor = colors.text
-                ),
-                maxLines = 5
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            IconButton(
-                onClick = { sendMessage(inputText) },
-                enabled = inputText.isNotBlank() && !isLoading,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(if (inputText.isNotBlank() && !isLoading) colors.accent else colors.surface2)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    Icons.Default.Send,
-                    contentDescription = "إرسال",
-                    tint = if (inputText.isNotBlank() && !isLoading) Color.White else colors.textMuted
+                TextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    placeholder = { Text("اكتب رسالتك هنا...", color = colors.textMuted) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(colors.appBg),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = colors.text,
+                        unfocusedTextColor = colors.text
+                    ),
+                    maxLines = 4,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences
+                    )
                 )
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(if (inputText.isNotBlank() && !isLoading) colors.accent else colors.surface2)
+                        .clickable(enabled = inputText.isNotBlank() && !isLoading) { sendMessage(inputText) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = colors.textMuted, strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Send, contentDescription = "إرسال", tint = if (inputText.isNotBlank()) Color.White else colors.textMuted, modifier = Modifier.size(20.dp))
+                    }
+                }
             }
         }
     }
@@ -280,91 +276,144 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
         var keyInput by remember { mutableStateOf(GeminiRepository.getStoredApiKey(context)) }
         var testStatus by remember { mutableStateOf<String?>(null) }
         var isTesting by remember { mutableStateOf(false) }
+        
+        var selectedModelId by remember { mutableStateOf(GeminiRepository.getSelectedModel(context)) }
+        var showModelDropdown by remember { mutableStateOf(false) }
+        val models = GeminiRepository.AVAILABLE_MODELS
 
         AlertDialog(
             onDismissRequest = { showSettingsDialog = false },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        GeminiRepository.saveApiKey(context, keyInput)
-                        showSettingsDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
-                ) {
-                    Text("حفظ المفتاح")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showSettingsDialog = false }) {
-                    Text("إلغاء", color = colors.textMuted)
-                }
-            },
             title = {
-                Text("⚙️ إعدادات Gemini API Key", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Settings, contentDescription = null, tint = colors.accent)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("إعدادات الذكاء الاصطناعي", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text("احصل على مفتاح مجاني تماماً بدون بطاقة ائتمان من Google AI Studio:", fontSize = 12.sp, color = colors.textMuted)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("aistudio.google.com/app/apikey", fontSize = 11.sp, color = colors.accent, fontWeight = FontWeight.Bold)
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
+                Column {
+                    Text(
+                        "للحصول على أفضل أداء، يرجى إدخال مفتاح Gemini API الخاص بك. يمكنك الحصول عليه مجاناً من Google AI Studio.",
+                        fontSize = 12.sp,
+                        color = colors.textMuted,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    
                     OutlinedTextField(
                         value = keyInput,
-                        onValueChange = { keyInput = it; testStatus = null },
+                        onValueChange = { keyInput = it },
                         label = { Text("Gemini API Key") },
-                        placeholder = { Text("AIzaSy...") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = colors.accent,
+                            focusedLabelColor = colors.accent
+                        )
                     )
-
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("النموذج المفضل:", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Button(
-                            onClick = {
-                                isTesting = true
-                                coroutineScope.launch {
-                                    val (success, msg) = GeminiRepository.testApiKey(keyInput)
-                                    testStatus = msg
-                                    isTesting = false
-                                }
-                            },
-                            enabled = keyInput.isNotBlank() && !isTesting,
-                            colors = ButtonDefaults.buttonColors(containerColor = colors.surface2)
+                    
+                    // Model Dropdown
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Surface(
+                            color = colors.surface2,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showModelDropdown = true }
                         ) {
-                            if (isTesting) {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                            } else {
-                                Text("🧪 اختبار المفتاح", fontSize = 11.sp, color = colors.text)
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val selectedName = models.find { it.id == selectedModelId }?.displayName ?: selectedModelId
+                                Text(selectedName, fontSize = 14.sp, color = colors.text)
+                                Text("▼", fontSize = 10.sp, color = colors.textMuted)
                             }
                         }
-
-                        if (keyInput.isNotBlank()) {
-                            TextButton(
-                                onClick = {
-                                    keyInput = ""
-                                    GeminiRepository.clearApiKey(context)
-                                    testStatus = "تم مسح المفتاح والعودة للافتراضي"
-                                }
-                            ) {
-                                Text("مسح", fontSize = 11.sp, color = Color.Red)
+                        DropdownMenu(
+                            expanded = showModelDropdown,
+                            onDismissRequest = { showModelDropdown = false },
+                            modifier = Modifier.background(colors.surface)
+                        ) {
+                            models.forEach { model ->
+                                DropdownMenuItem(
+                                    text = { Text(model.displayName, color = colors.text) },
+                                    onClick = {
+                                        selectedModelId = model.id
+                                        showModelDropdown = false
+                                    }
+                                )
                             }
                         }
                     }
 
                     if (testStatus != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = testStatus!!,
-                            fontSize = 11.sp,
-                            color = if (testStatus!!.startsWith("✅")) Color(0xFF10B981) else Color.Red
+                            text = testStatus ?: "",
+                            color = if (testStatus!!.contains("نجاح")) Color(0xFF10B981) else Color(0xFFEF4444),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 16.dp)
                         )
                     }
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TextButton(
+                            onClick = {
+                                keyInput = ""
+                                GeminiRepository.clearApiKey(context)
+                                testStatus = "تم مسح المفتاح والعودة للافتراضي"
+                            }
+                        ) {
+                            Text("مسح المفتاح", color = Color(0xFFEF4444))
+                        }
+                        
+                        OutlinedButton(
+                            onClick = {
+                                if (keyInput.isNotBlank()) {
+                                    isTesting = true
+                                    testStatus = "جاري الاختبار..."
+                                    coroutineScope.launch {
+                                        val (success, msg) = GeminiRepository.testApiKey(keyInput)
+                                        testStatus = if (success) "✅ نجاح الاتصال: \$msg" else "❌ فشل الاتصال: \$msg"
+                                        isTesting = false
+                                        if (success) {
+                                            GeminiRepository.saveApiKey(context, keyInput)
+                                            GeminiRepository.saveSelectedModel(context, selectedModelId)
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = !isTesting && keyInput.isNotBlank(),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent)
+                        ) {
+                            if (isTesting) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            } else {
+                                Text("اختبار الاتصال", color = colors.accent)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        GeminiRepository.saveApiKey(context, keyInput)
+                        GeminiRepository.saveSelectedModel(context, selectedModelId)
+                        showSettingsDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
+                ) {
+                    Text("حفظ وإغلاق")
                 }
             },
             containerColor = colors.surface,
