@@ -27,23 +27,14 @@ object GeminiRepository {
     data class AIModel(val id: String, val displayName: String)
 
     val AVAILABLE_MODELS = listOf(
-        AIModel("gemini-3.1-pro-preview", "Gemini 3.1 Pro Preview"),
-        AIModel("gemini-3.6-flash", "Gemini 3.6 Flash"),
-        AIModel("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite"),
-        AIModel("gemini-3.5-flash", "Gemini 3.5 Flash"),
-        AIModel("gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite"),
-        AIModel("gemini-3.0-flash-preview", "Gemini 3 Flash Preview"),
-        AIModel("gemini-2.5-flash", "Gemini 2.5 Flash"),
-        AIModel("gemini-2.0-flash", "Gemini 2.0 Flash"),
-        AIModel("gemini-1.5-pro", "Gemini 1.5 Pro"),
-        AIModel("gemini-1.5-flash", "Gemini 1.5 Flash")
+        AIModel("gemini-3.1-flash-lite-preview", "Gemini 3.1 Flash Lite")
     )
 
     private const val KEY_SELECTED_MODEL = "selected_gemini_model"
 
     fun getSelectedModel(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_SELECTED_MODEL, "gemini-3.1-pro-preview") ?: "gemini-3.1-pro-preview"
+        return prefs.getString(KEY_SELECTED_MODEL, "gemini-3.1-flash-lite-preview") ?: "gemini-3.1-flash-lite-preview"
     }
 
     fun saveSelectedModel(context: Context, model: String) {
@@ -84,35 +75,29 @@ object GeminiRepository {
                     put("parts", JSONArray().apply { put(JSONObject().put("text", prompt)) })
                 })
             })
-            put("tools", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("googleSearch", JSONObject())
-                })
-            })
         }
 
         val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-        for (model in listOf(getSelectedModel(context!!), "gemini-2.0-flash", "gemini-1.5-flash")) {
-            val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
-            val request = Request.Builder().url(url).post(requestBody).build()
-            try {
-                val response = client.newCall(request).execute()
-                val responseText = response.body?.string() ?: ""
-                if (response.isSuccessful && responseText.isNotBlank()) {
-                    val jsonResponse = JSONObject(responseText)
-                    val candidates = jsonResponse.optJSONArray("candidates")
-                    if (candidates != null && candidates.length() > 0) {
-                        val firstCand = candidates.getJSONObject(0)
-                        val content = firstCand.optJSONObject("content")
-                        val parts = content?.optJSONArray("parts")
-                        if (parts != null && parts.length() > 0) {
-                            val text = parts.getJSONObject(0).optString("text")
-                            if (text.isNotBlank()) return@withContext text
-                        }
+        val model = getSelectedModel(context!!)
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
+        val request = Request.Builder().url(url).post(requestBody).build()
+        try {
+            val response = client.newCall(request).execute()
+            val responseText = response.body?.string() ?: ""
+            if (response.isSuccessful && responseText.isNotBlank()) {
+                val jsonResponse = JSONObject(responseText)
+                val candidates = jsonResponse.optJSONArray("candidates")
+                if (candidates != null && candidates.length() > 0) {
+                    val firstCand = candidates.getJSONObject(0)
+                    val content = firstCand.optJSONObject("content")
+                    val parts = content?.optJSONArray("parts")
+                    if (parts != null && parts.length() > 0) {
+                        val text = parts.getJSONObject(0).optString("text")
+                        if (text.isNotBlank()) return@withContext text
                     }
                 }
-            } catch (_: Exception) {
             }
+        } catch (_: Exception) {
         }
         return@withContext null
     }
@@ -129,16 +114,11 @@ object GeminiRepository {
         val primaryModel = getSelectedModel(context!!)
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$primaryModel:generateContent?key=$apiKey"
 
-                val jsonBody = JSONObject().apply {
+        val jsonBody = JSONObject().apply {
             put("contents", JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "user")
                     put("parts", JSONArray().apply { put(JSONObject().put("text", prompt)) })
-                })
-            })
-            put("tools", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("googleSearch", JSONObject())
                 })
             })
         }
@@ -181,7 +161,7 @@ object GeminiRepository {
             return@withContext "🔑 لم يتم ضبط مفتاح API للذكاء الاصطناعي.\n\nاضغط على أيقونة الإعدادات (⚙️) بالأعلى لإدخال مفتاح Gemini الخاص بك مجاناً من Google AI Studio."
         }
 
-        val models = listOf(getSelectedModel(context), "gemini-2.0-flash", "gemini-1.5-flash")
+        val models = listOf(getSelectedModel(context))
         var lastErrorMsg = ""
 
         // Build live market context string to inject into AI prompt
@@ -236,11 +216,6 @@ object GeminiRepository {
         val jsonBody = JSONObject().apply {
             put("contents", contentsArray)
             put("systemInstruction", systemInstruction)
-            put("tools", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("googleSearch", JSONObject())
-                })
-            })
         }
 
         val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
@@ -281,7 +256,7 @@ object GeminiRepository {
 
     suspend fun testApiKey(apiKey: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         val testPrompt = "قل 'مرحباً بك' فقط."
-        val primaryModel = "gemini-2.0-flash"
+        val primaryModel = "gemini-3.1-flash-lite-preview"
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$primaryModel:generateContent?key=${apiKey.trim()}"
 
         val jsonBody = JSONObject().apply {

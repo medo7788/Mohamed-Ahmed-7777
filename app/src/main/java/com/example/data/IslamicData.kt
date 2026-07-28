@@ -211,14 +211,20 @@ object IslamicData {
         // Check if location is in Egypt (lat 22 to 32, lng 25 to 37)
         val isEgypt = (lat in 22.0..32.0 && lng in 25.0..37.0)
         if (isEgypt) {
-            val year = calendar.get(java.util.Calendar.YEAR)
-            val dstStart = getLastFridayOf(year, java.util.Calendar.APRIL)
-            val dstEnd = getLastThursdayOf(year, java.util.Calendar.OCTOBER)
-            val timeMillis = calendar.timeInMillis
-            if (timeMillis >= dstStart.timeInMillis && timeMillis <= dstEnd.timeInMillis) {
-                return 3.0 // UTC+3 Summer Time in Egypt (التوقيت الصيفي)
-            } else {
-                return 2.0 // UTC+2 Winter Time in Egypt (التوقيت الشتوي)
+            return try {
+                val tzEgypt = java.util.TimeZone.getTimeZone("Africa/Cairo")
+                tzEgypt.getOffset(calendar.timeInMillis) / 3600000.0
+            } catch (_: Exception) {
+                // Manual fallback logic
+                val year = calendar.get(java.util.Calendar.YEAR)
+                val dstStart = getLastFridayOf(year, java.util.Calendar.APRIL)
+                val dstEnd = getLastThursdayOf(year, java.util.Calendar.OCTOBER)
+                val timeMillis = calendar.timeInMillis
+                if (timeMillis >= dstStart.timeInMillis && timeMillis <= dstEnd.timeInMillis) {
+                    3.0 // UTC+3 Summer Time in Egypt (التوقيت الصيفي)
+                } else {
+                    2.0 // UTC+2 Winter Time in Egypt (التوقيت الشتوي)
+                }
             }
         }
         return try {

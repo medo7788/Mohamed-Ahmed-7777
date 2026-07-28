@@ -6,8 +6,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.geometry.Size
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -70,45 +81,93 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
 
     val prefs = remember { context.getSharedPreferences("clevcalc_adhan_prefs", Context.MODE_PRIVATE) }
 
-    var selectedCityIndex by remember { mutableStateOf(0) }
+    var selectedCityIndex by remember { 
+        mutableStateOf(prefs.getInt("selected_city_index", 0)) 
+    }
     var cityExpanded by remember { mutableStateOf(false) }
     var showPrivacyNotice by remember { mutableStateOf(false) }
     var showAdhanSettings by remember { mutableStateOf(false) }
     var selectedAdhanSound by remember { mutableStateOf(prefs.getString("selected_adhan_sound", "makkah") ?: "makkah") }
-    val baseCity = IslamicData.cities[selectedCityIndex]
+    val baseCity = IslamicData.cities.getOrElse(selectedCityIndex) { IslamicData.cities[0] }
 
-    var customLat by remember { mutableStateOf<Double?>(null) }
-    var customLng by remember { mutableStateOf<Double?>(null) }
-    var customLocationName by remember { mutableStateOf("") }
+    var customLat by remember { 
+        val savedLatStr = prefs.getString("custom_lat", null)
+        mutableStateOf(savedLatStr?.toDoubleOrNull()) 
+    }
+    var customLng by remember { 
+        val savedLngStr = prefs.getString("custom_lng", null)
+        mutableStateOf(savedLngStr?.toDoubleOrNull()) 
+    }
+    var customLocationName by remember { 
+        mutableStateOf(prefs.getString("custom_location_name", "") ?: "") 
+    }
 
     val city = if (customLat != null && customLng != null) {
-        CityPrayerInfo(customLocationName.ifBlank { "موقعي الحالي" }, customLocationName.ifBlank { "My Location" }, "", customLat!!, customLng!!, baseCity.timezone, "", "", "", "", "", "")
+        CityPrayerInfo(customLocationName.ifBlank { "موقعي الحالي" }, customLocationName.ifBlank { "My Location" }, "", customLat!!, customLng!!, "", "", "", "", "", "", "")
     } else {
         baseCity
     }
 
+    fun saveLocationState(lat: Double?, lng: Double?, name: String, cityIndex: Int) {
+        prefs.edit().apply {
+            putInt("selected_city_index", cityIndex)
+            if (lat != null && lng != null) {
+                putString("custom_lat", lat.toString())
+                putString("custom_lng", lng.toString())
+                putString("custom_location_name", name)
+            } else {
+                remove("custom_lat")
+                remove("custom_lng")
+                remove("custom_location_name")
+            }
+            apply()
+        }
+    }
+
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    
+    fun fetchGPSLocation() {
+        try {
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        customLat = location.latitude
+                        customLng = location.longitude
+                        customLocationName = "موقعي الحالي"
+                        saveLocationState(location.latitude, location.longitude, "موقعي الحالي", selectedCityIndex)
+                    } else {
+                        fusedLocationClient.lastLocation
+                            .addOnSuccessListener { lastLoc ->
+                                if (lastLoc != null) {
+                                    customLat = lastLoc.latitude
+                                    customLng = lastLoc.longitude
+                                    customLocationName = "موقعي الحالي"
+                                    saveLocationState(lastLoc.latitude, lastLoc.longitude, "موقعي الحالي", selectedCityIndex)
+                                }
+                            }
+                    }
+                }
+        } catch (e: SecurityException) { }
+    }
+
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
-            try {
-                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                    .addOnSuccessListener { location ->
-                        if (location != null) {
-                            customLat = location.latitude
-                            customLng = location.longitude
-                            customLocationName = "موقعي الحالي"
-                        }
-                    }
-            } catch (e: SecurityException) { }
+            fetchGPSLocation()
         }
     }
 
     LaunchedEffect(Unit) {
-        locationPermissionLauncher.launch(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        )
+        val hasFine = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val hasCoarse = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (hasFine || hasCoarse) {
+            fetchGPSLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+            )
+        }
     }
 
     // Calculate prayer times dynamically based on astronomical location and date
@@ -239,9 +298,15 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
                     Box {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = {
-                                locationPermissionLauncher.launch(
-                                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-                                )
+                                val hasFine = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                val hasCoarse = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (hasFine || hasCoarse) {
+                                    fetchGPSLocation()
+                                } else {
+                                    locationPermissionLauncher.launch(
+                                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                                    )
+                                }
                             }) {
                                 Icon(Icons.Default.LocationOn, contentDescription = "تحديد موقعي (GPS)", tint = colors.accent)
                             }
@@ -265,6 +330,10 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
                                     text = { Text("${c.nameAr} - ${c.countryAr}", color = colors.text) },
                                     onClick = {
                                         selectedCityIndex = idx
+                                        customLat = null
+                                        customLng = null
+                                        customLocationName = ""
+                                        saveLocationState(null, null, "", idx)
                                         cityExpanded = false
                                     }
                                 )
@@ -684,6 +753,18 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
         Spacer(modifier = Modifier.height(14.dp))
 
         // Main Compass Surface Card
+        val normalizedDiff = ((animatedAngle % 360f) + 360f) % 360f
+        val isAligned = normalizedDiff < 5f || normalizedDiff > 355f
+
+        // Vibrate when aligned
+        LaunchedEffect(isAligned) {
+            if (isAligned) {
+                try {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                } catch (_: Throwable) {}
+            }
+        }
+
         Surface(
             color = colors.surface,
             shape = RoundedCornerShape(20.dp),
@@ -693,57 +774,209 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
                 modifier = Modifier.padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Compass Visual Canvas
+                // Compass Visual Canvas Container
                 Box(
                     modifier = Modifier
-                        .size(240.dp)
+                        .size(250.dp)
                         .clip(CircleShape)
-                        .background(colors.surface2)
-                        .border(3.dp, colors.accent, CircleShape),
+                        .background(
+                            Brush.radialGradient(
+                                colors = if (isAligned) {
+                                    listOf(Color(0xFF022E21), Color(0xFF01140F))
+                                } else {
+                                    listOf(colors.surface2, colors.appBg)
+                                }
+                            )
+                        )
+                        .border(
+                            width = 4.dp,
+                            brush = Brush.sweepGradient(
+                                colors = if (isAligned) {
+                                    listOf(Color(0xFF10B981), Color(0xFF34D399), Color(0xFF10B981))
+                                } else {
+                                    listOf(colors.accent, colors.accent.copy(alpha = 0.5f), colors.accent)
+                                }
+                            ),
+                            shape = CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Canvas(modifier = Modifier.fillMaxSize().rotate(-deviceAzimuth)) {
+                    // 1. Rotating Compass Face (Ticks and Letters)
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .rotate(-deviceAzimuth)
+                    ) {
                         val center = Offset(size.width / 2, size.height / 2)
-                        val radius = size.width / 2 - 16.dp.toPx()
-                        for (i in 0 until 360 step 30) {
+                        val radiusOuter = size.width / 2 - 14.dp.toPx()
+                        
+                        // Outer Golden Ring
+                        drawCircle(
+                            color = Color(0xFFDFB659).copy(alpha = 0.4f),
+                            radius = radiusOuter,
+                            center = center,
+                            style = Stroke(width = 1.5.dp.toPx())
+                        )
+
+                        // Draw Ticks (every 5 degrees)
+                        for (i in 0 until 360 step 5) {
                             val rad = Math.toRadians(i.toDouble())
-                            val start = Offset(
-                                (center.x + (radius - 12) * sin(rad)).toFloat(),
-                                (center.y - (radius - 12) * cos(rad)).toFloat()
+                            val isMajor = i % 30 == 0
+                            val isCardinal = i % 90 == 0
+                            
+                            val tickLength = if (isCardinal) 15.dp.toPx() else if (isMajor) 10.dp.toPx() else 6.dp.toPx()
+                            val tickWidth = if (isCardinal) 2.5.dp.toPx() else if (isMajor) 1.5.dp.toPx() else 1.dp.toPx()
+                            val tickColor = if (isCardinal) Color(0xFFDFB659) else if (isMajor) Color(0xFFDFB659).copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f)
+
+                            val startOffset = Offset(
+                                (center.x + (radiusOuter - tickLength) * sin(rad)).toFloat(),
+                                (center.y - (radiusOuter - tickLength) * cos(rad)).toFloat()
                             )
-                            val end = Offset(
-                                (center.x + radius * sin(rad)).toFloat(),
-                                (center.y - radius * cos(rad)).toFloat()
+                            val endOffset = Offset(
+                                (center.x + radiusOuter * sin(rad)).toFloat(),
+                                (center.y - radiusOuter * cos(rad)).toFloat()
                             )
-                            drawLine(Color.Gray.copy(alpha = 0.5f), start, end, strokeWidth = 2.dp.toPx())
+                            
+                            drawLine(
+                                color = tickColor,
+                                start = startOffset,
+                                end = endOffset,
+                                strokeWidth = tickWidth
+                            )
                         }
                     }
 
-                    // Rotating Kaaba Indicator
+                    // Static direction overlay (N, S, E, W written elegantly in Arabic)
+                    // Let's place cardinal texts relative to rotation so they stay on the rotating face
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .rotate(-deviceAzimuth)
+                    ) {
+                        Text(
+                            text = "شمال",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFDFB659),
+                            modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp)
+                        )
+                        Text(
+                            text = "جنوب",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFDFB659).copy(alpha = 0.8f),
+                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp)
+                        )
+                        Text(
+                            text = "شرق",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFDFB659).copy(alpha = 0.8f),
+                            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 22.dp)
+                        )
+                        Text(
+                            text = "غرب",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFDFB659).copy(alpha = 0.8f),
+                            modifier = Modifier.align(Alignment.CenterStart).padding(start = 22.dp)
+                        )
+                    }
+
+                    // 2. Rotating Qibla Arrow / Needle (Pointing to Kaaba)
+                    // We draw a gorgeous gold diamond/needle inside a Box rotating towards `animatedAngle`
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .rotate(animatedAngle),
-                        contentAlignment = Alignment.TopCenter
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(top = 16.dp)
-                        ) {
-                            Text("🕋", fontSize = 32.sp)
-                            Box(
-                                modifier = Modifier
-                                    .width(4.dp)
-                                    .height(50.dp)
-                                    .background(colors.accent)
+                        // Custom Canvas to draw the beautiful golden pointer needle
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val centerOffset = Offset(size.width / 2, size.height / 2)
+                            val needleLength = size.width / 2 - 40.dp.toPx()
+                            
+                            // Golden Path pointing UP
+                            val path = androidx.compose.ui.graphics.Path().apply {
+                                moveTo(centerOffset.x, centerOffset.y - needleLength) // Tip of arrow
+                                lineTo(centerOffset.x - 12.dp.toPx(), centerOffset.y - 30.dp.toPx())
+                                lineTo(centerOffset.x - 4.dp.toPx(), centerOffset.y)
+                                lineTo(centerOffset.x + 4.dp.toPx(), centerOffset.y)
+                                lineTo(centerOffset.x + 12.dp.toPx(), centerOffset.y - 30.dp.toPx())
+                                close()
+                            }
+                            
+                            // Draw glowing needle background shadow
+                            drawPath(
+                                path = path,
+                                color = Color(0xFFDFB659).copy(alpha = 0.3f),
+                                style = androidx.compose.ui.graphics.drawscope.Fill
                             )
+                            
+                            // Draw gold-gradient filled needle
+                            drawPath(
+                                path = path,
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color(0xFFFFF1C5), // Shiny Tip
+                                        Color(0xFFDFB659), // Metallic Gold
+                                        Color(0xFF9E782F)  // Shadow Gold
+                                    )
+                                )
+                            )
+                            
+                            // Center pivot pin
+                            drawCircle(
+                                color = Color(0xFFDFB659),
+                                radius = 8.dp.toPx(),
+                                center = centerOffset
+                            )
+                            drawCircle(
+                                color = Color.White,
+                                radius = 3.dp.toPx(),
+                                center = centerOffset
+                            )
+                        }
+
+                        // Rotating Kaaba Icon at the outer edge of the arrow
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(top = 12.dp),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Surface(
+                                color = if (isAligned) Color(0xFF10B981) else Color(0xFF1F2937),
+                                shape = CircleShape,
+                                border = BorderStroke(1.5.dp, Color(0xFFDFB659)),
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    Text("🕋", fontSize = 18.sp)
+                                }
+                            }
                         }
                     }
 
-                    Text("N", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.accent, modifier = Modifier.align(Alignment.TopCenter).padding(top = 6.dp))
-                    Text("S", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.textMuted, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp))
-                    Text("E", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.textMuted, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 6.dp))
-                    Text("W", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.textMuted, modifier = Modifier.align(Alignment.CenterStart).padding(start = 6.dp))
+                    // Green Alignment Success Banner Overlay
+                    if (isAligned) {
+                        Surface(
+                            color = Color(0xFF10B981).copy(alpha = 0.9f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.padding(bottom = 60.dp).align(Alignment.Center)
+                        ) {
+                            Text(
+                                text = "القبلة صحيحة تماماً ✓",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -752,7 +985,7 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
                     text = "زاوية القبلة: ${String.format("%.1f", qiblaAngle)}° | اتجاه الهاتف: ${String.format("%.1f", deviceAzimuth)}°",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = colors.text
+                    color = if (isAligned) Color(0xFF10B981) else colors.text
                 )
             }
         }
@@ -917,9 +1150,9 @@ fun TasbihScreen(colors: CustomThemeColors) {
     val allDhikrs = (defaultDhikrs + customDhikrs).distinct()
 
     val bgOptions = listOf(
-        com.example.R.drawable.islamic_pattern_bg to Color(0xFF582CBA),
-        com.example.R.drawable.islamic_pattern_green to Color(0xFF0F766E),
-        com.example.R.drawable.islamic_pattern_blue to Color(0xFF1D4ED8)
+        listOf(Color(0xFF582CBA), Color(0xFF33147F)) to Color(0xFF582CBA),
+        listOf(Color(0xFF0F766E), Color(0xFF07403B)) to Color(0xFF0F766E),
+        listOf(Color(0xFF1D4ED8), Color(0xFF112D82)) to Color(0xFF1D4ED8)
     )
     var selectedBgIndex by remember { mutableStateOf(0) }
     val currentBg = bgOptions[selectedBgIndex]
@@ -1021,25 +1254,14 @@ fun TasbihScreen(colors: CustomThemeColors) {
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Decorative Main Counter Card
+    // Decorative Main Counter Card
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(24.dp))
+                .background(Brush.linearGradient(colors = currentBg.first))
         ) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = currentBg.first),
-                contentDescription = null,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            // Overlay to make text readable
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(currentBg.second.copy(alpha = 0.85f))
-            )
             
             Box(modifier = Modifier.fillMaxSize().padding(20.dp)) {
                 // Star decorations on corners
@@ -1048,6 +1270,21 @@ fun TasbihScreen(colors: CustomThemeColors) {
                 Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.BottomStart))
                 Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.BottomEnd))
 
+                // Lifetime count badge
+                Surface(
+                    color = Color.White.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)
+                ) {
+                    Text(
+                        text = "📿 إجمالي التسبيحات: $lifetimeCount",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -1055,7 +1292,7 @@ fun TasbihScreen(colors: CustomThemeColors) {
                 ) {
                     // Top Goal Badge and BG selector
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1077,7 +1314,7 @@ fun TasbihScreen(colors: CustomThemeColors) {
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
-                                text = "🎯 $targetCount",
+                                text = "🎯 المستهدف: $targetCount",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
@@ -1086,56 +1323,164 @@ fun TasbihScreen(colors: CustomThemeColors) {
                         }
                     }
 
-                    // Dhikr Title Text
-                    Text(
-                        text = dhikrName,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        textAlign = TextAlign.Center
+                    // Dhikr Title Text with subtle background glow
+                    Surface(
+                        color = Color.White.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = dhikrName,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                        )
+                    }
+
+                    // Tactile scaling animation state
+                    val coroutineScope = rememberCoroutineScope()
+                    var isPressed by remember { mutableStateOf(false) }
+                    val buttonScale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.90f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+                        label = "tasbihButtonScale"
                     )
 
-                    // Circular Counter Ring
+                    // Circular Counter Ring with illuminated beads drawing
                     Box(
                         modifier = Modifier
-                            .size(170.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.15f))
-                            .border(6.dp, Color.White.copy(alpha = 0.8f), CircleShape)
-                            .clickable {
+                            .size(200.dp)
+                            .scale(buttonScale)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null // Custom visual feedback through scale & Canvas
+                            ) {
+                                isPressed = true
+                                coroutineScope.launch {
+                                    delay(80)
+                                    isPressed = false
+                                }
                                 count++
                                 lifetimeCount++
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                try {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                } catch (_: Throwable) {}
                                 try {
                                     IslamicData.incrementLifetimeCount(context)
-                                } catch (e: Exception) { e.printStackTrace() }
+                                } catch (_: Throwable) {}
                                 
                                 if (count > 0 && count % targetCount == 0) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    try {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    } catch (_: Throwable) {}
                                 }
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "$count",
-                                fontSize = 54.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                        // Canvas to draw the gorgeous circular progress sweep & 33 prayer beads!
+                        val progressFraction = if (targetCount > 0) (count % targetCount).toFloat() / targetCount else 0f
+                        
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val centerOffset = Offset(size.width / 2, size.height / 2)
+                            val radiusOuter = size.width / 2 - 12.dp.toPx()
+                            val radiusInner = radiusOuter - 14.dp.toPx()
+                            
+                            // 1. Draw glowing background orbit track
+                            drawCircle(
+                                color = Color.White.copy(alpha = 0.12f),
+                                radius = radiusOuter,
+                                center = centerOffset,
+                                style = Stroke(width = 4.dp.toPx())
                             )
-                            Text(
-                                text = "من $targetCount",
-                                fontSize = 13.sp,
-                                color = Color.White.copy(alpha = 0.8f)
+                            
+                            // 2. Draw progress sweep arc (Golden accent / White)
+                            drawArc(
+                                color = Color(0xFFFBBF24), // Gold glow
+                                startAngle = -90f,
+                                sweepAngle = progressFraction * 360f,
+                                useCenter = false,
+                                style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round),
+                                size = Size(radiusOuter * 2, radiusOuter * 2),
+                                topLeft = Offset(centerOffset.x - radiusOuter, centerOffset.y - radiusOuter)
                             )
+                            
+                            // 3. Draw 33 physical prayer beads around the ring
+                            val totalBeads = 33
+                            val completedBeadsCount = (progressFraction * totalBeads).toInt()
+                            
+                            for (i in 0 until totalBeads) {
+                                val angleDegrees = (i * (360f / totalBeads)) - 90f
+                                val angleRad = Math.toRadians(angleDegrees.toDouble())
+                                val beadCenter = Offset(
+                                    (centerOffset.x + radiusOuter * cos(angleRad)).toFloat(),
+                                    (centerOffset.y + radiusOuter * sin(angleRad)).toFloat()
+                                )
+                                
+                                val isBeadCompleted = i < completedBeadsCount
+                                val beadColor = if (isBeadCompleted) {
+                                    Color(0xFFFBBF24) // Gold filled
+                                } else {
+                                    Color.White.copy(alpha = 0.4f) // Translucent white
+                                }
+                                val beadRadius = if (isBeadCompleted) 5.dp.toPx() else 3.5.dp.toPx()
+                                
+                                // Draw bead outer glow if completed
+                                if (isBeadCompleted) {
+                                    drawCircle(
+                                        color = Color(0xFFFBBF24).copy(alpha = 0.4f),
+                                        radius = beadRadius + 3.dp.toPx(),
+                                        center = beadCenter
+                                    )
+                                }
+                                
+                                drawCircle(
+                                    color = beadColor,
+                                    radius = beadRadius,
+                                    center = beadCenter
+                                )
+                            }
+                        }
+
+                        // Inner physical mother-of-pearl central touch button
+                        Box(
+                            modifier = Modifier
+                                .size(136.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(
+                                            Color.White.copy(alpha = 0.35f),
+                                            Color.White.copy(alpha = 0.15f)
+                                        )
+                                    )
+                                )
+                                .border(2.dp, Color.White.copy(alpha = 0.5f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "$count",
+                                    fontSize = 52.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "من $targetCount",
+                                    fontSize = 12.sp,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                            }
                         }
                     }
 
-                    // Tap hint
+                    // Tap hint with pulsing Arabic text
                     Text(
-                        text = "— اضغط داخل الدائرة للعد —",
-                        fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.7f)
+                        text = "— انقر في أي مكان داخل الدائرة للتسبيح —",
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.75f),
+                        modifier = Modifier.padding(bottom = 24.dp)
                     )
                 }
             }
@@ -1145,7 +1490,7 @@ fun TasbihScreen(colors: CustomThemeColors) {
 
         // Action Buttons
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Button(
@@ -1331,12 +1676,15 @@ fun QuranScreen(colors: CustomThemeColors) {
                     .fillMaxWidth()
             ) {
                 items(filteredSurahs) { surah ->
+                    val isMeccan = surah.place.contains("مك")
                     Surface(
                         color = colors.surface,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        tonalElevation = 2.dp,
+                        border = BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
+                            .padding(vertical = 5.dp)
                             .clickable { selectedSurah = surah }
                     ) {
                         Row(
@@ -1346,25 +1694,99 @@ fun QuranScreen(colors: CustomThemeColors) {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Islamic Star Badge for Surah Number
                                 Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.surface2),
+                                    modifier = Modifier.size(42.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("${surah.number}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                                    Canvas(modifier = Modifier.fillMaxSize()) {
+                                        val center = Offset(size.width / 2, size.height / 2)
+                                        val r = size.width / 2 - 2.dp.toPx()
+                                        val path = androidx.compose.ui.graphics.Path()
+                                        val points = 8
+                                        for (i in 0 until points) {
+                                            val angleRad = Math.toRadians((i * (360f / points)).toDouble())
+                                            val x = (center.x + r * cos(angleRad)).toFloat()
+                                            val y = (center.y + r * sin(angleRad)).toFloat()
+                                            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                                            
+                                            val innerAngleRad = Math.toRadians((i * (360f / points) + (180f / points)).toDouble())
+                                            val ix = (center.x + (r * 0.72f) * cos(innerAngleRad)).toFloat()
+                                            val iy = (center.y + (r * 0.72f) * sin(innerAngleRad)).toFloat()
+                                            path.lineTo(ix, iy)
+                                        }
+                                        path.close()
+                                        drawPath(
+                                            path = path,
+                                            brush = Brush.radialGradient(
+                                                colors = listOf(Color(0xFFFFF1C5), Color(0xFFDFB659))
+                                            )
+                                        )
+                                        drawCircle(
+                                            color = Color(0xFF9E782F),
+                                            radius = r * 0.52f,
+                                            center = center,
+                                            style = Stroke(width = 1.dp.toPx())
+                                        )
+                                    }
+                                    Text(
+                                        text = "${surah.number}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF451A03)
+                                    )
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text("سورة ${surah.nameAr}", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
-                                    Text("${surah.place} • ${surah.totalVerses} آية", fontSize = 11.sp, color = colors.textMuted)
+                                
+                                Spacer(modifier = Modifier.width(14.dp))
+                                
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "سورة ${surah.nameAr}",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        color = colors.text
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        // Styled Meccan/Medinan chip
+                                        Surface(
+                                            color = if (isMeccan) Color(0xFFFEF3C7) else Color(0xFFD1FAE5),
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Text(
+                                                text = if (isMeccan) "مكية" else "مدنية",
+                                                color = if (isMeccan) Color(0xFFB45309) else Color(0xFF047857),
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                        Text(
+                                            text = "${surah.totalVerses} آية",
+                                            fontSize = 11.sp,
+                                            color = colors.textMuted
+                                        )
+                                    }
                                 }
                             }
 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("اقرأ الآن 📖", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(start = 8.dp)
+                            ) {
+                                Text(
+                                    text = "اقرأ 📖",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.accent
+                                )
                             }
                         }
                     }
@@ -1557,33 +1979,72 @@ fun SurahDetailReader(
                     val verseText = versesList[idx]
                     Surface(
                         color = colors.surface,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        tonalElevation = 1.dp,
+                        border = BorderStroke(1.dp, colors.border.copy(alpha = 0.3f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
+                            .padding(vertical = 5.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.Top
                         ) {
+                            // Traditional Star Badge for Verse Number
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.accent.copy(alpha = 0.15f)),
+                                    .size(34.dp)
+                                    .padding(top = 2.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("${idx + 1}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val center = Offset(size.width / 2, size.height / 2)
+                                    val r = size.width / 2
+                                    val path = androidx.compose.ui.graphics.Path()
+                                    val points = 8
+                                    for (i in 0 until points) {
+                                        val angleRad = Math.toRadians((i * (360f / points)).toDouble())
+                                        val x = (center.x + r * cos(angleRad)).toFloat()
+                                        val y = (center.y + r * sin(angleRad)).toFloat()
+                                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                                        
+                                        val innerAngleRad = Math.toRadians((i * (360f / points) + (180f / points)).toDouble())
+                                        val ix = (center.x + (r * 0.7f) * cos(innerAngleRad)).toFloat()
+                                        val iy = (center.y + (r * 0.7f) * sin(innerAngleRad)).toFloat()
+                                        path.lineTo(ix, iy)
+                                    }
+                                    path.close()
+                                    drawPath(
+                                        path = path,
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(Color(0xFFFFF1C5), Color(0xFFDFB659))
+                                        )
+                                    )
+                                    drawCircle(
+                                        color = Color(0xFF9E782F),
+                                        radius = r * 0.5f,
+                                        center = center,
+                                        style = Stroke(width = 0.8.dp.toPx())
+                                    )
+                                }
+                                Text(
+                                    text = "${idx + 1}",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF451A03)
+                                )
                             }
-                            Spacer(modifier = Modifier.width(12.dp))
+                            
+                            Spacer(modifier = Modifier.width(14.dp))
+                            
                             Text(
-                                verseText,
+                                text = verseText,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = colors.text,
-                                lineHeight = 32.sp,
+                                lineHeight = 34.sp,
                                 textAlign = TextAlign.Right,
                                 modifier = Modifier.weight(1f)
                             )

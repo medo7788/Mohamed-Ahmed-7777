@@ -356,6 +356,7 @@ fun HealthCalcScreen(colors: CustomThemeColors) {
 
 @Composable
 fun OvulationCalcScreen(colors: CustomThemeColors) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var startDayText by remember { mutableStateOf("1") }
     var startMonthText by remember { mutableStateOf("7") }
     var startYearText by remember { mutableStateOf("2026") }
@@ -437,7 +438,30 @@ fun OvulationCalcScreen(colors: CustomThemeColors) {
                         Text("أدخلي تواريخ دورتك وطولها لحساب أيام التبويض والخصوبة بدقة:", fontSize = 12.sp, color = colors.textMuted)
                         Spacer(modifier = Modifier.height(14.dp))
 
-                        Text("📅 تاريخ بدء الدورة الحالية:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("📅 تاريخ بدء الدورة الحالية:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                            TextButton(onClick = {
+                                try {
+                                    android.app.DatePickerDialog(
+                                        context,
+                                        { _, selectedYear, selectedMonth, selectedDayOfMonth ->
+                                            startDayText = selectedDayOfMonth.toString()
+                                            startMonthText = (selectedMonth + 1).toString()
+                                            startYearText = selectedYear.toString()
+                                        },
+                                        startYear,
+                                        startMonth,
+                                        startDay
+                                    ).show()
+                                } catch (_: Throwable) {}
+                            }) {
+                                Text("📅 اختيار من التقويم", color = colors.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(
@@ -464,7 +488,30 @@ fun OvulationCalcScreen(colors: CustomThemeColors) {
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("🛑 تاريخ آخر دورة انتهت:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("🛑 تاريخ آخر دورة انتهت:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                            TextButton(onClick = {
+                                try {
+                                    android.app.DatePickerDialog(
+                                        context,
+                                        { _, selectedYear, selectedMonth, selectedDayOfMonth ->
+                                            endDayText = selectedDayOfMonth.toString()
+                                            endMonthText = (selectedMonth + 1).toString()
+                                            endYearText = selectedYear.toString()
+                                        },
+                                        endYear,
+                                        endMonth,
+                                        endDay
+                                    ).show()
+                                } catch (_: Throwable) {}
+                            }) {
+                                Text("📅 اختيار من التقويم", color = colors.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedTextField(
