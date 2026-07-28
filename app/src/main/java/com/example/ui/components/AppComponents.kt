@@ -209,38 +209,59 @@ fun AppDrawerContent(
                 .weight(1f)
                 .fillMaxWidth()
         ) {
-            // Featured shortcuts grid if no search query
+            // Featured shortcuts 2x2 Grid if no search query
             if (searchQuery.isBlank() && groupedCalcs[CategoryKey.FEATURED] != null) {
+                val featuredList = groupedCalcs[CategoryKey.FEATURED] ?: emptyList()
                 item {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        groupedCalcs[CategoryKey.FEATURED]?.forEach { item ->
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(
-                                        if (item == CalcKey.AI) Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))
-                                        else Brush.linearGradient(listOf(Color(0xFFEF4444), Color(0xFFF59E0B)))
-                                    )
-                                    .clickable { onSelectCalc(item) }
-                                    .padding(12.dp),
-                                contentAlignment = Alignment.Center
+                        featuredList.chunked(2).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(item.icon, fontSize = 28.sp)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = item.title,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        textAlign = TextAlign.Center
-                                    )
+                                rowItems.forEach { item ->
+                                    val cardGradient = when (item) {
+                                        CalcKey.AI -> Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))
+                                        CalcKey.LIVE_PRICES -> Brush.linearGradient(listOf(Color(0xFF10B981), Color(0xFF059669)))
+                                        CalcKey.ECONOMIC_INDICATORS -> Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8)))
+                                        else -> Brush.linearGradient(listOf(Color(0xFFF59E0B), Color(0xFFD97706)))
+                                    }
+
+                                    Surface(
+                                        color = Color.Transparent,
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(56.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(cardGradient)
+                                            .clickable { onSelectCalc(item) }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Start
+                                        ) {
+                                            Text(item.icon, fontSize = 22.sp)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = item.title,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

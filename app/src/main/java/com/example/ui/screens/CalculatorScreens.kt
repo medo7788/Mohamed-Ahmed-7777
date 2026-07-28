@@ -172,8 +172,8 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
                     color = btnBg,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .aspectRatio(1.1f)
+                        .fillMaxWidth()
+                        .aspectRatio(1.2f)
                         .clickable { onBtnClick(btn) }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -211,7 +211,7 @@ private fun evaluateSimpleExpr(expr: String): Double {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CurrencyConverterScreen(colors: CustomThemeColors) {
-    var amountText by remember { mutableStateOf("100") }
+    var amountText by remember { mutableStateOf("") }
     var fromCode by remember { mutableStateOf("USD") }
     var toCode by remember { mutableStateOf("EGP") }
 
@@ -238,7 +238,8 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it },
-                    label = { Text("المبلغ والمراد تحويله", color = colors.textMuted) },
+                    label = { Text("المبلغ المراد تحويله", color = colors.textMuted) },
+                    placeholder = { Text("0", color = colors.textMuted) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

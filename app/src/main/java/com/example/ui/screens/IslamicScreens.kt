@@ -15,10 +15,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CompassCalibration
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -387,13 +393,52 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
 
 @Composable
 fun QiblaDirectionScreen(colors: CustomThemeColors) {
+    val context = LocalContext.current
     var selectedCityIndex by remember { mutableStateOf(0) }
+    var deviceAzimuth by remember { mutableStateOf(0f) }
+    var isCompassActive by remember { mutableStateOf(true) }
+    var locationName by remember { mutableStateOf("") }
+
     val city = IslamicData.cities[selectedCityIndex]
     val qiblaAngle = IslamicData.calculateQiblaAngle(city.lat, city.lng)
+    val currentDisplayLocation = if (locationName.isNotBlank()) locationName else city.nameAr
 
+    // Hardware Compass Sensor Listener
+    DisposableEffect(isCompassActive) {
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val rotationSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+            ?: sensorManager?.getDefaultSensor(Sensor.TYPE_ORIENTATION)
+
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                if (event == null || !isCompassActive) return
+                if (event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
+                    val rotationMatrix = FloatArray(9)
+                    SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+                    val orientation = FloatArray(3)
+                    SensorManager.getOrientation(rotationMatrix, orientation)
+                    val azimuthInDegrees = Math.toDegrees(orientation[0].toDouble()).toFloat()
+                    deviceAzimuth = (azimuthInDegrees + 360) % 360
+                } else if (event.sensor.type == Sensor.TYPE_ORIENTATION) {
+                    deviceAzimuth = (event.values[0] + 360) % 360
+                }
+            }
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+        if (rotationSensor != null) {
+            sensorManager?.registerListener(listener, rotationSensor, SensorManager.SENSOR_DELAY_UI)
+        }
+
+        onDispose {
+            sensorManager?.unregisterListener(listener)
+        }
+    }
+
+    val totalAngle = (qiblaAngle - deviceAzimuth).toFloat()
     val animatedAngle by animateFloatAsState(
-        targetValue = qiblaAngle.toFloat(),
-        animationSpec = tween(durationMillis = 800)
+        targetValue = totalAngle,
+        animationSpec = tween(durationMillis = 300)
     )
 
     Column(
@@ -403,7 +448,7 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
             .padding(14.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Green Banner Header Card (Image 26 & 27)
+        // Green Banner Header Card
         Surface(
             color = Color(0xFF059669),
             shape = RoundedCornerShape(16.dp),
@@ -413,20 +458,46 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("🕋", fontSize = 28.sp)
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text("اتجاه القبلة", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-                    Text("نحو الكعبة المشرفة - مكة المكرمة", fontSize = 12.sp, color = Color.White.copy(alpha = 0.85f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🕋", fontSize = 28.sp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text("اتجاه القبلة المباشر", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                        Text("نحو الكعبة المشرفة - مكة المكرمة", fontSize = 12.sp, color = Color.White.copy(alpha = 0.85f))
+                    }
+                }
+
+                // City selector dropdown
+                var cityMenuOpen by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { cityMenuOpen = true }) {
+                        Icon(Icons.Default.LocationOn, contentDescription = "تغيير المدينة", tint = Color.White)
+                    }
+                    DropdownMenu(
+                        expanded = cityMenuOpen,
+                        onDismissRequest = { cityMenuOpen = false }
+                    ) {
+                        IslamicData.cities.forEachIndexed { index, c ->
+                            DropdownMenuItem(
+                                text = { Text(c.nameAr, fontSize = 13.sp) },
+                                onClick = {
+                                    selectedCityIndex = index
+                                    locationName = c.nameAr
+                                    cityMenuOpen = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Main White Compass Card
+        // Main Compass Surface Card
         Surface(
             color = colors.surface,
             shape = RoundedCornerShape(20.dp),
@@ -445,7 +516,7 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
                         .border(3.dp, colors.accent, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
+                    Canvas(modifier = Modifier.fillMaxSize().rotate(-deviceAzimuth)) {
                         val center = Offset(size.width / 2, size.height / 2)
                         val radius = size.width / 2 - 16.dp.toPx()
                         for (i in 0 until 360 step 30) {
@@ -492,8 +563,8 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "${String.format("%.0f", qiblaAngle)}° من الشمال الحقيقي (باتجاه الشرق)",
-                    fontSize = 14.sp,
+                    text = "زاوية القبلة: ${String.format("%.1f", qiblaAngle)}° | اتجاه الهاتف: ${String.format("%.1f", deviceAzimuth)}°",
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.text
                 )
@@ -502,7 +573,7 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Location Box Card
+        // Location Info Box
         Surface(
             color = colors.surface,
             shape = RoundedCornerShape(14.dp),
@@ -515,27 +586,32 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("موقعك (${city.lat}, ${city.lng})", fontSize = 12.sp, color = colors.textMuted)
-                Text("المسافة للكعبة: 1,269 كم", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                Column {
+                    Text("📍 المدينة الحالية: $currentDisplayLocation", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    Text("الإحداثيات: ${city.lat}, ${city.lng}", fontSize = 11.sp, color = colors.textMuted)
+                }
+                Text("المسافة للكعبة: ~1,269 كم", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accent)
             }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Live Compass Button
+        // Toggle / Recalibrate Live Compass Button
         Button(
-            onClick = { },
-            colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+            onClick = { isCompassActive = !isCompassActive },
+            colors = ButtonDefaults.buttonColors(containerColor = if (isCompassActive) colors.accent else Color.Gray),
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("🧭 تفعيل البوصلة الحية (على الموبايل)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Icon(Icons.Default.CompassCalibration, contentDescription = null, tint = Color.White)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(if (isCompassActive) "🧭 البوصلة الحية مفعلة (حسّاس الموبايل يعمل)" else "🔄 إعادة تفعيل البوصلة", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            "💡 لأفضل دقة، وجّه أعلى الجهاز نحو الشمال ثم انظر إلى السهم.",
+            "💡 ضع الهاتف بشكل افقي وقم بلف الهاتف للتعرف المباشر على الشمال والقبلة.",
             fontSize = 11.sp,
             color = colors.textMuted,
             textAlign = TextAlign.Center

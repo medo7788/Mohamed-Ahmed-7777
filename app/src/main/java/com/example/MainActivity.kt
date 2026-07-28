@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
+            val context = LocalContext.current
+            LaunchedEffect(Unit) {
+                viewModel.initTheme(context)
+            }
+
             val currentThemeKey by viewModel.currentThemeKey.collectAsState()
             val currentCalcKey by viewModel.currentCalcKey.collectAsState()
             val searchQuery by viewModel.searchQuery.collectAsState()
@@ -126,7 +132,7 @@ class MainActivity : ComponentActivity() {
                                 currentTheme = currentThemeKey,
                                 colors = colors,
                                 onSelectTheme = {
-                                    viewModel.setTheme(it)
+                                    viewModel.setTheme(context, it)
                                     viewModel.setShowThemesModal(false)
                                 },
                                 onDismiss = { viewModel.setShowThemesModal(false) }
