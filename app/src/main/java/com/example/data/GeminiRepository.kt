@@ -26,7 +26,7 @@ object GeminiRepository {
     private val MODELS_CHAIN = listOf(
         "gemini-1.5-flash",
         "gemini-2.0-flash",
-        "gemini-2.5-flash",
+        "Gemini 3.1 Flash Lite",
         "gemini-1.5-pro"
     )
 
