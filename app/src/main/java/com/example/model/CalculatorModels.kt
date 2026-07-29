@@ -25,6 +25,8 @@ enum class CalcKey(
     val badge: String? = null,
     val keywords: List<String>
 ) {
+    HOME("home", "الرئيسية", "🏠", CategoryKey.FEATURED, null, listOf("رئيسية", "home", "لوحة", "شاشة")),
+
     // ⭐ Featured
     AI("ai", "المساعد الذكي", "✨", CategoryKey.FEATURED, "AI", listOf("ذكاء", "ai", "chat", "دردشة", "مساعد")),
     LIVE_PRICES("live-prices", "الأسعار الحية", "📊", CategoryKey.FEATURED, "LIVE", listOf("أسعار", "ذهب", "فضة", "عملات", "نفط")),

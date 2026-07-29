@@ -124,7 +124,14 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
         }
     }
 
-    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val fusedLocationClient = remember(context) {
+        val targetContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            context.applicationContext.createAttributionContext("default")
+        } else {
+            context.applicationContext
+        }
+        LocationServices.getFusedLocationProviderClient(targetContext)
+    }
     
     fun fetchGPSLocation() {
         try {
@@ -616,7 +623,14 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
     var customLat by remember { mutableStateOf<Double?>(null) }
     var customLng by remember { mutableStateOf<Double?>(null) }
 
-    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val fusedLocationClient = remember(context) {
+        val targetContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            context.applicationContext.createAttributionContext("default")
+        } else {
+            context.applicationContext
+        }
+        LocationServices.getFusedLocationProviderClient(targetContext)
+    }
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -1855,7 +1869,7 @@ fun SurahDetailReader(
                         var text = ayahsArr.getJSONObject(i).getString("text")
                         // Clean leading basmalah if returned inside ayah text for non-Fatiha/Tawbah
                         if (i == 0 && surah.number != 1 && surah.number != 9) {
-                            text = text.removePrefix("بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ").trim()
+                            text = stripBismillahIfPresent(text)
                         }
                         fetchedVerses.add(text)
                         cacheArray.put(text)
@@ -1976,7 +1990,12 @@ fun SurahDetailReader(
                     .fillMaxWidth()
             ) {
                 items(versesList.size) { idx ->
-                    val verseText = versesList[idx]
+                    val rawVerseText = versesList[idx]
+                    val verseText = if (idx == 0 && surah.number != 1 && surah.number != 9) {
+                        stripBismillahIfPresent(rawVerseText)
+                    } else {
+                        rawVerseText
+                    }
                     Surface(
                         color = colors.surface,
                         shape = RoundedCornerShape(16.dp),
@@ -2146,5 +2165,20 @@ fun ZakatCalcScreen(colors: CustomThemeColors) {
                 }
             }
         }
+    }
+}
+
+fun stripBismillahIfPresent(ayahText: String): String {
+    val diacriticsRegex = Regex("[\u0610-\u061A\u064B-\u065F\u06D6-\u06ED]")
+    val words = ayahText.trim().split(Regex("\\s+"))
+    if (words.size < 4) return ayahText
+
+    val expectedBase = listOf("بسم", "الله", "الرحمن", "الرحيم")
+    val actualBase = words.take(4).map { diacriticsRegex.replace(it, "") }
+
+    return if (actualBase == expectedBase) {
+        words.drop(4).joinToString(" ")
+    } else {
+        ayahText
     }
 }

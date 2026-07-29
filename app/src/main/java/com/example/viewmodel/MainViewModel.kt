@@ -16,7 +16,7 @@ class MainViewModel : ViewModel() {
     private val _currentThemeKey = MutableStateFlow(AppThemeKey.ELEGANT_DARK)
     val currentThemeKey: StateFlow<AppThemeKey> = _currentThemeKey.asStateFlow()
 
-    private val _currentCalcKey = MutableStateFlow(CalcKey.BASIC)
+    private val _currentCalcKey = MutableStateFlow(CalcKey.HOME)
     val currentCalcKey: StateFlow<CalcKey> = _currentCalcKey.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")

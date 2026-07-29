@@ -23,17 +23,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import com.example.R
 import com.example.model.CalcKey
 import com.example.model.CategoryKey
 import com.example.ui.theme.AppThemeKey
 import com.example.ui.theme.CustomThemeColors
+import com.example.ui.theme.GradientTokens
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppHeader(
     currentCalc: CalcKey,
     colors: CustomThemeColors,
-    onOpenDrawer: () -> Unit,
+    onGoHome: () -> Unit,
     onOpenThemes: () -> Unit,
     onOpenAbout: () -> Unit
 ) {
@@ -54,8 +57,22 @@ fun AppHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(onClick = onOpenDrawer) {
-                Icon(Icons.Default.Menu, contentDescription = "القائمة", tint = colors.headerFg)
+            if (currentCalc != CalcKey.HOME) {
+                IconButton(onClick = onGoHome) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "الرجوع للرئيسية",
+                        tint = colors.headerFg
+                    )
+                }
+            } else {
+                IconButton(onClick = {}, enabled = false) {
+                    Icon(
+                        imageVector = Icons.Default.Calculate,
+                        contentDescription = "ClevCalc Pro",
+                        tint = colors.headerFg
+                    )
+                }
             }
 
             Row(
@@ -226,10 +243,10 @@ fun AppDrawerContent(
                             ) {
                                 rowItems.forEach { item ->
                                     val cardGradient = when (item) {
-                                        CalcKey.AI -> Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))
-                                        CalcKey.LIVE_PRICES -> Brush.linearGradient(listOf(Color(0xFF10B981), Color(0xFF059669)))
-                                        CalcKey.ECONOMIC_INDICATORS -> Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8)))
-                                        else -> Brush.linearGradient(listOf(Color(0xFFF59E0B), Color(0xFFD97706)))
+                                        CalcKey.AI -> GradientTokens.AI
+                                        CalcKey.LIVE_PRICES -> GradientTokens.LivePrices
+                                        CalcKey.ECONOMIC_INDICATORS -> GradientTokens.Economic
+                                        else -> GradientTokens.PremiumGold
                                     }
 
                                     Surface(
@@ -282,44 +299,57 @@ fun AppDrawerContent(
                             onClick = { collapsedState[cat] = !isCollapsed },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(cat.icon, fontSize = 20.sp)
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column {
-                                        Text(
-                                            text = cat.label,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = colors.text
-                                        )
-                                        Text(
-                                            text = cat.description,
-                                            fontSize = 11.sp,
-                                            color = colors.textMuted
-                                        )
-                                    }
-                                }
-
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Badge(
-                                        containerColor = colors.accent,
-                                        contentColor = Color.White
-                                    ) {
-                                        Text(itemsInCat.size.toString(), fontSize = 11.sp)
-                                    }
-                                    Spacer(modifier = Modifier.width(6.dp))
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                if (cat == CategoryKey.ISLAMIC) {
                                     Icon(
-                                        imageVector = if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                        painter = painterResource(id = R.drawable.ic_islamic_pattern),
                                         contentDescription = null,
-                                        tint = colors.textMuted
+                                        tint = colors.accent.copy(alpha = 0.12f),
+                                        modifier = Modifier
+                                            .align(Alignment.CenterEnd)
+                                            .size(70.dp)
+                                            .padding(end = 8.dp)
                                     )
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(cat.icon, fontSize = 20.sp)
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Column {
+                                            Text(
+                                                text = cat.label,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = colors.text
+                                            )
+                                            Text(
+                                                text = cat.description,
+                                                fontSize = 11.sp,
+                                                color = colors.textMuted
+                                            )
+                                        }
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Badge(
+                                            containerColor = colors.accent,
+                                            contentColor = Color.White
+                                        ) {
+                                            Text(itemsInCat.size.toString(), fontSize = 11.sp)
+                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Icon(
+                                            imageVector = if (isCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                            contentDescription = null,
+                                            tint = colors.textMuted
+                                        )
+                                    }
                                 }
                             }
                         }

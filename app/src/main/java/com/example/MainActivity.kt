@@ -14,6 +14,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.model.CalcKey
 import com.example.ui.components.*
 import com.example.ui.screens.*
@@ -43,119 +46,127 @@ class MainActivity : ComponentActivity() {
             val showThemesModal by viewModel.showThemesModal.collectAsState()
             val showAboutModal by viewModel.showAboutModal.collectAsState()
 
-            
-            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-            val coroutineScope = rememberCoroutineScope()
-            
-            BackHandler(enabled = drawerState.isOpen || currentCalcKey != CalcKey.BASIC) {
-                if (drawerState.isOpen) {
-                    coroutineScope.launch { drawerState.close() }
-                } else if (currentCalcKey != CalcKey.BASIC) {
-                    viewModel.setCalcKey(CalcKey.BASIC)
+            val navController = rememberNavController()
+
+            // Keep viewModel currentCalcKey in sync with NavController backstack changes
+            LaunchedEffect(navController) {
+                navController.currentBackStackEntryFlow.collect { backStackEntry ->
+                    val route = backStackEntry.destination.route
+                    if (route != null) {
+                        try {
+                            val key = CalcKey.valueOf(route)
+                            viewModel.setCalcKey(key)
+                        } catch (_: IllegalArgumentException) {}
+                    }
                 }
             }
 
+            // Back handler to navigate back to Home screen if on sub-screen
+            BackHandler(enabled = currentCalcKey != CalcKey.HOME) {
+                navController.navigate(CalcKey.HOME.name) {
+                    popUpTo(CalcKey.HOME.name) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
 
             val colors = getThemeColors(currentThemeKey)
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                 ClevCalcTheme(themeKey = currentThemeKey) {
-                    ModalNavigationDrawer(
-                        drawerState = drawerState,
-                        drawerContent = {
-                            ModalDrawerSheet(
-                                drawerContainerColor = colors.surface,
-                                modifier = Modifier.width(320.dp)
-                            ) {
-                                AppDrawerContent(
-                                    currentKey = currentCalcKey,
-                                    searchQuery = searchQuery,
-                                    onSearchChange = { viewModel.setSearchQuery(it) },
-                                    colors = colors,
-                                    onSelectCalc = { key ->
-                                        viewModel.setCalcKey(key)
-                                        coroutineScope.launch { drawerState.close() }
-                                    },
-                                    onOpenThemes = {
-                                        viewModel.setShowThemesModal(true)
-                                        coroutineScope.launch { drawerState.close() }
+                    Scaffold(
+                        topBar = {
+                            AppHeader(
+                                currentCalc = currentCalcKey,
+                                colors = colors,
+                                onGoHome = {
+                                    if (currentCalcKey != CalcKey.HOME) {
+                                        navController.navigate(CalcKey.HOME.name) {
+                                            popUpTo(CalcKey.HOME.name) { inclusive = true }
+                                            launchSingleTop = true
+                                        }
                                     }
-                                )
-                            }
-                        }
-                    ) {
-                        Scaffold(
-                            topBar = {
-                                AppHeader(
-                                    currentCalc = currentCalcKey,
-                                    colors = colors,
-                                    onOpenDrawer = { coroutineScope.launch { drawerState.open() } },
-                                    onOpenThemes = { viewModel.setShowThemesModal(true) },
-                                    onOpenAbout = { viewModel.setShowAboutModal(true) }
-                                )
-                            },
-                            containerColor = colors.appBg
-                        ) { innerPadding ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(innerPadding)
-                            ) {
-                                when (currentCalcKey) {
-                                    CalcKey.AI -> AIAssistantScreen(colors)
-                                    CalcKey.LIVE_PRICES -> LivePricesScreen(colors)
-                                    CalcKey.ECONOMIC_INDICATORS -> EconomicIndicatorsScreen(colors)
-                                    CalcKey.WEATHER -> WeatherScreen(colors)
-                                    CalcKey.PRAYER -> PrayerTimesScreen(colors)
-                                    CalcKey.QIBLA -> QiblaDirectionScreen(colors)
-                                    CalcKey.ADHKAR -> AdhkarScreen(colors)
-                                    CalcKey.TASBIH -> TasbihScreen(colors)
-                                    CalcKey.QURAN -> QuranScreen(colors)
-                                    CalcKey.ZAKAT -> ZakatCalcScreen(colors)
-                                    CalcKey.BASIC -> BasicCalculatorScreen(colors)
-                                    CalcKey.CURRENCY -> CurrencyConverterScreen(colors)
-                                    CalcKey.GOLD -> GoldCalcScreen(colors)
-                                    CalcKey.UNIT -> UnitConverterScreen(colors)
-                                    CalcKey.DISCOUNT -> DiscountCalcScreen(colors)
-                                    CalcKey.LOAN -> LoanCalcScreen(colors)
-                                    CalcKey.SAVINGS -> SavingsCalcScreen(colors)
-                                    CalcKey.SALES_TAX -> SalesTaxCalcScreen(colors)
-                                    CalcKey.TIP -> TipCalcScreen(colors)
-                                    CalcKey.PERCENT -> PercentageCalcScreen(colors)
-                                    CalcKey.UNIT_PRICE -> UnitPriceCalcScreen(colors)
-                                    CalcKey.WORLD_TIME -> WorldTimeScreen(colors)
-                                    CalcKey.DATE -> DateCalcScreen(colors)
-                                    CalcKey.AGE -> AgeCalcScreen(colors)
-                                    CalcKey.COUNTDOWN -> CountdownScreen(colors)
-                                    CalcKey.HEALTH -> HealthCalcScreen(colors)
-                                    CalcKey.OVULATION -> OvulationCalcScreen(colors)
-                                    CalcKey.FUEL_COST -> FuelCostCalcScreen(colors)
-                                    CalcKey.FUEL_EFF -> FuelEfficiencyCalcScreen(colors)
-                                    CalcKey.NUM_WORDS -> NumberToWordsScreen(colors)
-                                    CalcKey.GPA -> GPACalcScreen(colors)
-                                    CalcKey.HEX -> HexConverterScreen(colors)
-                                }
-                            }
-                        }
-
-                        if (showThemesModal) {
-                            ThemeSelectorModal(
-                                currentTheme = currentThemeKey,
-                                colors = colors,
-                                onSelectTheme = {
-                                    viewModel.setTheme(context, it)
-                                    viewModel.setShowThemesModal(false)
                                 },
-                                onDismiss = { viewModel.setShowThemesModal(false) }
+                                onOpenThemes = { viewModel.setShowThemesModal(true) },
+                                onOpenAbout = { viewModel.setShowAboutModal(true) }
                             )
+                        },
+                        containerColor = colors.appBg
+                    ) { innerPadding ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                        ) {
+                            NavHost(
+                                navController = navController,
+                                startDestination = CalcKey.HOME.name,
+                                enterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(300)) },
+                                exitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(300)) },
+                                popEnterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(300)) },
+                                popExitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(300)) }
+                            ) {
+                                composable(CalcKey.HOME.name) {
+                                    HomeScreen(colors) { key ->
+                                        navController.navigate(key.name) {
+                                            popUpTo(CalcKey.HOME.name) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
+                                }
+                                composable(CalcKey.AI.name) { AIAssistantScreen(colors) }
+                                composable(CalcKey.LIVE_PRICES.name) { LivePricesScreen(colors) }
+                                composable(CalcKey.ECONOMIC_INDICATORS.name) { EconomicIndicatorsScreen(colors) }
+                                composable(CalcKey.WEATHER.name) { WeatherScreen(colors) }
+                                composable(CalcKey.PRAYER.name) { PrayerTimesScreen(colors) }
+                                composable(CalcKey.QIBLA.name) { QiblaDirectionScreen(colors) }
+                                composable(CalcKey.ADHKAR.name) { AdhkarScreen(colors) }
+                                composable(CalcKey.TASBIH.name) { TasbihScreen(colors) }
+                                composable(CalcKey.QURAN.name) { QuranScreen(colors) }
+                                composable(CalcKey.ZAKAT.name) { ZakatCalcScreen(colors) }
+                                composable(CalcKey.BASIC.name) { BasicCalculatorScreen(colors) }
+                                composable(CalcKey.CURRENCY.name) { CurrencyConverterScreen(colors) }
+                                composable(CalcKey.GOLD.name) { GoldCalcScreen(colors) }
+                                composable(CalcKey.UNIT.name) { UnitConverterScreen(colors) }
+                                composable(CalcKey.DISCOUNT.name) { DiscountCalcScreen(colors) }
+                                composable(CalcKey.LOAN.name) { LoanCalcScreen(colors) }
+                                composable(CalcKey.SAVINGS.name) { SavingsCalcScreen(colors) }
+                                composable(CalcKey.SALES_TAX.name) { SalesTaxCalcScreen(colors) }
+                                composable(CalcKey.TIP.name) { TipCalcScreen(colors) }
+                                composable(CalcKey.PERCENT.name) { PercentageCalcScreen(colors) }
+                                composable(CalcKey.UNIT_PRICE.name) { UnitPriceCalcScreen(colors) }
+                                composable(CalcKey.WORLD_TIME.name) { WorldTimeScreen(colors) }
+                                composable(CalcKey.DATE.name) { DateCalcScreen(colors) }
+                                composable(CalcKey.AGE.name) { AgeCalcScreen(colors) }
+                                composable(CalcKey.COUNTDOWN.name) { CountdownScreen(colors) }
+                                composable(CalcKey.HEALTH.name) { HealthCalcScreen(colors) }
+                                composable(CalcKey.OVULATION.name) { OvulationCalcScreen(colors) }
+                                composable(CalcKey.FUEL_COST.name) { FuelCostCalcScreen(colors) }
+                                composable(CalcKey.FUEL_EFF.name) { FuelEfficiencyCalcScreen(colors) }
+                                composable(CalcKey.NUM_WORDS.name) { NumberToWordsScreen(colors) }
+                                composable(CalcKey.GPA.name) { GPACalcScreen(colors) }
+                                composable(CalcKey.HEX.name) { HexConverterScreen(colors) }
+                            }
                         }
+                    }
 
-                        if (showAboutModal) {
-                            AboutModal(
-                                colors = colors,
-                                onDismiss = { viewModel.setShowAboutModal(false) }
-                            )
-                        }
+                    if (showThemesModal) {
+                        ThemeSelectorModal(
+                            currentTheme = currentThemeKey,
+                            colors = colors,
+                            onSelectTheme = {
+                                viewModel.setTheme(context, it)
+                                viewModel.setShowThemesModal(false)
+                            },
+                            onDismiss = { viewModel.setShowThemesModal(false) }
+                        )
+                    }
+
+                    if (showAboutModal) {
+                        AboutModal(
+                            colors = colors,
+                            onDismiss = { viewModel.setShowAboutModal(false) }
+                        )
                     }
                 }
             }
