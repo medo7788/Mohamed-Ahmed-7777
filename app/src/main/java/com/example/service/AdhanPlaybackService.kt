@@ -30,6 +30,10 @@ class AdhanPlaybackService : Service() {
         const val ACTION_START = "ACTION_START"
         const val ACTION_STOP = "ACTION_STOP"
         const val EXTRA_PRAYER_NAME = "extra_prayer_name"
+
+        private const val PREFS_NAME = "clevcalc_adhan_prefs"
+        private const val KEY_SOUND_URI = "adhan_sound_uri"
+        private const val KEY_VIBRATE = "adhan_vibrate_enabled"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -57,6 +61,8 @@ class AdhanPlaybackService : Service() {
     }
 
     private fun startAdhan(prayerName: String) {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
         val stopIntent = Intent(this, AdhanPlaybackService::class.java).apply {
             action = ACTION_STOP
         }
@@ -81,7 +87,7 @@ class AdhanPlaybackService : Service() {
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("🕌 حان الآن موعد صلاة $prayerName")
+            .setContentTitle("حان الآن موعد صلاة $prayerName")
             .setContentText("الله أكبر الله أكبر - حان وقت صلاة $prayerName")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -93,15 +99,17 @@ class AdhanPlaybackService : Service() {
 
         startForeground(NOTIFICATION_ID, notification)
 
-        // Play Sound
+        // Play the sound the user picked in Adhan Settings (falls back to the
+        // system's default alarm tone the first time, before any choice is made).
         try {
-            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            val chosenUri: Uri = prefs.getString(KEY_SOUND_URI, null)?.let { Uri.parse(it) }
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)!!
 
             mediaPlayer?.release()
             mediaPlayer = MediaPlayer().apply {
-                setDataSource(this@AdhanPlaybackService, alarmUri)
+                setDataSource(this@AdhanPlaybackService, chosenUri)
                 setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ALARM)
@@ -117,17 +125,20 @@ class AdhanPlaybackService : Service() {
             Log.e(TAG, "Error playing sound via MediaPlayer", e)
         }
 
-        // Vibrate
-        try {
-            vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000), 0))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000), 0)
+        // Vibrate only if the user left "الاهتزاز مع الأذان" enabled (defaults to on).
+        val vibrateEnabled = prefs.getBoolean(KEY_VIBRATE, true)
+        if (vibrateEnabled) {
+            try {
+                vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator?.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000), 0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator?.vibrate(longArrayOf(0, 1000, 500, 1000, 500, 1000, 500, 1000), 0)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Vibrator error", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Vibrator error", e)
         }
     }
 

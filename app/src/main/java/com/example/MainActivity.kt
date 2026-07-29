@@ -131,6 +131,7 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.TASBIH.name) { TasbihScreen(colors) }
                                 composable(CalcKey.QURAN.name) { QuranScreen(colors) }
                                 composable(CalcKey.ZAKAT.name) { ZakatCalcScreen(colors) }
+                                composable(CalcKey.ADHAN_SETTINGS.name) { AdhanSettingsScreen(colors) }
                                 composable(CalcKey.BASIC.name) { BasicCalculatorScreen(colors) }
                                 composable(CalcKey.CURRENCY.name) { CurrencyConverterScreen(colors) }
                                 composable(CalcKey.GOLD.name) { GoldCalcScreen(colors) }

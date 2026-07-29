@@ -1,5 +1,16 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.provider.Settings
+import com.example.util.AppLocationProvider
+import com.example.ui.components.LocationStatusCard
+import com.example.ui.components.LocationCardState
+import com.example.ui.components.ToolScreenScaffold
+import com.example.ui.theme.AppIcons
+import com.example.model.CalcKey
+import com.example.ui.theme.GradientTokens
+import com.example.ui.theme.Spacing
+
 import android.Manifest
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -70,6 +81,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.atan2
 import android.annotation.SuppressLint
 import com.google.android.gms.location.LocationServices
 import android.location.Geocoder
@@ -80,560 +92,168 @@ import com.google.android.gms.location.Priority
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrayerTimesScreen(colors: CustomThemeColors) {
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
+    val prefs = context.getSharedPreferences("prayer_prefs", Context.MODE_PRIVATE)
 
-    val prefs = remember { context.getSharedPreferences("clevcalc_adhan_prefs", Context.MODE_PRIVATE) }
-
-    var selectedCityIndex by remember { 
-        mutableStateOf(prefs.getInt("selected_city_index", 0)) 
-    }
-    var cityExpanded by remember { mutableStateOf(false) }
-    var showPrivacyNotice by remember { mutableStateOf(false) }
-    var showAdhanSettings by remember { mutableStateOf(false) }
-    var selectedAdhanSound by remember { mutableStateOf(prefs.getString("selected_adhan_sound", "makkah") ?: "makkah") }
-    val baseCity = IslamicData.cities.getOrElse(selectedCityIndex) { IslamicData.cities[0] }
-
-    var customLat by remember { 
-        val savedLatStr = prefs.getString("custom_lat", null)
-        mutableStateOf(savedLatStr?.toDoubleOrNull()) 
-    }
-    var customLng by remember { 
-        val savedLngStr = prefs.getString("custom_lng", null)
-        mutableStateOf(savedLngStr?.toDoubleOrNull()) 
-    }
-    var customLocationName by remember { 
-        mutableStateOf(prefs.getString("custom_location_name", "") ?: "") 
-    }
-
-    val city = if (customLat != null && customLng != null) {
-        CityPrayerInfo(customLocationName.ifBlank { "موقعي الحالي" }, customLocationName.ifBlank { "My Location" }, "", customLat!!, customLng!!, "", "", "", "", "", "", "")
-    } else {
-        baseCity
-    }
-
-    fun saveLocationState(lat: Double?, lng: Double?, name: String, cityIndex: Int) {
-        prefs.edit().apply {
-            putInt("selected_city_index", cityIndex)
-            if (lat != null && lng != null) {
-                putString("custom_lat", lat.toString())
-                putString("custom_lng", lng.toString())
-                putString("custom_location_name", name)
-            } else {
-                remove("custom_lat")
-                remove("custom_lng")
-                remove("custom_location_name")
-            }
-            apply()
-        }
-    }
-
-    val fusedLocationClient = remember(context) {
-        val targetContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            context.applicationContext.createAttributionContext("default")
-        } else {
-            context.applicationContext
-        }
-        LocationServices.getFusedLocationProviderClient(targetContext)
-    }
-    
-    fun fetchGPSLocation() {
-        try {
-            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                .addOnSuccessListener { location ->
-                    if (location != null) {
-                        customLat = location.latitude
-                        customLng = location.longitude
-                        coroutineScope.launch {
-                            var locName = "موقعي الحالي"
-                            try {
-                                val geocoder = Geocoder(context, Locale("ar"))
-                                val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(location.latitude, location.longitude, 1) }
-                                if (!addresses.isNullOrEmpty()) {
-                                    val address = addresses[0]
-                                    val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
-                                    if (parts.isNotEmpty()) locName = parts.joinToString("، ")
-                                }
-                            } catch (e: Exception) {}
-                            customLocationName = locName
-                            saveLocationState(location.latitude, location.longitude, locName, selectedCityIndex)
-                        }
-                    } else {
-                        fusedLocationClient.lastLocation
-                            .addOnSuccessListener { lastLoc ->
-                                if (lastLoc != null) {
-                                    customLat = lastLoc.latitude
-                                    customLng = lastLoc.longitude
-                                    coroutineScope.launch {
-                                        var locName = "موقعي الحالي"
-                                        try {
-                                            val geocoder = Geocoder(context, Locale("ar"))
-                                            val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(lastLoc.latitude, lastLoc.longitude, 1) }
-                                            if (!addresses.isNullOrEmpty()) {
-                                                val address = addresses[0]
-                                                val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
-                                                if (parts.isNotEmpty()) locName = parts.joinToString("، ")
-                                            }
-                                        } catch (e: Exception) {}
-                                        customLocationName = locName
-                                        saveLocationState(lastLoc.latitude, lastLoc.longitude, locName, selectedCityIndex)
-                                    }
-                                }
-                            }
-                    }
-                }
-        } catch (e: SecurityException) { }
-    }
+    var locState by remember { mutableStateOf(LocationCardState.IDLE) }
+    var locName by remember { mutableStateOf<String?>(null) }
+    var lat by remember { mutableStateOf<Double?>(null) }
+    var lng by remember { mutableStateOf<Double?>(null) }
+    var accuracy by remember { mutableStateOf<Float?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
-            fetchGPSLocation()
+            locState = LocationCardState.LOADING
+        } else {
+            locState = LocationCardState.PERMISSION_DENIED
+        }
+    }
+
+    fun fetchLocation() {
+        locState = LocationCardState.LOADING
+        coroutineScope.launch {
+            val result = AppLocationProvider.fetchCurrentLocation(context)
+            when (result) {
+                is AppLocationProvider.Result.Success -> {
+                    lat = result.latitude
+                    lng = result.longitude
+                    accuracy = result.accuracyMeters
+                    locState = LocationCardState.SUCCESS
+                    try {
+                        val geocoder = Geocoder(context, Locale("ar"))
+                        val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(result.latitude, result.longitude, 1) }
+                        if (!addresses.isNullOrEmpty()) {
+                            val address = addresses[0]
+                            val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
+                            if (parts.isNotEmpty()) locName = parts.joinToString("، ")
+                        }
+                    } catch (e: Exception) {}
+                }
+                is AppLocationProvider.Result.PermissionDenied -> locState = LocationCardState.PERMISSION_DENIED
+                is AppLocationProvider.Result.LocationDisabled -> locState = LocationCardState.DISABLED
+                is AppLocationProvider.Result.Timeout -> { locState = LocationCardState.ERROR; errorMessage = "انتهى وقت الطلب" }
+                is AppLocationProvider.Result.Error -> { locState = LocationCardState.ERROR; errorMessage = result.message }
+            }
         }
     }
 
     LaunchedEffect(Unit) {
-        val hasFine = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        val hasCoarse = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        if (hasFine || hasCoarse) {
-            fetchGPSLocation()
+        fetchLocation()
+    }
+
+    val dynamicTimes = remember(lat, lng) {
+        if (lat != null && lng != null) {
+            IslamicData.calculatePrayerTimes(lat!!, lng!!, 3.0) // fallback offset
         } else {
-            locationPermissionLauncher.launch(
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+            IslamicData.getDynamicPrayerTimesForCity(IslamicData.cities.first())
+        }
+    }
+
+    var showAdhanSettings by remember { mutableStateOf(false) }
+    var showPrivacyNotice by remember { mutableStateOf(prefs.getBoolean("show_privacy", true)) }
+
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.PRAYER),
+        title = CalcKey.PRAYER.title,
+        description = "مواقيت الصلاة الدقيقة بناءً على موقعك",
+        gradient = GradientTokens.LivePrices,
+        inputContent = {
+            LocationStatusCard(
+                colors = colors,
+                state = locState,
+                placeName = locName,
+                accuracyMeters = accuracy,
+                onRequestPermission = {
+                    locationPermissionLauncher.launch(
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                    )
+                },
+                onOpenLocationSettings = {
+                    context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                },
+                onRetry = { fetchLocation() }
             )
-        }
-    }
 
-    // Calculate prayer times dynamically based on astronomical location and date
-    val dynamicTimes = remember(city) {
-        IslamicData.getDynamicPrayerTimesForCity(city)
-    }
-
-    // Dynamic Gregorian and Hijri Date Calculation
-    val nowCalendar = remember { java.util.Calendar.getInstance() }
-    val gregorianDateStr = remember {
-        String.format("%02d-%02d-%04d",
-            nowCalendar.get(java.util.Calendar.DAY_OF_MONTH),
-            nowCalendar.get(java.util.Calendar.MONTH) + 1,
-            nowCalendar.get(java.util.Calendar.YEAR)
-        )
-    }
-    val hijriDateStr = remember {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            try {
-                val hijrahDate = java.time.chrono.HijrahDate.now()
-                val formatter = java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy هـ", java.util.Locale("ar"))
-                hijrahDate.format(formatter)
-            } catch (_: Exception) {
-                "اليوم الهجري المبارك"
-            }
-        } else {
-            "اليوم الهجري المبارك"
-        }
-    }
-
-    fun to12HourFormat(timeStr: String): String {
-        try {
-            val parts = timeStr.split(":")
-            val h = parts.getOrNull(0)?.toIntOrNull() ?: 0
-            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
-            val amPm = if (h >= 12) "م" else "ص"
-            val h12 = if (h % 12 == 0) 12 else h % 12
-            return String.format("%02d:%02d %s", h12, m, amPm)
-        } catch (e: Exception) {
-            return timeStr
-        }
-    }
-
-    // Calculate Next Prayer dynamically
-    val nextPrayerDisplay = remember(dynamicTimes) {
-        val currentMins = nowCalendar.get(java.util.Calendar.HOUR_OF_DAY) * 60 + nowCalendar.get(java.util.Calendar.MINUTE)
-        fun toMins(s: String): Int {
-            val parts = s.split(":")
-            val h = parts.getOrNull(0)?.toIntOrNull() ?: 0
-            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
-            return h * 60 + m
-        }
-        val pList = listOf(
-            "الفجر" to toMins(dynamicTimes.fajr),
-            "الظهر" to toMins(dynamicTimes.dhuhr),
-            "العصر" to toMins(dynamicTimes.asr),
-            "المغرب" to toMins(dynamicTimes.maghrib),
-            "العشاء" to toMins(dynamicTimes.isha)
-        )
-        val next = pList.firstOrNull { it.second > currentMins } ?: pList.first()
-        val timeStr = when(next.first) {
-            "الفجر" -> dynamicTimes.fajr
-            "الظهر" -> dynamicTimes.dhuhr
-            "العصر" -> dynamicTimes.asr
-            "المغرب" -> dynamicTimes.maghrib
-            else -> dynamicTimes.isha
-        }
-        "${next.first} - ${to12HourFormat(timeStr)}"
-    }
-
-    // Notification states for prayers
-    var fajrNotification by remember { mutableStateOf(prefs.getBoolean("adhan_fajr", true)) }
-    var dhuhrNotification by remember { mutableStateOf(prefs.getBoolean("adhan_dhuhr", true)) }
-    var asrNotification by remember { mutableStateOf(prefs.getBoolean("adhan_asr", true)) }
-    var maghribNotification by remember { mutableStateOf(prefs.getBoolean("adhan_maghrib", true)) }
-    var ishaNotification by remember { mutableStateOf(prefs.getBoolean("adhan_isha", true)) }
-
-    // Permission launcher
-    val notifPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { _ -> }
-
-    val prayers = listOf(
-        Triple("الفجر", to12HourFormat(dynamicTimes.fajr), Pair("🌅", fajrNotification)),
-        Triple("الشروق", to12HourFormat(dynamicTimes.sunrise), Pair("☀️", false)),
-        Triple("الظهر", to12HourFormat(dynamicTimes.dhuhr), Pair("🌤️", dhuhrNotification)),
-        Triple("العصر", to12HourFormat(dynamicTimes.asr), Pair("🌥️", asrNotification)),
-        Triple("المغرب", to12HourFormat(dynamicTimes.maghrib), Pair("🌆", maghribNotification)),
-        Triple("العشاء", to12HourFormat(dynamicTimes.isha), Pair("🌙", ishaNotification))
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(14.dp)
-    ) {
-        // Location Banner Card
-        Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Times List
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(Spacing.Small)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Text("📍", fontSize = 20.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(city.nameAr, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (city.countryAr.isNotBlank()) {
-                            Text(city.countryAr, fontSize = 11.sp, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { showAdhanSettings = true }) {
-                        Text("⚙️", fontSize = 18.sp)
-                    }
-                    IconButton(onClick = { showPrivacyNotice = true }) {
-                        Text("🛡️", fontSize = 18.sp)
-                    }
-
-                    Box {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconButton(onClick = {
-                                val hasFine = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                                val hasCoarse = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                                if (hasFine || hasCoarse) {
-                                    fetchGPSLocation()
-                                } else {
-                                    locationPermissionLauncher.launch(
-                                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-                                    )
-                                }
-                            }) {
-                                Icon(Icons.Default.LocationOn, contentDescription = "تحديد موقعي (GPS)", tint = colors.accent)
-                            }
-                            Button(
-                                onClick = { cityExpanded = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                                shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                            ) {
-                                Text("تغيير المدينة ▾", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        DropdownMenu(
-                            expanded = cityExpanded,
-                            onDismissRequest = { cityExpanded = false },
-                            modifier = Modifier.background(colors.surface)
-                        ) {
-                            IslamicData.cities.forEachIndexed { idx, c ->
-                                DropdownMenuItem(
-                                    text = { Text("${c.nameAr} - ${c.countryAr}", color = colors.text) },
-                                    onClick = {
-                                        selectedCityIndex = idx
-                                        customLat = null
-                                        customLng = null
-                                        customLocationName = ""
-                                        saveLocationState(null, null, "", idx)
-                                        cityExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Hijri Date Blue Card
-        Surface(
-            color = Color(0xFF2563EB),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(hijriDateStr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text("التاريخ الهجري الحالي", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
-                }
-                Surface(
-                    color = Color.White.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text(gregorianDateStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Next Prayer Hero Card
-        Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text("الصلاة القادمة", fontSize = 12.sp, color = colors.textMuted)
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(nextPrayerDisplay, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                }
-                Text("🌙", fontSize = 32.sp)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Prayer Times List with Adhan Toggles
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) {
-            items(prayers) { (name, time, extra) ->
-                val (icon, isNotifEnabled) = extra
-                val isSunrise = name == "الشروق"
-
-                Surface(
-                    color = colors.surface,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 3.dp)
-                ) {
+                val pList = listOf(
+                    "الفجر" to dynamicTimes.fajr,
+                    "الشروق" to dynamicTimes.sunrise,
+                    "الظهر" to dynamicTimes.dhuhr,
+                    "العصر" to dynamicTimes.asr,
+                    "المغرب" to dynamicTimes.maghrib,
+                    "العشاء" to dynamicTimes.isha
+                )
+                pList.forEach { (name, time) ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .background(colors.surface2, RoundedCornerShape(12.dp))
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(icon, fontSize = 20.sp)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
-                                if (!isSunrise) {
-                                    Text(if (isNotifEnabled) "تنبيه الأذان مفعل 🔔" else "التنبيه صامت 🔕", fontSize = 10.sp, color = colors.textMuted)
-                                }
-                            }
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(time, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.accent)
-                            if (!isSunrise) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Switch(
-                                    checked = isNotifEnabled,
-                                    onCheckedChange = { checked ->
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                        }
-                                        when (name) {
-                                            "الفجر" -> {
-                                                fajrNotification = checked
-                                                prefs.edit().putBoolean("adhan_fajr", checked).apply()
-                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "الفجر", dynamicTimes.fajr, 1001)
-                                                else AdhanScheduler.cancelPrayerAlarm(context, 1001)
-                                            }
-                                            "الظهر" -> {
-                                                dhuhrNotification = checked
-                                                prefs.edit().putBoolean("adhan_dhuhr", checked).apply()
-                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "الظهر", dynamicTimes.dhuhr, 1002)
-                                                else AdhanScheduler.cancelPrayerAlarm(context, 1002)
-                                            }
-                                            "العصر" -> {
-                                                asrNotification = checked
-                                                prefs.edit().putBoolean("adhan_asr", checked).apply()
-                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "العصر", dynamicTimes.asr, 1003)
-                                                else AdhanScheduler.cancelPrayerAlarm(context, 1003)
-                                            }
-                                            "المغرب" -> {
-                                                maghribNotification = checked
-                                                prefs.edit().putBoolean("adhan_maghrib", checked).apply()
-                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "المغرب", dynamicTimes.maghrib, 1004)
-                                                else AdhanScheduler.cancelPrayerAlarm(context, 1004)
-                                            }
-                                            "العشاء" -> {
-                                                ishaNotification = checked
-                                                prefs.edit().putBoolean("adhan_isha", checked).apply()
-                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "العشاء", dynamicTimes.isha, 1005)
-                                                else AdhanScheduler.cancelPrayerAlarm(context, 1005)
-                                            }
-                                        }
-                                    },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = colors.accent,
-                                        uncheckedThumbColor = colors.textMuted,
-                                        uncheckedTrackColor = colors.surface2
-                                    )
-                                )
-                            }
-                        }
+                        Text(name, fontWeight = FontWeight.Bold, color = colors.text, fontSize = 16.sp)
+                        Text(time, color = colors.accent, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     }
                 }
             }
+        },
+        extraContent = {
+            Spacer(modifier = Modifier.height(Spacing.Medium))
+            OutlinedButton(
+                onClick = { showAdhanSettings = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(AppIcons.Settings, contentDescription = null, tint = colors.accent)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("إعدادات الأذان", color = colors.accent)
+            }
         }
-    }
+    )
 
-    // Adhan Sound & Notification Settings Dialog
     if (showAdhanSettings) {
         AlertDialog(
             onDismissRequest = { showAdhanSettings = false },
             confirmButton = {
                 Button(
-                    onClick = {
-                        prefs.edit().putString("selected_adhan_sound", selectedAdhanSound).apply()
-                        showAdhanSettings = false
-                    },
+                    onClick = { showAdhanSettings = false },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
-                ) {
-                    Text("حفظ الإعدادات", color = Color.White)
-                }
+                ) { Text("حسناً", color = Color.White) }
             },
-            dismissButton = {
-                TextButton(onClick = { showAdhanSettings = false }) {
-                    Text("إلغاء", color = colors.textMuted)
-                }
-            },
-            title = {
-                Text("🔊 اختيار صوت ونغمة المؤذن", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text)
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("اختر صوت المؤذن المفضل لتنبيهات أوقات الصلوات في مصر والخارج:", fontSize = 12.sp, color = colors.textMuted)
-                    
-                    val sounds = listOf(
-                        "makkah" to "مؤذن الحرم المكي (صوت شجي)",
-                        "madinah" to "مؤذن المسجد النبوي الشريف",
-                        "mishary" to "القارئ الشيخ مشاري العفاسي",
-                        "abdulbasit" to "الشيخ عبد الباسط عبد الصمد",
-                        "default" to "التنبيه القياسي للنظام"
-                    )
-
-                    sounds.forEach { (key, label) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedAdhanSound = key }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(label, fontSize = 13.sp, color = colors.text)
-                            RadioButton(
-                                selected = selectedAdhanSound == key,
-                                onClick = { selectedAdhanSound = key }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    OutlinedButton(
-                        onClick = {
-                            try {
-                                val alarmUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
-                                    ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
-                                val r = android.media.RingtoneManager.getRingtone(context, alarmUri)
-                                r?.play()
-                            } catch (_: Exception) {}
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("▶️ اختبار صوت التنبيه الآن", color = colors.accent)
-                    }
-                }
-            },
+            title = { Text("🔊 إعدادات الأذان", color = colors.text) },
+            text = { Text("قريباً: تخصيص الأذان لكل صلاة", color = colors.textMuted) },
             containerColor = colors.surface,
             titleContentColor = colors.text,
             textContentColor = colors.text
         )
     }
 
-    // Transparent Privacy & Permissions Explanation Dialog
     if (showPrivacyNotice) {
         AlertDialog(
-            onDismissRequest = { showPrivacyNotice = false },
+            onDismissRequest = { 
+                showPrivacyNotice = false
+                prefs.edit().putBoolean("show_privacy", false).apply()
+            },
             confirmButton = {
                 Button(
-                    onClick = { showPrivacyNotice = false },
+                    onClick = { 
+                        showPrivacyNotice = false
+                        prefs.edit().putBoolean("show_privacy", false).apply()
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
-                ) {
-                    Text("موافق وفهمت ذلك", color = Color.White)
-                }
+                ) { Text("موافق", color = Color.White) }
             },
-            title = {
-                Text("🛡️ الشفافية والخصوصية التامة", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            },
-            text = {
-                Column {
-                    Text(
-                        "نحن نلتزم بأعلى معايير الخصوصية وحماية بيانات المستخدمين وفقاً لإرشادات Google Play:",
-                        fontSize = 12.sp,
-                        color = colors.text,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("• 📍 **إذن الموقع (GPS)**: يُستخدم فقط لحساب خطوط الطول والعرض وتحديد اتجاه القبلة ومواقيت الصلاة بدقة. لا يتم حفظ موقعك أو مشاركته مع أي طرف خارجي إطلاقاً.", fontSize = 11.sp, color = colors.textMuted, lineHeight = 16.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("• 🔔 **إذن الإشعارات**: يُستخدم فقط لإرسال تنبيهات صوت الأذان في الوقت المحدد لصلاوتك المفضلة.", fontSize = 11.sp, color = colors.textMuted, lineHeight = 16.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("• 🔒 **معالجة محلية**: جميع الحسابات الإسلامية تتم محلياً على جهازك 100% دون الحاجة إلى إرسال أي بيانات شخصية.", fontSize = 11.sp, color = colors.textMuted, lineHeight = 16.sp)
-                }
-            },
+            title = { Text("🛡️ الشفافية والخصوصية", color = colors.text) },
+            text = { Text("نحن نستخدم موقعك لحساب مواقيت الصلاة والقبلة بدقة ولا يتم مشاركته مع أي طرف خارجي.", color = colors.textMuted) },
             containerColor = colors.surface,
             titleContentColor = colors.text,
             textContentColor = colors.text
@@ -644,456 +264,145 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
 @Composable
 fun QiblaDirectionScreen(colors: CustomThemeColors) {
     val context = LocalContext.current
-    val haptic = LocalHapticFeedback.current
-
-    var selectedCityIndex by remember { mutableStateOf(0) }
-    var deviceAzimuth by remember { mutableStateOf(0f) }
-    var isCompassActive by remember { mutableStateOf(true) }
-    var locationName by remember { mutableStateOf("") }
-
-    var customLat by remember { mutableStateOf<Double?>(null) }
-    var customLng by remember { mutableStateOf<Double?>(null) }
-
-    val fusedLocationClient = remember(context) {
-        val targetContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            context.applicationContext.createAttributionContext("default")
-        } else {
-            context.applicationContext
-        }
-        LocationServices.getFusedLocationProviderClient(targetContext)
-    }
     val coroutineScope = rememberCoroutineScope()
+
+    var locState by remember { mutableStateOf(LocationCardState.IDLE) }
+    var locName by remember { mutableStateOf<String?>(null) }
+    var lat by remember { mutableStateOf<Double?>(null) }
+    var lng by remember { mutableStateOf<Double?>(null) }
+    var accuracy by remember { mutableStateOf<Float?>(null) }
+    
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
-            try {
-                fusedLocationClient.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null)
-                    .addOnSuccessListener { location ->
-                        if (location != null) {
-                            customLat = location.latitude
-                            customLng = location.longitude
-                            coroutineScope.launch {
-                                var locName = "موقعي الحالي"
-                                try {
-                                    val geocoder = Geocoder(context, Locale("ar"))
-                                    val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(location.latitude, location.longitude, 1) }
-                                    if (!addresses.isNullOrEmpty()) {
-                                        val address = addresses[0]
-                                        val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
-                                        if (parts.isNotEmpty()) locName = parts.joinToString("، ")
-                                    }
-                                } catch (e: Exception) {}
-                                locationName = locName
-                            }
-                        }
-                    }
-            } catch (e: SecurityException) { }
+            locState = LocationCardState.LOADING
+        } else {
+            locState = LocationCardState.PERMISSION_DENIED
+        }
+    }
+
+    fun fetchLocation() {
+        locState = LocationCardState.LOADING
+        coroutineScope.launch {
+            val result = AppLocationProvider.fetchCurrentLocation(context)
+            when (result) {
+                is AppLocationProvider.Result.Success -> {
+                    lat = result.latitude
+                    lng = result.longitude
+                    accuracy = result.accuracyMeters
+                    locState = LocationCardState.SUCCESS
+                }
+                is AppLocationProvider.Result.PermissionDenied -> locState = LocationCardState.PERMISSION_DENIED
+                is AppLocationProvider.Result.LocationDisabled -> locState = LocationCardState.DISABLED
+                is AppLocationProvider.Result.Timeout, is AppLocationProvider.Result.Error -> locState = LocationCardState.ERROR
+            }
         }
     }
 
     LaunchedEffect(Unit) {
-        // Request GPS permission on first load
-        locationPermissionLauncher.launch(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        )
+        fetchLocation()
     }
 
-    val city = IslamicData.cities[selectedCityIndex]
-    val qiblaAngle = if (customLat != null && customLng != null) {
-        IslamicData.calculateQiblaAngle(customLat!!, customLng!!)
-    } else {
-        IslamicData.calculateQiblaAngle(city.lat, city.lng)
+    // Compass Logic
+    var azimuth by remember { mutableStateOf(0f) }
+    var qiblaAngle by remember { mutableStateOf(0f) }
+    
+    LaunchedEffect(lat, lng) {
+        if (lat != null && lng != null) {
+            val kaabaLat = 21.422487
+            val kaabaLng = 39.826206
+            val lat1 = Math.toRadians(lat!!)
+            val lng1 = Math.toRadians(lng!!)
+            val lat2 = Math.toRadians(kaabaLat)
+            val lng2 = Math.toRadians(kaabaLng)
+            val dLng = lng2 - lng1
+            val y = sin(dLng) * cos(lat2)
+            val x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLng)
+            var bearing = Math.toDegrees(atan2(y, x).toDouble()).toFloat()
+            bearing = (bearing + 360) % 360
+            qiblaAngle = bearing
+        }
     }
-    val currentDisplayLocation = if (locationName.isNotBlank()) locationName else city.nameAr
 
-    // Hardware Compass Sensor Listener
+    val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
+    var isCompassActive by remember { mutableStateOf(true) }
+
     DisposableEffect(isCompassActive) {
-        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
-        val rotationSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-            ?: sensorManager?.getDefaultSensor(Sensor.TYPE_ORIENTATION)
-
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
-                if (event == null || !isCompassActive) return
-                if (event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
-                    val rotationMatrix = FloatArray(9)
-                    SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
-                    val orientation = FloatArray(3)
-                    SensorManager.getOrientation(rotationMatrix, orientation)
-                    val azimuthInDegrees = Math.toDegrees(orientation[0].toDouble()).toFloat()
-                    deviceAzimuth = (azimuthInDegrees + 360) % 360
-                } else if (event.sensor.type == Sensor.TYPE_ORIENTATION) {
-                    deviceAzimuth = (event.values[0] + 360) % 360
+                if (event != null && event.sensor.type == Sensor.TYPE_ORIENTATION) {
+                    azimuth = event.values[0]
                 }
             }
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
-
-        if (rotationSensor != null) {
-            sensorManager?.registerListener(listener, rotationSensor, SensorManager.SENSOR_DELAY_UI)
+        if (isCompassActive) {
+            val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION)
+            sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
         }
-
-        onDispose {
-            sensorManager?.unregisterListener(listener)
-        }
+        onDispose { sensorManager.unregisterListener(listener) }
     }
 
-    val totalAngle = (qiblaAngle - deviceAzimuth).toFloat()
-    val animatedAngle by animateFloatAsState(
-        targetValue = totalAngle,
-        animationSpec = tween(durationMillis = 300)
-    )
+    val rotation = -azimuth + qiblaAngle
+    val animatedRotation by animateFloatAsState(targetValue = rotation, animationSpec = tween(500))
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Green Banner Header Card
-        Surface(
-            color = Color(0xFF059669),
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.QIBLA),
+        title = CalcKey.QIBLA.title,
+        description = "تحديد اتجاه الكعبة المشرفة",
+        gradient = GradientTokens.LivePrices,
+        inputContent = {
+            LocationStatusCard(
+                colors = colors,
+                state = locState,
+                placeName = null,
+                accuracyMeters = accuracy,
+                onRequestPermission = {
+                    locationPermissionLauncher.launch(
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                    )
+                },
+                onOpenLocationSettings = {
+                    context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                },
+                onRetry = { fetchLocation() }
+            )
+
+            // Compass View
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .height(300.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("🕋", fontSize = 28.sp)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text("اتجاه القبلة المباشر", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
-                        Text("نحو الكعبة المشرفة - مكة المكرمة", fontSize = 12.sp, color = Color.White.copy(alpha = 0.85f))
-                    }
-                }
-
-                // GPS and City selector
-                var cityMenuOpen by remember { mutableStateOf(false) }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = {
-                        locationPermissionLauncher.launch(
-                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-                        )
-                    }) {
-                        Icon(Icons.Default.LocationOn, contentDescription = "تحديد موقعي (GPS)", tint = Color.White)
-                    }
-                    Box {
-                        IconButton(onClick = { cityMenuOpen = true }) {
-                            Text("▾", fontSize = 18.sp, color = Color.White)
-                        }
-                        DropdownMenu(
-                            expanded = cityMenuOpen,
-                            onDismissRequest = { cityMenuOpen = false }
-                        ) {
-                            IslamicData.cities.forEachIndexed { index, c ->
-                                DropdownMenuItem(
-                                    text = { Text(c.nameAr, fontSize = 13.sp) },
-                                    onClick = {
-                                        selectedCityIndex = index
-                                        locationName = c.nameAr
-                                        cityMenuOpen = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Main Compass Surface Card
-        val normalizedDiff = ((animatedAngle % 360f) + 360f) % 360f
-        val isAligned = normalizedDiff < 5f || normalizedDiff > 355f
-
-        // Vibrate when aligned
-        LaunchedEffect(isAligned) {
-            if (isAligned) {
-                try {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                } catch (_: Throwable) {}
-            }
-        }
-
-        Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Compass Visual Canvas Container
-                Box(
-                    modifier = Modifier
-                        .size(250.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                colors = if (isAligned) {
-                                    listOf(Color(0xFF022E21), Color(0xFF01140F))
-                                } else {
-                                    listOf(colors.surface2, colors.appBg)
-                                }
-                            )
-                        )
-                        .border(
-                            width = 4.dp,
-                            brush = Brush.sweepGradient(
-                                colors = if (isAligned) {
-                                    listOf(Color(0xFF10B981), Color(0xFF34D399), Color(0xFF10B981))
-                                } else {
-                                    listOf(colors.accent, colors.accent.copy(alpha = 0.5f), colors.accent)
-                                }
-                            ),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // 1. Rotating Compass Face (Ticks and Letters)
-                    Canvas(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .rotate(-deviceAzimuth)
-                    ) {
-                        val center = Offset(size.width / 2, size.height / 2)
-                        val radiusOuter = size.width / 2 - 14.dp.toPx()
-                        
-                        // Outer Golden Ring
-                        drawCircle(
-                            color = Color(0xFFDFB659).copy(alpha = 0.4f),
-                            radius = radiusOuter,
-                            center = center,
-                            style = Stroke(width = 1.5.dp.toPx())
-                        )
-
-                        // Draw Ticks (every 5 degrees)
-                        for (i in 0 until 360 step 5) {
-                            val rad = Math.toRadians(i.toDouble())
-                            val isMajor = i % 30 == 0
-                            val isCardinal = i % 90 == 0
-                            
-                            val tickLength = if (isCardinal) 15.dp.toPx() else if (isMajor) 10.dp.toPx() else 6.dp.toPx()
-                            val tickWidth = if (isCardinal) 2.5.dp.toPx() else if (isMajor) 1.5.dp.toPx() else 1.dp.toPx()
-                            val tickColor = if (isCardinal) Color(0xFFDFB659) else if (isMajor) Color(0xFFDFB659).copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f)
-
-                            val startOffset = Offset(
-                                (center.x + (radiusOuter - tickLength) * sin(rad)).toFloat(),
-                                (center.y - (radiusOuter - tickLength) * cos(rad)).toFloat()
-                            )
-                            val endOffset = Offset(
-                                (center.x + radiusOuter * sin(rad)).toFloat(),
-                                (center.y - radiusOuter * cos(rad)).toFloat()
-                            )
-                            
-                            drawLine(
-                                color = tickColor,
-                                start = startOffset,
-                                end = endOffset,
-                                strokeWidth = tickWidth
-                            )
-                        }
-                    }
-
-                    // Static direction overlay (N, S, E, W written elegantly in Arabic)
-                    // Let's place cardinal texts relative to rotation so they stay on the rotating face
+                if (lat != null) {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .rotate(-deviceAzimuth)
-                    ) {
-                        Text(
-                            text = "شمال",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFDFB659),
-                            modifier = Modifier.align(Alignment.TopCenter).padding(top = 22.dp)
-                        )
-                        Text(
-                            text = "جنوب",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFDFB659).copy(alpha = 0.8f),
-                            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 22.dp)
-                        )
-                        Text(
-                            text = "شرق",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFDFB659).copy(alpha = 0.8f),
-                            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 22.dp)
-                        )
-                        Text(
-                            text = "غرب",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFDFB659).copy(alpha = 0.8f),
-                            modifier = Modifier.align(Alignment.CenterStart).padding(start = 22.dp)
-                        )
-                    }
-
-                    // 2. Rotating Qibla Arrow / Needle (Pointing to Kaaba)
-                    // We draw a gorgeous gold diamond/needle inside a Box rotating towards `animatedAngle`
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .rotate(animatedAngle),
+                            .size(250.dp)
+                            .clip(CircleShape)
+                            .background(colors.surface2)
+                            .border(4.dp, colors.accent, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        // Custom Canvas to draw the beautiful golden pointer needle
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val centerOffset = Offset(size.width / 2, size.height / 2)
-                            val needleLength = size.width / 2 - 40.dp.toPx()
-                            
-                            // Golden Path pointing UP
-                            val path = androidx.compose.ui.graphics.Path().apply {
-                                moveTo(centerOffset.x, centerOffset.y - needleLength) // Tip of arrow
-                                lineTo(centerOffset.x - 12.dp.toPx(), centerOffset.y - 30.dp.toPx())
-                                lineTo(centerOffset.x - 4.dp.toPx(), centerOffset.y)
-                                lineTo(centerOffset.x + 4.dp.toPx(), centerOffset.y)
-                                lineTo(centerOffset.x + 12.dp.toPx(), centerOffset.y - 30.dp.toPx())
-                                close()
-                            }
-                            
-                            // Draw glowing needle background shadow
-                            drawPath(
-                                path = path,
-                                color = Color(0xFFDFB659).copy(alpha = 0.3f),
-                                style = androidx.compose.ui.graphics.drawscope.Fill
-                            )
-                            
-                            // Draw gold-gradient filled needle
-                            drawPath(
-                                path = path,
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color(0xFFFFF1C5), // Shiny Tip
-                                        Color(0xFFDFB659), // Metallic Gold
-                                        Color(0xFF9E782F)  // Shadow Gold
-                                    )
-                                )
-                            )
-                            
-                            // Center pivot pin
-                            drawCircle(
-                                color = Color(0xFFDFB659),
-                                radius = 8.dp.toPx(),
-                                center = centerOffset
-                            )
-                            drawCircle(
-                                color = Color.White,
-                                radius = 3.dp.toPx(),
-                                center = centerOffset
-                            )
-                        }
-
-                        // Rotating Kaaba Icon at the outer edge of the arrow
-                        Box(
+                        Text(
+                            "🕋",
+                            fontSize = 64.sp,
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(top = 12.dp),
-                            contentAlignment = Alignment.TopCenter
-                        ) {
-                            Surface(
-                                color = if (isAligned) Color(0xFF10B981) else Color(0xFF1F2937),
-                                shape = CircleShape,
-                                border = BorderStroke(1.5.dp, Color(0xFFDFB659)),
-                                modifier = Modifier.size(38.dp)
-                            ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    Text("🕋", fontSize = 18.sp)
-                                }
-                            }
-                        }
+                                .offset(y = (-80).dp)
+                                .rotate(animatedRotation)
+                        )
+                        Icon(AppIcons.Location, contentDescription = null, tint = colors.accent, modifier = Modifier.size(32.dp))
                     }
-
-                    // Green Alignment Success Banner Overlay
-                    if (isAligned) {
-                        Surface(
-                            color = Color(0xFF10B981).copy(alpha = 0.9f),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.padding(bottom = 60.dp).align(Alignment.Center)
-                        ) {
-                            Text(
-                                text = "القبلة صحيحة تماماً ✓",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
+                } else {
+                    Text("يرجى تفعيل الموقع أولاً", color = colors.textMuted)
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = "زاوية القبلة: ${String.format("%.1f", qiblaAngle)}° | اتجاه الهاتف: ${String.format("%.1f", deviceAzimuth)}°",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isAligned) Color(0xFF10B981) else colors.text
-                )
             }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Location Info Box
-        Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("📍 $currentDisplayLocation", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    
-                }
-                Text("المسافة للكعبة: ~1,269 كم", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Toggle / Recalibrate Live Compass Button
-        Button(
-            onClick = { isCompassActive = !isCompassActive },
-            colors = ButtonDefaults.buttonColors(containerColor = if (isCompassActive) colors.accent else Color.Gray),
-            shape = RoundedCornerShape(14.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.CompassCalibration, contentDescription = null, tint = Color.White)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(if (isCompassActive) "🧭 البوصلة الحية مفعلة (حسّاس الموبايل يعمل)" else "🔄 إعادة تفعيل البوصلة", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            "💡 ضع الهاتف بشكل افقي وقم بلف الهاتف للتعرف المباشر على الشمال والقبلة.",
-            fontSize = 11.sp,
-            color = colors.textMuted,
-            textAlign = TextAlign.Center
-        )
-    }
+        },
+        primaryActionText = if (isCompassActive) "إيقاف البوصلة" else "تشغيل البوصلة",
+        onPrimaryActionClick = { isCompassActive = !isCompassActive }
+    )
 }
 
 @Composable

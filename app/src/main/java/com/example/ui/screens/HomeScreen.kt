@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -7,9 +8,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,12 +15,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.CalcKey
 import com.example.model.CategoryKey
+import com.example.ui.theme.AppIcons
 import com.example.ui.theme.CustomThemeColors
 import com.example.ui.theme.GradientTokens
 import com.example.ui.theme.Spacing
@@ -50,12 +48,12 @@ fun HomeScreen(
     ) {
         Spacer(modifier = Modifier.height(Spacing.Small))
 
-        // Compact Header (approx 120-140dp)
+        // Welcome header
         Card(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(115.dp)
+                .height(112.dp)
                 .padding(vertical = 4.dp),
             colors = CardDefaults.cardColors(containerColor = Color.Transparent),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -64,20 +62,16 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(GradientTokens.AI)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
                 Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("👋", fontSize = 22.sp)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            "أهلاً بك في ClevCalc Pro",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Text(
+                        "أهلاً بك في ClevCalc Pro",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         "كل أدواتك الذكية في مكان واحد",
@@ -88,7 +82,7 @@ fun HomeScreen(
             }
         }
 
-        // Search Bar with 24dp rounded corners and mic icon
+        // Search bar
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
@@ -96,10 +90,10 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .padding(vertical = 6.dp),
             placeholder = { Text("ابحث عن آلة حاسبة أو أداة...", color = colors.textMuted, fontSize = 13.sp) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = colors.accent) },
+            leadingIcon = { Icon(AppIcons.Search, contentDescription = null, tint = colors.accent) },
             trailingIcon = {
                 IconButton(onClick = {}) {
-                    Icon(Icons.Default.Mic, contentDescription = "بحث صوتي", tint = colors.textMuted)
+                    Icon(AppIcons.Mic, contentDescription = "بحث صوتي", tint = colors.textMuted)
                 }
             },
             singleLine = true,
@@ -114,7 +108,7 @@ fun HomeScreen(
             )
         )
 
-        // Horizontal Scrollable Category Chips
+        // Category chips
         val scrollState = rememberScrollState()
         Row(
             modifier = Modifier
@@ -129,14 +123,14 @@ fun HomeScreen(
                 shape = RoundedCornerShape(20.dp),
                 color = if (allSelected) colors.accent else colors.surface,
                 contentColor = if (allSelected) Color.White else colors.text,
-                border = if (allSelected) null else androidx.compose.foundation.BorderStroke(1.dp, colors.border),
+                border = if (allSelected) null else BorderStroke(1.dp, colors.border),
                 modifier = Modifier.height(36.dp)
             ) {
-                Box(
-                    contentAlignment = Alignment.Center,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 ) {
-                    Text("الكل 🌐", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("الكل", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -147,14 +141,21 @@ fun HomeScreen(
                     shape = RoundedCornerShape(20.dp),
                     color = if (isSelected) colors.accent else colors.surface,
                     contentColor = if (isSelected) Color.White else colors.text,
-                    border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, colors.border),
+                    border = if (isSelected) null else BorderStroke(1.dp, colors.border),
                     modifier = Modifier.height(36.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 12.dp)
                     ) {
-                        Text(cat.icon, modifier = Modifier.padding(end = 4.dp))
+                        Icon(
+                            AppIcons.forCategory(cat),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(14.dp)
+                                .padding(end = 4.dp),
+                            tint = if (isSelected) Color.White else colors.textMuted
+                        )
                         Text(cat.label, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
@@ -163,7 +164,7 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(4.dp))
 
-        // Grid of Cards
+        // Grid of tool cards
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = Modifier.weight(1f),
@@ -200,7 +201,12 @@ fun HomeScreen(
                                     .background(categoryColor.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(calc.icon, fontSize = 22.sp)
+                                Icon(
+                                    AppIcons.forCalc(calc),
+                                    contentDescription = null,
+                                    tint = categoryColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
 
                             if (calc.badge != null) {

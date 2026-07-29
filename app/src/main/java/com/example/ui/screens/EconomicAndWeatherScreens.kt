@@ -1,4 +1,19 @@
 package com.example.ui.screens
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+
+import android.content.Intent
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.util.AppLocationProvider
+import com.example.ui.components.LocationStatusCard
+import com.example.ui.components.LocationCardState
+import com.example.ui.components.ToolScreenScaffold
+import com.example.ui.theme.AppIcons
+import com.example.model.CalcKey
+import com.example.ui.theme.GradientTokens
+import com.example.ui.theme.Spacing
 
 import android.Manifest
 import android.content.Context
@@ -10,8 +25,6 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,7 +58,6 @@ import com.example.data.WeatherCity
 import com.example.data.WeatherRepository
 import com.example.data.CurrentWeatherData
 import com.example.ui.theme.CustomThemeColors
-import kotlinx.coroutines.launch
 
 @Composable
 fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
@@ -580,297 +592,225 @@ fun WeatherScreen(colors: CustomThemeColors) {
     var weatherData by remember { mutableStateOf<CurrentWeatherData?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var showCityPicker by remember { mutableStateOf(false) }
-
     var aiAdviceText by remember { mutableStateOf<String?>(null) }
     var isGeneratingAdvice by remember { mutableStateOf(false) }
-
     val coroutineScope = rememberCoroutineScope()
 
-    // Permission launcher for Location GPS
+    var locState by remember { mutableStateOf(LocationCardState.IDLE) }
+    var locName by remember { mutableStateOf<String?>(null) }
+    var lat by remember { mutableStateOf<Double?>(null) }
+    var lng by remember { mutableStateOf<Double?>(null) }
+    var accuracy by remember { mutableStateOf<Float?>(null) }
+
     val locationLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            try {
-                val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-                val lastKnown = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                    ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                if (lastKnown != null) {
-                    coroutineScope.launch {
-                        var locName = "موقعي الحالي"
-                        try {
-                            val geocoder = Geocoder(context, Locale("ar"))
-                            val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(lastKnown.latitude, lastKnown.longitude, 1) }
-                            if (!addresses.isNullOrEmpty()) {
-                                val address = addresses[0]
-                                val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
-                                if (parts.isNotEmpty()) locName = parts.joinToString("، ")
-                            }
-                        } catch (e: Exception) {}
-                        selectedCity = WeatherCity(locName, "GPS", lastKnown.latitude, lastKnown.longitude, "📍")
-                    }
-                }
-            } catch (_: SecurityException) {}
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            locState = LocationCardState.LOADING
+        } else {
+            locState = LocationCardState.PERMISSION_DENIED
         }
     }
 
-    fun loadWeather() {
-        isLoading = true
+    fun fetchLocation() {
+        locState = LocationCardState.LOADING
         coroutineScope.launch {
-            val data = WeatherRepository.fetchRealWeather(context, selectedCity.lat, selectedCity.lng)
-            weatherData = data
-            isLoading = false
+            val result = AppLocationProvider.fetchCurrentLocation(context)
+            when (result) {
+                is AppLocationProvider.Result.Success -> {
+                    lat = result.latitude
+                    lng = result.longitude
+                    accuracy = result.accuracyMeters
+                    locState = LocationCardState.SUCCESS
+                    try {
+                        val geocoder = android.location.Geocoder(context, java.util.Locale("ar"))
+                        val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(result.latitude, result.longitude, 1) }
+                        if (!addresses.isNullOrEmpty()) {
+                            val address = addresses[0]
+                            val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
+                            if (parts.isNotEmpty()) locName = parts.joinToString("، ")
+                        }
+                    } catch (e: Exception) {}
+                    
+                    // Update weather based on location
+                    selectedCity = WeatherCity(locName ?: "موقعي", "موقعي", result.latitude, result.longitude, "📍")
+                }
+                is AppLocationProvider.Result.PermissionDenied -> locState = LocationCardState.PERMISSION_DENIED
+                is AppLocationProvider.Result.LocationDisabled -> locState = LocationCardState.DISABLED
+                is AppLocationProvider.Result.Timeout, is AppLocationProvider.Result.Error -> locState = LocationCardState.ERROR
+            }
         }
+    }
+
+    LaunchedEffect(Unit) {
+        fetchLocation()
     }
 
     LaunchedEffect(selectedCity) {
-        loadWeather()
+        isLoading = true
+        weatherData = WeatherRepository.fetchRealWeather(context, selectedCity.lat, selectedCity.lng)
+        isLoading = false
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
-    ) {
-        // Location selector header
-        Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.WEATHER),
+        title = CalcKey.WEATHER.title,
+        description = "تحليل وتوقعات الطقس المباشرة",
+        gradient = GradientTokens.LivePrices,
+        inputContent = {
+            LocationStatusCard(
+                colors = colors,
+                state = locState,
+                placeName = locName,
+                accuracyMeters = accuracy,
+                onRequestPermission = {
+                    locationLauncher.launch(
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                    )
+                },
+                onOpenLocationSettings = {
+                    context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                },
+                onRetry = { fetchLocation() }
+            )
+
+            // City Picker Button
+            OutlinedButton(
+                onClick = { showCityPicker = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                    Text(selectedCity.icon, fontSize = 24.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("📍 ${selectedCity.nameAr}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                        Text(selectedCity.countryAr, fontSize = 11.sp, color = colors.textMuted)
-                    }
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = {
-                        val hasLoc = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                        if (hasLoc) {
-                            try {
-                                val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-                                val loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                                if (loc != null) {
-                                    coroutineScope.launch {
-                                        var locName = "موقعي الحالي"
-                                        try {
-                                            val geocoder = Geocoder(context, Locale("ar"))
-                                            val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(loc.latitude, loc.longitude, 1) }
-                                            if (!addresses.isNullOrEmpty()) {
-                                                val address = addresses[0]
-                                                val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
-                                                if (parts.isNotEmpty()) locName = parts.joinToString("، ")
-                                            }
-                                        } catch (e: Exception) {}
-                                        selectedCity = WeatherCity(locName, "GPS", loc.latitude, loc.longitude, "📍")
-                                    }
-                                }
-                            } catch (_: SecurityException) {}
-                        } else {
-                            locationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                        }
-                    }) {
-                        Icon(Icons.Default.LocationOn, contentDescription = "تحديد موقعي GPS", tint = colors.accent)
-                    }
-
-                    Button(
-                        onClick = { showCityPicker = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text("اختر مدينة ▾", fontSize = 11.sp, color = Color.White)
-                    }
-                }
+                Text(selectedCity.icon, fontSize = 20.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(selectedCity.nameAr, color = colors.text, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.weight(1f))
+                Text("تغيير ▾", color = colors.accent, fontSize = 12.sp)
             }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        if (isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        },
+        extraContent = {
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = colors.accent)
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text("جاري جلب حالة الطقس المباشرة...", fontSize = 12.sp, color = colors.textMuted)
                 }
-            }
-        } else if (weatherData != null) {
-            val weather = weatherData!!
-
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                // Hero Weather Card
-                item {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp)
+            } else if (weatherData != null) {
+                val weather = weatherData!!
+                val (desc, icon) = WeatherRepository.decodeWmoCode(weather.weatherCode)
+                
+                // Weather Display
+                Surface(
+                    color = colors.surface,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.Medium)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(Spacing.Medium),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(Color(0xFF2563EB), Color(0xFF1D4ED8))
-                                    )
-                                )
-                                .padding(20.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(weather.icon, fontSize = 56.sp)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("${weather.tempC.toInt()}°C", fontSize = 48.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                Text("المحسوسة: ${weather.feelsLikeC.toInt()}°C • ${weather.conditionAr}", fontSize = 13.sp, color = Color.White.copy(alpha = 0.9f))
-                                if (weather.isOfflineFallback) {
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text("⚠️ تعذر جلب الطقس المباشر، تم تحميل بيانات مناخية مرجعية تقريبية", fontSize = 10.sp, color = Color.Yellow)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 3 Metrics Row
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        MetricCard("الرطوبة", "${weather.humidityPercent}%", "نسبة الرطوبة", "💧", colors, Modifier.weight(1f))
-                        MetricCard("الرياح", "${weather.windSpeedKmh.toInt()} كم/س", "سرعة الرياح", "💨", colors, Modifier.weight(1f))
-                        MetricCard("الأمطار", "${weather.precipitationMm} مم", "معدل الهطول", "🌧️", colors, Modifier.weight(1f))
-                    }
-                }
-
-                // AI Weather Advisor Card
-                item {
-                    Surface(
-                        color = colors.surface,
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("🤖 نصيحة الذكاء الاصطناعي للطقس", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
-                                if (isGeneratingAdvice) {
-                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = colors.accent)
-                                } else {
-                                    Button(
-                                        onClick = {
-                                            isGeneratingAdvice = true
-                                            coroutineScope.launch {
-                                                aiAdviceText = WeatherRepository.getAIWeatherAdvice(context, selectedCity.nameAr, weather)
-                                                isGeneratingAdvice = false
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                    ) {
-                                        Text("استشِر الذكاء 💡", fontSize = 11.sp, color = Color.White)
-                                    }
-                                }
-                            }
-
-                            if (aiAdviceText != null) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(aiAdviceText!!, fontSize = 12.sp, color = colors.text, lineHeight = 18.sp)
-                            } else if (!isGeneratingAdvice) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("اضغط للحصول على اقتراحات الملابس والأنشطة بناءً على طقس اليوم.", fontSize = 11.sp, color = colors.textMuted)
-                            }
-                        }
-                    }
-                }
-
-                // 7-day forecast header
-                item {
-                    Text("التوقعات للأيام القادمة 📅", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text, modifier = Modifier.padding(bottom = 8.dp))
-                }
-
-                items(weather.dailyMaxTemp.size) { idx ->
-                    val maxT = weather.dailyMaxTemp[idx]
-                    val minT = weather.dailyMinTemp[idx]
-                    val code = weather.dailyWeatherCodes[idx]
-                    val (_, icon) = WeatherRepository.decodeWmoCode(code)
-
-                    Surface(
-                        color = colors.surface,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 3.dp)
-                    ) {
+                        Text(icon, fontSize = 72.sp)
+                        Text(
+                            "${weather.tempC.toInt()}°C",
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.text
+                        )
+                        Text(desc, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = colors.textMuted)
+                        
+                        Spacer(modifier = Modifier.height(Spacing.Medium))
+                        
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(icon, fontSize = 20.sp)
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text("اليوم ${idx + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                            }
-
-                            Text("${maxT.toInt()}° / ${minT.toInt()}° C", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                            MetricItem("الرطوبة", "${weather.humidityPercent}%", "💧", colors)
+                            MetricItem("الرياح", "${weather.windSpeedKmh.toInt()} كم/س", "💨", colors)
+                            MetricItem("الأمطار", "${weather.precipitationMm} مم", "🌧️", colors)
                         }
                     }
                 }
+                
+                // AI Advice
+                Surface(
+                    color = colors.surface,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.Medium)
+                ) {
+                    Column(modifier = Modifier.padding(Spacing.Medium)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("🤖 نصيحة الذكاء الاصطناعي", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
+                            if (isGeneratingAdvice) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = colors.accent)
+                            } else {
+                                Button(
+                                    onClick = {
+                                        isGeneratingAdvice = true
+                                        coroutineScope.launch {
+                                            aiAdviceText = WeatherRepository.getAIWeatherAdvice(context, selectedCity.nameAr, weather)
+                                            isGeneratingAdvice = false
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text("استشِر 💡", fontSize = 11.sp, color = androidx.compose.ui.graphics.Color.White)
+                                }
+                            }
+                        }
+                        if (aiAdviceText != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(aiAdviceText!!, fontSize = 12.sp, color = colors.text, lineHeight = 18.sp)
+                        }
+                    }
+                }
+                
+                // Forecast
+                Text("التوقعات 📅", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text, modifier = Modifier.padding(bottom = 8.dp).align(Alignment.Start))
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
+                    for (idx in weather.dailyMaxTemp.indices) {
+                        val maxT = weather.dailyMaxTemp[idx]
+                        val minT = weather.dailyMinTemp[idx]
+                        val code = weather.dailyWeatherCodes[idx]
+                        val (_, fIcon) = WeatherRepository.decodeWmoCode(code)
+                        Surface(
+                            color = colors.surface,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(fIcon, fontSize = 20.sp)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text("اليوم ${idx + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                                }
+                                Text("${maxT.toInt()}° / ${minT.toInt()}° C", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("تعذر جلب بيانات الطقس", color = colors.text)
             }
         }
-    }
+    )
 
-    // City Picker Dialog
     if (showCityPicker) {
         AlertDialog(
             onDismissRequest = { showCityPicker = false },
             confirmButton = {
-                TextButton(onClick = { showCityPicker = false }) {
-                    Text("إغلاق", color = colors.accent, fontWeight = FontWeight.Bold)
-                }
+                TextButton(onClick = { showCityPicker = false }) { Text("إغلاق", color = colors.accent) }
             },
-            title = {
-                Text("🌍 اختر المدينة", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            },
+            title = { Text("🌍 اختر المدينة", color = colors.text) },
             text = {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                ) {
+                androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.height(300.dp)) {
                     items(WeatherRepository.defaultCities) { item ->
                         val isSelected = item.nameAr == selectedCity.nameAr
                         Surface(
@@ -879,34 +819,31 @@ fun WeatherScreen(colors: CustomThemeColors) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 3.dp)
-                                .clickable {
-                                    selectedCity = item
-                                    showCityPicker = false
-                                }
+                                .clickable { selectedCity = item; showCityPicker = false }
                         ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(item.icon, fontSize = 20.sp)
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text("${item.nameAr} - ${item.countryAr}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                                }
-                                if (isSelected) {
-                                    Text("✓", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                                }
+                                Text(item.icon, fontSize = 20.sp)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("${item.nameAr} - ${item.countryAr}", fontSize = 13.sp, color = colors.text)
                             }
                         }
                     }
                 }
             },
-            containerColor = colors.surface,
-            titleContentColor = colors.text,
-            textContentColor = colors.text
+            containerColor = colors.surface
         )
     }
 }
+
+@Composable
+fun MetricItem(title: String, value: String, icon: String, colors: CustomThemeColors) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(icon, fontSize = 24.sp)
+        Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+        Text(title, fontSize = 11.sp, color = colors.textMuted)
+    }
+}
+

@@ -1,36 +1,31 @@
 package com.example.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.painterResource
-import com.example.R
 import com.example.model.CalcKey
-import com.example.model.CategoryKey
+import com.example.ui.theme.AppIcons
 import com.example.ui.theme.AppThemeKey
 import com.example.ui.theme.CustomThemeColors
-import com.example.ui.theme.GradientTokens
 
+/**
+ * Top app bar. Icon-driven (no emoji), matches the current tool's identity via
+ * AppIcons.forCalc, and keeps a consistent 56dp Material touch target for actions.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppHeader(
@@ -45,7 +40,7 @@ fun AppHeader(
     Surface(
         color = colors.headerBg,
         contentColor = colors.headerFg,
-        shadowElevation = 4.dp,
+        shadowElevation = 3.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -53,24 +48,32 @@ fun AppHeader(
                 .fillMaxWidth()
                 .statusBarsPadding()
                 .height(56.dp)
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             if (currentCalc != CalcKey.HOME) {
                 IconButton(onClick = onGoHome) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = AppIcons.Back,
                         contentDescription = "الرجوع للرئيسية",
                         tint = colors.headerFg
                     )
                 }
             } else {
-                IconButton(onClick = {}, enabled = false) {
+                Box(
+                    modifier = Modifier
+                        .padding(start = 12.dp)
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(colors.accent.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Calculate,
+                        imageVector = AppIcons.forCalc(CalcKey.BASIC),
                         contentDescription = "ClevCalc Pro",
-                        tint = colors.headerFg
+                        tint = colors.accent,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -80,11 +83,18 @@ fun AppHeader(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.weight(1f)
             ) {
-                Text(text = currentCalc.icon, fontSize = 20.sp)
-                Spacer(modifier = Modifier.width(8.dp))
+                if (currentCalc != CalcKey.HOME) {
+                    Icon(
+                        imageVector = AppIcons.forCalc(currentCalc),
+                        contentDescription = null,
+                        tint = colors.headerFg,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
                 Text(
                     text = currentCalc.title,
-                    fontSize = 18.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.headerFg,
                     maxLines = 1,
@@ -95,10 +105,10 @@ fun AppHeader(
             Box {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onOpenThemes) {
-                        Icon(Icons.Default.Palette, contentDescription = "المظهر", tint = colors.headerFg)
+                        Icon(AppIcons.Theme, contentDescription = "المظهر", tint = colors.headerFg)
                     }
                     IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "خيارات", tint = colors.headerFg)
+                        Icon(AppIcons.More, contentDescription = "خيارات", tint = colors.headerFg)
                     }
                 }
 
@@ -108,7 +118,8 @@ fun AppHeader(
                     modifier = Modifier.background(colors.surface)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("حول التطبيق ℹ️", color = colors.text) },
+                        text = { Text("حول التطبيق", color = colors.text) },
+                        leadingIcon = { Icon(AppIcons.Info, contentDescription = null, tint = colors.textMuted) },
                         onClick = {
                             menuOpen = false
                             onOpenAbout()
@@ -120,8 +131,6 @@ fun AppHeader(
     }
 }
 
-
-
 @Composable
 fun ThemeSelectorModal(
     currentTheme: AppThemeKey,
@@ -132,14 +141,16 @@ fun ThemeSelectorModal(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                "🎨 اختر مظهر التطبيق",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = colors.text,
-                textAlign = TextAlign.Right,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Icon(AppIcons.Theme, contentDescription = null, tint = colors.accent)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "اختر مظهر التطبيق",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.text
+                )
+            }
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -172,7 +183,7 @@ fun ThemeSelectorModal(
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = "${key.icon} ${key.titleAr}",
+                                text = key.titleAr,
                                 fontSize = 14.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = colors.text
@@ -180,7 +191,7 @@ fun ThemeSelectorModal(
                         }
 
                         if (isSelected) {
-                            Icon(Icons.Default.Check, contentDescription = null, tint = colors.accent)
+                            Icon(AppIcons.Check, contentDescription = null, tint = colors.accent)
                         }
                     }
                 }
@@ -208,8 +219,21 @@ fun AboutModal(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("🧮", fontSize = 48.sp)
-                Spacer(modifier = Modifier.height(4.dp))
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.accent.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = AppIcons.forCalc(CalcKey.BASIC),
+                        contentDescription = null,
+                        tint = colors.accent,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 Text("ClevCalc Pro", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colors.text)
                 Text("الإصدار 2.0.0", fontSize = 12.sp, color = colors.textMuted)
             }
@@ -226,11 +250,11 @@ fun AboutModal(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text("✨ الميزات الاحترافية", fontWeight = FontWeight.Bold, color = colors.accent, fontSize = 13.sp)
+                        Text("الميزات الاحترافية", fontWeight = FontWeight.Bold, color = colors.accent, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text("• 30 حاسبة وأداة إسلامية ومالية شاملة", fontSize = 12.sp, color = colors.text)
                         Text("• أسعار حية للعملات والذهب والفضة والنفط", fontSize = 12.sp, color = colors.text)
-                        Text("• مواقيت الصلاة والقبلة والقرآن الكريم الأذكار", fontSize = 12.sp, color = colors.text)
+                        Text("• مواقيت الصلاة والقبلة والقرآن الكريم والأذكار", fontSize = 12.sp, color = colors.text)
                         Text("• 8 ثيمات جذابة قابلة للتخصيص", fontSize = 12.sp, color = colors.text)
                         Text("• مساعد ذكي متقدم بالذكاء الاصطناعي (Gemini)", fontSize = 12.sp, color = colors.text)
                     }
@@ -244,12 +268,12 @@ fun AboutModal(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text("🌐 مصادر البيانات المباشرة", fontWeight = FontWeight.Bold, color = Color(0xFF10B981), fontSize = 13.sp)
+                        Text("مصادر البيانات المباشرة", fontWeight = FontWeight.Bold, color = Color(0xFF10B981), fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("• 💱 العملات (166 عملة): exchangerate.fun", fontSize = 11.sp, color = colors.textMuted)
-                        Text("• 🥇 المعادن والذهب: gold-api.com", fontSize = 11.sp, color = colors.textMuted)
-                        Text("• 🕌 مواقيت الصلاة والقبلة: aladhan.com", fontSize = 11.sp, color = colors.textMuted)
-                        Text("• 📖 القرآن الكريم: alquran.cloud", fontSize = 11.sp, color = colors.textMuted)
+                        Text("• العملات (166 عملة): exchangerate.fun", fontSize = 11.sp, color = colors.textMuted)
+                        Text("• المعادن والذهب: gold-api.com", fontSize = 11.sp, color = colors.textMuted)
+                        Text("• مواقيت الصلاة والقبلة: aladhan.com", fontSize = 11.sp, color = colors.textMuted)
+                        Text("• القرآن الكريم: alquran.cloud", fontSize = 11.sp, color = colors.textMuted)
                     }
                 }
             }

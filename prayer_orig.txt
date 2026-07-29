@@ -1,0 +1,563 @@
+fun PrayerTimesScreen(colors: CustomThemeColors) {
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+
+    val prefs = remember { context.getSharedPreferences("clevcalc_adhan_prefs", Context.MODE_PRIVATE) }
+
+    var selectedCityIndex by remember { 
+        mutableStateOf(prefs.getInt("selected_city_index", 0)) 
+    }
+    var cityExpanded by remember { mutableStateOf(false) }
+    var showPrivacyNotice by remember { mutableStateOf(false) }
+    var showAdhanSettings by remember { mutableStateOf(false) }
+    var selectedAdhanSound by remember { mutableStateOf(prefs.getString("selected_adhan_sound", "makkah") ?: "makkah") }
+    val baseCity = IslamicData.cities.getOrElse(selectedCityIndex) { IslamicData.cities[0] }
+
+    var customLat by remember { 
+        val savedLatStr = prefs.getString("custom_lat", null)
+        mutableStateOf(savedLatStr?.toDoubleOrNull()) 
+    }
+    var customLng by remember { 
+        val savedLngStr = prefs.getString("custom_lng", null)
+        mutableStateOf(savedLngStr?.toDoubleOrNull()) 
+    }
+    var customLocationName by remember { 
+        mutableStateOf(prefs.getString("custom_location_name", "") ?: "") 
+    }
+
+    val city = if (customLat != null && customLng != null) {
+        CityPrayerInfo(customLocationName.ifBlank { "موقعي الحالي" }, customLocationName.ifBlank { "My Location" }, "", customLat!!, customLng!!, "", "", "", "", "", "", "")
+    } else {
+        baseCity
+    }
+
+    fun saveLocationState(lat: Double?, lng: Double?, name: String, cityIndex: Int) {
+        prefs.edit().apply {
+            putInt("selected_city_index", cityIndex)
+            if (lat != null && lng != null) {
+                putString("custom_lat", lat.toString())
+                putString("custom_lng", lng.toString())
+                putString("custom_location_name", name)
+            } else {
+                remove("custom_lat")
+                remove("custom_lng")
+                remove("custom_location_name")
+            }
+            apply()
+        }
+    }
+
+    val fusedLocationClient = remember(context) {
+        val targetContext = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            context.applicationContext.createAttributionContext("default")
+        } else {
+            context.applicationContext
+        }
+        LocationServices.getFusedLocationProviderClient(targetContext)
+    }
+    
+    fun fetchGPSLocation() {
+        try {
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { location ->
+                    if (location != null) {
+                        customLat = location.latitude
+                        customLng = location.longitude
+                        coroutineScope.launch {
+                            var locName = "موقعي الحالي"
+                            try {
+                                val geocoder = Geocoder(context, Locale("ar"))
+                                val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(location.latitude, location.longitude, 1) }
+                                if (!addresses.isNullOrEmpty()) {
+                                    val address = addresses[0]
+                                    val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
+                                    if (parts.isNotEmpty()) locName = parts.joinToString("، ")
+                                }
+                            } catch (e: Exception) {}
+                            customLocationName = locName
+                            saveLocationState(location.latitude, location.longitude, locName, selectedCityIndex)
+                        }
+                    } else {
+                        fusedLocationClient.lastLocation
+                            .addOnSuccessListener { lastLoc ->
+                                if (lastLoc != null) {
+                                    customLat = lastLoc.latitude
+                                    customLng = lastLoc.longitude
+                                    coroutineScope.launch {
+                                        var locName = "موقعي الحالي"
+                                        try {
+                                            val geocoder = Geocoder(context, Locale("ar"))
+                                            val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(lastLoc.latitude, lastLoc.longitude, 1) }
+                                            if (!addresses.isNullOrEmpty()) {
+                                                val address = addresses[0]
+                                                val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
+                                                if (parts.isNotEmpty()) locName = parts.joinToString("، ")
+                                            }
+                                        } catch (e: Exception) {}
+                                        customLocationName = locName
+                                        saveLocationState(lastLoc.latitude, lastLoc.longitude, locName, selectedCityIndex)
+                                    }
+                                }
+                            }
+                    }
+                }
+        } catch (e: SecurityException) { }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            fetchGPSLocation()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val hasFine = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val hasCoarse = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (hasFine || hasCoarse) {
+            fetchGPSLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+            )
+        }
+    }
+
+    // Calculate prayer times dynamically based on astronomical location and date
+    val dynamicTimes = remember(city) {
+        IslamicData.getDynamicPrayerTimesForCity(city)
+    }
+
+    // Dynamic Gregorian and Hijri Date Calculation
+    val nowCalendar = remember { java.util.Calendar.getInstance() }
+    val gregorianDateStr = remember {
+        String.format("%02d-%02d-%04d",
+            nowCalendar.get(java.util.Calendar.DAY_OF_MONTH),
+            nowCalendar.get(java.util.Calendar.MONTH) + 1,
+            nowCalendar.get(java.util.Calendar.YEAR)
+        )
+    }
+    val hijriDateStr = remember {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                val hijrahDate = java.time.chrono.HijrahDate.now()
+                val formatter = java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy هـ", java.util.Locale("ar"))
+                hijrahDate.format(formatter)
+            } catch (_: Exception) {
+                "اليوم الهجري المبارك"
+            }
+        } else {
+            "اليوم الهجري المبارك"
+        }
+    }
+
+    fun to12HourFormat(timeStr: String): String {
+        try {
+            val parts = timeStr.split(":")
+            val h = parts.getOrNull(0)?.toIntOrNull() ?: 0
+            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+            val amPm = if (h >= 12) "م" else "ص"
+            val h12 = if (h % 12 == 0) 12 else h % 12
+            return String.format("%02d:%02d %s", h12, m, amPm)
+        } catch (e: Exception) {
+            return timeStr
+        }
+    }
+
+    // Calculate Next Prayer dynamically
+    val nextPrayerDisplay = remember(dynamicTimes) {
+        val currentMins = nowCalendar.get(java.util.Calendar.HOUR_OF_DAY) * 60 + nowCalendar.get(java.util.Calendar.MINUTE)
+        fun toMins(s: String): Int {
+            val parts = s.split(":")
+            val h = parts.getOrNull(0)?.toIntOrNull() ?: 0
+            val m = parts.getOrNull(1)?.toIntOrNull() ?: 0
+            return h * 60 + m
+        }
+        val pList = listOf(
+            "الفجر" to toMins(dynamicTimes.fajr),
+            "الظهر" to toMins(dynamicTimes.dhuhr),
+            "العصر" to toMins(dynamicTimes.asr),
+            "المغرب" to toMins(dynamicTimes.maghrib),
+            "العشاء" to toMins(dynamicTimes.isha)
+        )
+        val next = pList.firstOrNull { it.second > currentMins } ?: pList.first()
+        val timeStr = when(next.first) {
+            "الفجر" -> dynamicTimes.fajr
+            "الظهر" -> dynamicTimes.dhuhr
+            "العصر" -> dynamicTimes.asr
+            "المغرب" -> dynamicTimes.maghrib
+            else -> dynamicTimes.isha
+        }
+        "${next.first} - ${to12HourFormat(timeStr)}"
+    }
+
+    // Notification states for prayers
+    var fajrNotification by remember { mutableStateOf(prefs.getBoolean("adhan_fajr", true)) }
+    var dhuhrNotification by remember { mutableStateOf(prefs.getBoolean("adhan_dhuhr", true)) }
+    var asrNotification by remember { mutableStateOf(prefs.getBoolean("adhan_asr", true)) }
+    var maghribNotification by remember { mutableStateOf(prefs.getBoolean("adhan_maghrib", true)) }
+    var ishaNotification by remember { mutableStateOf(prefs.getBoolean("adhan_isha", true)) }
+
+    // Permission launcher
+    val notifPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ -> }
+
+    val prayers = listOf(
+        Triple("الفجر", to12HourFormat(dynamicTimes.fajr), Pair("🌅", fajrNotification)),
+        Triple("الشروق", to12HourFormat(dynamicTimes.sunrise), Pair("☀️", false)),
+        Triple("الظهر", to12HourFormat(dynamicTimes.dhuhr), Pair("🌤️", dhuhrNotification)),
+        Triple("العصر", to12HourFormat(dynamicTimes.asr), Pair("🌥️", asrNotification)),
+        Triple("المغرب", to12HourFormat(dynamicTimes.maghrib), Pair("🌆", maghribNotification)),
+        Triple("العشاء", to12HourFormat(dynamicTimes.isha), Pair("🌙", ishaNotification))
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.appBg)
+            .padding(14.dp)
+    ) {
+        // Location Banner Card
+        Surface(
+            color = colors.surface,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Text("📍", fontSize = 20.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(city.nameAr, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (city.countryAr.isNotBlank()) {
+                            Text(city.countryAr, fontSize = 11.sp, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { showAdhanSettings = true }) {
+                        Text("⚙️", fontSize = 18.sp)
+                    }
+                    IconButton(onClick = { showPrivacyNotice = true }) {
+                        Text("🛡️", fontSize = 18.sp)
+                    }
+
+                    Box {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = {
+                                val hasFine = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                val hasCoarse = androidx.core.content.ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (hasFine || hasCoarse) {
+                                    fetchGPSLocation()
+                                } else {
+                                    locationPermissionLauncher.launch(
+                                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                                    )
+                                }
+                            }) {
+                                Icon(Icons.Default.LocationOn, contentDescription = "تحديد موقعي (GPS)", tint = colors.accent)
+                            }
+                            Button(
+                                onClick = { cityExpanded = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text("تغيير المدينة ▾", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = cityExpanded,
+                            onDismissRequest = { cityExpanded = false },
+                            modifier = Modifier.background(colors.surface)
+                        ) {
+                            IslamicData.cities.forEachIndexed { idx, c ->
+                                DropdownMenuItem(
+                                    text = { Text("${c.nameAr} - ${c.countryAr}", color = colors.text) },
+                                    onClick = {
+                                        selectedCityIndex = idx
+                                        customLat = null
+                                        customLng = null
+                                        customLocationName = ""
+                                        saveLocationState(null, null, "", idx)
+                                        cityExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Hijri Date Blue Card
+        Surface(
+            color = Color(0xFF2563EB),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(hijriDateStr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("التاريخ الهجري الحالي", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+                }
+                Surface(
+                    color = Color.White.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text(gregorianDateStr, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Next Prayer Hero Card
+        Surface(
+            color = colors.surface,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("الصلاة القادمة", fontSize = 12.sp, color = colors.textMuted)
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(nextPrayerDisplay, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                }
+                Text("🌙", fontSize = 32.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Prayer Times List with Adhan Toggles
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            items(prayers) { (name, time, extra) ->
+                val (icon, isNotifEnabled) = extra
+                val isSunrise = name == "الشروق"
+
+                Surface(
+                    color = colors.surface,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(icon, fontSize = 20.sp)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(name, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
+                                if (!isSunrise) {
+                                    Text(if (isNotifEnabled) "تنبيه الأذان مفعل 🔔" else "التنبيه صامت 🔕", fontSize = 10.sp, color = colors.textMuted)
+                                }
+                            }
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(time, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.accent)
+                            if (!isSunrise) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Switch(
+                                    checked = isNotifEnabled,
+                                    onCheckedChange = { checked ->
+                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                        }
+                                        when (name) {
+                                            "الفجر" -> {
+                                                fajrNotification = checked
+                                                prefs.edit().putBoolean("adhan_fajr", checked).apply()
+                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "الفجر", dynamicTimes.fajr, 1001)
+                                                else AdhanScheduler.cancelPrayerAlarm(context, 1001)
+                                            }
+                                            "الظهر" -> {
+                                                dhuhrNotification = checked
+                                                prefs.edit().putBoolean("adhan_dhuhr", checked).apply()
+                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "الظهر", dynamicTimes.dhuhr, 1002)
+                                                else AdhanScheduler.cancelPrayerAlarm(context, 1002)
+                                            }
+                                            "العصر" -> {
+                                                asrNotification = checked
+                                                prefs.edit().putBoolean("adhan_asr", checked).apply()
+                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "العصر", dynamicTimes.asr, 1003)
+                                                else AdhanScheduler.cancelPrayerAlarm(context, 1003)
+                                            }
+                                            "المغرب" -> {
+                                                maghribNotification = checked
+                                                prefs.edit().putBoolean("adhan_maghrib", checked).apply()
+                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "المغرب", dynamicTimes.maghrib, 1004)
+                                                else AdhanScheduler.cancelPrayerAlarm(context, 1004)
+                                            }
+                                            "العشاء" -> {
+                                                ishaNotification = checked
+                                                prefs.edit().putBoolean("adhan_isha", checked).apply()
+                                                if (checked) AdhanScheduler.schedulePrayerAlarm(context, "العشاء", dynamicTimes.isha, 1005)
+                                                else AdhanScheduler.cancelPrayerAlarm(context, 1005)
+                                            }
+                                        }
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = colors.accent,
+                                        uncheckedThumbColor = colors.textMuted,
+                                        uncheckedTrackColor = colors.surface2
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Adhan Sound & Notification Settings Dialog
+    if (showAdhanSettings) {
+        AlertDialog(
+            onDismissRequest = { showAdhanSettings = false },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        prefs.edit().putString("selected_adhan_sound", selectedAdhanSound).apply()
+                        showAdhanSettings = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
+                ) {
+                    Text("حفظ الإعدادات", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAdhanSettings = false }) {
+                    Text("إلغاء", color = colors.textMuted)
+                }
+            },
+            title = {
+                Text("🔊 اختيار صوت ونغمة المؤذن", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("اختر صوت المؤذن المفضل لتنبيهات أوقات الصلوات في مصر والخارج:", fontSize = 12.sp, color = colors.textMuted)
+                    
+                    val sounds = listOf(
+                        "makkah" to "مؤذن الحرم المكي (صوت شجي)",
+                        "madinah" to "مؤذن المسجد النبوي الشريف",
+                        "mishary" to "القارئ الشيخ مشاري العفاسي",
+                        "abdulbasit" to "الشيخ عبد الباسط عبد الصمد",
+                        "default" to "التنبيه القياسي للنظام"
+                    )
+
+                    sounds.forEach { (key, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedAdhanSound = key }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(label, fontSize = 13.sp, color = colors.text)
+                            RadioButton(
+                                selected = selectedAdhanSound == key,
+                                onClick = { selectedAdhanSound = key }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = {
+                            try {
+                                val alarmUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_ALARM)
+                                    ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+                                val r = android.media.RingtoneManager.getRingtone(context, alarmUri)
+                                r?.play()
+                            } catch (_: Exception) {}
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("▶️ اختبار صوت التنبيه الآن", color = colors.accent)
+                    }
+                }
+            },
+            containerColor = colors.surface,
+            titleContentColor = colors.text,
+            textContentColor = colors.text
+        )
+    }
+
+    // Transparent Privacy & Permissions Explanation Dialog
+    if (showPrivacyNotice) {
+        AlertDialog(
+            onDismissRequest = { showPrivacyNotice = false },
+            confirmButton = {
+                Button(
+                    onClick = { showPrivacyNotice = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
+                ) {
+                    Text("موافق وفهمت ذلك", color = Color.White)
+                }
+            },
+            title = {
+                Text("🛡️ الشفافية والخصوصية التامة", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            },
+            text = {
+                Column {
+                    Text(
+                        "نحن نلتزم بأعلى معايير الخصوصية وحماية بيانات المستخدمين وفقاً لإرشادات Google Play:",
+                        fontSize = 12.sp,
+                        color = colors.text,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("• 📍 **إذن الموقع (GPS)**: يُستخدم فقط لحساب خطوط الطول والعرض وتحديد اتجاه القبلة ومواقيت الصلاة بدقة. لا يتم حفظ موقعك أو مشاركته مع أي طرف خارجي إطلاقاً.", fontSize = 11.sp, color = colors.textMuted, lineHeight = 16.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("• 🔔 **إذن الإشعارات**: يُستخدم فقط لإرسال تنبيهات صوت الأذان في الوقت المحدد لصلاوتك المفضلة.", fontSize = 11.sp, color = colors.textMuted, lineHeight = 16.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("• 🔒 **معالجة محلية**: جميع الحسابات الإسلامية تتم محلياً على جهازك 100% دون الحاجة إلى إرسال أي بيانات شخصية.", fontSize = 11.sp, color = colors.textMuted, lineHeight = 16.sp)
+                }
+            },
+            containerColor = colors.surface,
+            titleContentColor = colors.text,
+            textContentColor = colors.text
+        )
+    }
+}
+
+@Composable
