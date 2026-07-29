@@ -5,6 +5,11 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.location.Geocoder
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -30,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -590,7 +596,19 @@ fun WeatherScreen(colors: CustomThemeColors) {
                 val lastKnown = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                     ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
                 if (lastKnown != null) {
-                    selectedCity = WeatherCity("موقعي الحالي", "GPS", lastKnown.latitude, lastKnown.longitude, "📍")
+                    coroutineScope.launch {
+                        var locName = "موقعي الحالي"
+                        try {
+                            val geocoder = Geocoder(context, Locale("ar"))
+                            val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(lastKnown.latitude, lastKnown.longitude, 1) }
+                            if (!addresses.isNullOrEmpty()) {
+                                val address = addresses[0]
+                                val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
+                                if (parts.isNotEmpty()) locName = parts.joinToString("، ")
+                            }
+                        } catch (e: Exception) {}
+                        selectedCity = WeatherCity(locName, "GPS", lastKnown.latitude, lastKnown.longitude, "📍")
+                    }
                 }
             } catch (_: SecurityException) {}
         }
@@ -628,11 +646,11 @@ fun WeatherScreen(colors: CustomThemeColors) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                     Text(selectedCity.icon, fontSize = 24.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(selectedCity.nameAr, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("📍 ${selectedCity.nameAr}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                         Text(selectedCity.countryAr, fontSize = 11.sp, color = colors.textMuted)
                     }
                 }
@@ -645,7 +663,19 @@ fun WeatherScreen(colors: CustomThemeColors) {
                                 val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
                                 val loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
                                 if (loc != null) {
-                                    selectedCity = WeatherCity("موقعي الحالي", "GPS", loc.latitude, loc.longitude, "📍")
+                                    coroutineScope.launch {
+                                        var locName = "موقعي الحالي"
+                                        try {
+                                            val geocoder = Geocoder(context, Locale("ar"))
+                                            val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(loc.latitude, loc.longitude, 1) }
+                                            if (!addresses.isNullOrEmpty()) {
+                                                val address = addresses[0]
+                                                val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
+                                                if (parts.isNotEmpty()) locName = parts.joinToString("، ")
+                                            }
+                                        } catch (e: Exception) {}
+                                        selectedCity = WeatherCity(locName, "GPS", loc.latitude, loc.longitude, "📍")
+                                    }
                                 }
                             } catch (_: SecurityException) {}
                         } else {

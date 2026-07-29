@@ -1,4 +1,5 @@
-package com.example.ui.theme
+with open("app/src/main/java/com/example/ui/theme/ClevTheme.kt", "w") as f:
+    f.write("""package com.example.ui.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -175,3 +176,4 @@ fun ClevCalcTheme(
         content = content
     )
 }
+""")

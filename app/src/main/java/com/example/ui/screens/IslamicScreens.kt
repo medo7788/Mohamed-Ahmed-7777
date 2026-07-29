@@ -53,6 +53,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.IslamicData
@@ -71,11 +72,15 @@ import kotlin.math.cos
 import kotlin.math.sin
 import android.annotation.SuppressLint
 import com.google.android.gms.location.LocationServices
+import android.location.Geocoder
+import java.util.Locale
+import kotlinx.coroutines.withContext
 import com.google.android.gms.location.Priority
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrayerTimesScreen(colors: CustomThemeColors) {
+    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
@@ -140,16 +145,40 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
                     if (location != null) {
                         customLat = location.latitude
                         customLng = location.longitude
-                        customLocationName = "موقعي الحالي"
-                        saveLocationState(location.latitude, location.longitude, "موقعي الحالي", selectedCityIndex)
+                        coroutineScope.launch {
+                            var locName = "موقعي الحالي"
+                            try {
+                                val geocoder = Geocoder(context, Locale("ar"))
+                                val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(location.latitude, location.longitude, 1) }
+                                if (!addresses.isNullOrEmpty()) {
+                                    val address = addresses[0]
+                                    val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
+                                    if (parts.isNotEmpty()) locName = parts.joinToString("، ")
+                                }
+                            } catch (e: Exception) {}
+                            customLocationName = locName
+                            saveLocationState(location.latitude, location.longitude, locName, selectedCityIndex)
+                        }
                     } else {
                         fusedLocationClient.lastLocation
                             .addOnSuccessListener { lastLoc ->
                                 if (lastLoc != null) {
                                     customLat = lastLoc.latitude
                                     customLng = lastLoc.longitude
-                                    customLocationName = "موقعي الحالي"
-                                    saveLocationState(lastLoc.latitude, lastLoc.longitude, "موقعي الحالي", selectedCityIndex)
+                                    coroutineScope.launch {
+                                        var locName = "موقعي الحالي"
+                                        try {
+                                            val geocoder = Geocoder(context, Locale("ar"))
+                                            val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(lastLoc.latitude, lastLoc.longitude, 1) }
+                                            if (!addresses.isNullOrEmpty()) {
+                                                val address = addresses[0]
+                                                val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
+                                                if (parts.isNotEmpty()) locName = parts.joinToString("، ")
+                                            }
+                                        } catch (e: Exception) {}
+                                        customLocationName = locName
+                                        saveLocationState(lastLoc.latitude, lastLoc.longitude, locName, selectedCityIndex)
+                                    }
                                 }
                             }
                     }
@@ -285,12 +314,14 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                     Text("📍", fontSize = 20.sp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(city.nameAr, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text)
-                        Text(city.countryAr, fontSize = 11.sp, color = colors.textMuted)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(city.nameAr, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (city.countryAr.isNotBlank()) {
+                            Text(city.countryAr, fontSize = 11.sp, color = colors.textMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                 }
 
@@ -631,6 +662,7 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
         }
         LocationServices.getFusedLocationProviderClient(targetContext)
     }
+    val coroutineScope = rememberCoroutineScope()
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -641,7 +673,19 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
                         if (location != null) {
                             customLat = location.latitude
                             customLng = location.longitude
-                            locationName = "موقعي الحالي"
+                            coroutineScope.launch {
+                                var locName = "موقعي الحالي"
+                                try {
+                                    val geocoder = Geocoder(context, Locale("ar"))
+                                    val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(location.latitude, location.longitude, 1) }
+                                    if (!addresses.isNullOrEmpty()) {
+                                        val address = addresses[0]
+                                        val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
+                                        if (parts.isNotEmpty()) locName = parts.joinToString("، ")
+                                    }
+                                } catch (e: Exception) {}
+                                locationName = locName
+                            }
                         }
                     }
             } catch (e: SecurityException) { }
@@ -1020,8 +1064,8 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("📍 المدينة الحالية: $currentDisplayLocation", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Text("الإحداثيات: ${city.lat}, ${city.lng}", fontSize = 11.sp, color = colors.textMuted)
+                    Text("📍 $currentDisplayLocation", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    
                 }
                 Text("المسافة للكعبة: ~1,269 كم", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accent)
             }
@@ -1144,133 +1188,396 @@ fun AdhkarScreen(colors: CustomThemeColors) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TasbihScreen(colors: CustomThemeColors) {
-    var count by remember { mutableStateOf(0) }
-    val maxCount = 33
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val prefs = context.getSharedPreferences("tasbih_prefs", Context.MODE_PRIVATE)
+
+    var count by remember { mutableStateOf(0) }
+    var targetCount by remember { mutableStateOf(33) }
+    var dhikrName by remember { mutableStateOf("سُبْحَانَ اللهِ") }
+    
+    var lifetimeCount by remember { mutableStateOf(prefs.getInt("lifetime_count", 0)) }
+    
+    var customDhikrs by remember { 
+        mutableStateOf(
+            try {
+                val arr = org.json.JSONArray(prefs.getString("custom_dhikrs", "[]"))
+                val list = mutableListOf<String>()
+                for (i in 0 until arr.length()) list.add(arr.getString(i))
+                list
+            } catch (e: Exception) { emptyList() }
+        ) 
+    }
+    
+    val defaultDhikrs = listOf("سُبْحَانَ اللهِ", "الْحَمْدُ لِلَّهِ", "اللهُ أَكْبَرُ", "لَا إِلٰهَ إِلَّا اللهُ", "أَسْتَغْفِرُ اللهَ")
+    
+    var showDhikrSelector by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var newDhikrText by remember { mutableStateOf("") }
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // أنيميشن الانكماش عند الضغط
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.92f else 1.0f,
-        animationSpec = tween(durationMillis = 100),
+        targetValue = if (isPressed) 0.94f else 1.0f,
+        animationSpec = tween(durationMillis = 150),
         label = "PressAnimation"
-    )
-
-    val goldGradients = listOf(
-        Color(0xFFF3E5AB),
-        Color(0xFFD4AF37),
-        Color(0xFFAA771C)
     )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(colors.appBg)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // العنوان العلوي
+        // Top section: Counters
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                color = colors.surface,
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, colors.border),
+                modifier = Modifier.clickable { targetCount = if (targetCount == 33) 99 else if (targetCount == 99) 1000 else 33 }
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("الهدف", color = colors.textMuted, fontSize = 12.sp)
+                    Text("$targetCount", color = colors.accent, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            
+            Surface(
+                color = colors.surface,
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, colors.border)
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("المجموع", color = colors.textMuted, fontSize = 12.sp)
+                    Text("$lifetimeCount", color = colors.accentSecondary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // Current Dhikr Name & Selector
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "الذِّكْرُ الحَالِي",
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.Gray
+                color = colors.textMuted
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFD4AF37)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Surface(
+                color = colors.surface,
+                shape = RoundedCornerShape(24.dp),
+                shadowElevation = 8.dp,
+                modifier = Modifier.clickable { showDhikrSelector = true }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = dhikrName,
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accent,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "تغيير الذكر",
+                        tint = colors.textMuted,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
         }
 
-        // المنطقة المركزية: زر التسبيح الرقمي الدائري
+        // Central Bead Clicker - Modern 3D Design
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(280.dp)
+                .size(300.dp)
                 .scale(scale)
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null
                 ) {
-                    count = (count + 1) % (maxCount + 1)
+                    count++
+                    lifetimeCount++
+                    prefs.edit().putInt("lifetime_count", lifetimeCount).apply()
+                    if (count > targetCount) count = 1
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 }
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val strokeWidth = 12.dp.toPx()
+                val strokeWidth = 14.dp.toPx()
                 val diameter = size.minDimension - strokeWidth
                 val radius = diameter / 2
-                val sweepAngle = (count.toFloat() / maxCount.toFloat()) * 360f
-
-                // الحلقة الخلفية
+                
+                // Outer beautiful glowing ring
                 drawCircle(
-                    color = Color(0xFF1E293B),
+                    color = colors.accent.copy(alpha = 0.15f),
+                    radius = radius + 8.dp.toPx()
+                )
+
+                // Thread
+                drawCircle(
+                    color = colors.border,
                     radius = radius,
-                    style = Stroke(width = strokeWidth)
+                    style = Stroke(width = 3.dp.toPx())
                 )
 
-                // حلقة التقدم المتممة للتسبيح
-                drawArc(
-                    brush = Brush.sweepGradient(goldGradients),
-                    startAngle = -90f,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
+                // Beads
+                val beadCount = if (targetCount > 100) 33 else targetCount
+                for (i in 0 until beadCount) {
+                    val angleStr = (i.toFloat() / beadCount.toFloat()) * 360f - 90f
+                    val angleRad = Math.toRadians(angleStr.toDouble())
+                    val cx = center.x + radius * Math.cos(angleRad).toFloat()
+                    val cy = center.y + radius * Math.sin(angleRad).toFloat()
+                    
+                    val isCounted = if (count == 0) false else if (count % beadCount == 0) true else i < (count % beadCount)
+                    val beadColor = if (isCounted) colors.accent else colors.surface2
+                    val beadRadius = if (isCounted) 12.dp.toPx() else 8.dp.toPx()
+                    
+                    // Main bead
+                    drawCircle(
+                        color = beadColor,
+                        radius = beadRadius,
+                        center = Offset(cx, cy)
+                    )
+                    
+                    // Highlight for 3D effect
+                    drawCircle(
+                        color = Color.White.copy(alpha = if (isCounted) 0.6f else 0.2f),
+                        radius = beadRadius * 0.35f,
+                        center = Offset(cx - beadRadius * 0.3f, cy - beadRadius * 0.3f)
+                    )
+                    
+                    // Shadow for 3D effect
+                    drawCircle(
+                        color = Color.Black.copy(alpha = 0.2f),
+                        radius = beadRadius * 0.8f,
+                        center = Offset(cx + beadRadius * 0.1f, cy + beadRadius * 0.1f),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+                }
 
-                // قرص الزر الداخلي
+                // Inner Elegant Center
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A))
+                        colors = listOf(colors.surface.copy(alpha=0.9f), colors.surface.copy(alpha=0.4f), Color.Transparent)
                     ),
-                    radius = radius - strokeWidth
+                    radius = radius - strokeWidth * 2
                 )
             }
 
-            // عرض الرقم في المنتصف (بدون أي نصوص توجيهية)
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = "$count",
-                    fontSize = 64.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFD4AF37)
+                    fontSize = 84.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.text
                 )
-                Text(
-                    text = "من $maxCount",
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
+                if (targetCount <= 100) {
+                    Text(
+                        text = "من $targetCount",
+                        fontSize = 16.sp,
+                        color = colors.textMuted
+                    )
+                }
             }
         }
 
-        // أزرار التحكم الفرعية
+        // Reset Button
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedIconButton(
-                onClick = {
-                    count = 0
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                },
+            Surface(
                 shape = CircleShape,
-                modifier = Modifier.size(56.dp)
+                color = colors.surface,
+                shadowElevation = 4.dp,
+                modifier = Modifier.size(64.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "إعادة ضبط",
-                    tint = Color(0xFFD4AF37)
-                )
+                IconButton(
+                    onClick = {
+                        count = 0
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "إعادة ضبط",
+                        tint = colors.accent,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
         }
+    }
+
+    if (showDhikrSelector) {
+        AlertDialog(
+            onDismissRequest = { showDhikrSelector = false },
+            containerColor = colors.appBg,
+            title = { Text("اختر الذكر", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 22.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) },
+            text = {
+                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 350.dp)) {
+                    items(defaultDhikrs) { dhikr ->
+                        Surface(
+                            color = colors.surface,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .clickable {
+                                    dhikrName = dhikr
+                                    count = 0
+                                    showDhikrSelector = false
+                                }
+                        ) {
+                            Text(
+                                text = dhikr,
+                                modifier = Modifier.padding(16.dp),
+                                color = colors.text,
+                                fontSize = 18.sp,
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                    
+                    if (customDhikrs.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("أذكاري المخصصة", color = colors.textMuted, fontSize = 14.sp, modifier = Modifier.padding(bottom = 8.dp))
+                        }
+                        
+                        items(customDhikrs) { dhikr ->
+                            Surface(
+                                color = colors.surface,
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        dhikrName = dhikr
+                                        count = 0
+                                        showDhikrSelector = false
+                                    }.padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = dhikr,
+                                        color = colors.accent,
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = TextAlign.Start
+                                    )
+                                    IconButton(onClick = {
+                                        val updated = customDhikrs.filter { it != dhikr }
+                                        customDhikrs = updated
+                                        val arr = org.json.JSONArray()
+                                        for (item in updated) arr.put(item)
+                                        prefs.edit().putString("custom_dhikrs", arr.toString()).apply()
+                                        if (dhikrName == dhikr) dhikrName = defaultDhikrs[0]
+                                    }) {
+                                        Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color.Red.copy(alpha = 0.7f))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    item {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { showAddDialog = true; showDhikrSelector = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(50.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("إضافة ذكر مخصص", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDhikrSelector = false }) {
+                    Text("إغلاق", color = colors.textMuted)
+                }
+            }
+        )
+    }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            containerColor = colors.appBg,
+            title = { Text("ذكر جديد", color = colors.text, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+            text = {
+                OutlinedTextField(
+                    value = newDhikrText,
+                    onValueChange = { newDhikrText = it },
+                    label = { Text("أدخل الذكر هنا") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.accent,
+                        focusedLabelColor = colors.accent,
+                        unfocusedBorderColor = colors.border,
+                        unfocusedLabelColor = colors.textMuted,
+                        focusedTextColor = colors.text,
+                        unfocusedTextColor = colors.text
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (newDhikrText.isNotBlank()) {
+                            if (!customDhikrs.contains(newDhikrText)) {
+                                val updated = customDhikrs + newDhikrText
+                                customDhikrs = updated
+                                val arr = org.json.JSONArray()
+                                for (item in updated) arr.put(item)
+                                prefs.edit().putString("custom_dhikrs", arr.toString()).apply()
+                            }
+                            dhikrName = newDhikrText
+                            count = 0
+                            newDhikrText = ""
+                            showAddDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("إضافة", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("إلغاء", color = colors.textMuted)
+                }
+            }
+        )
     }
 }
 
@@ -1557,8 +1864,8 @@ fun SurahDetailReader(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Bismillah Banner for non-Tawbah surahs
-        if (surah.number != 9) {
+        // Bismillah Banner for non-Tawbah and non-Fatiha surahs
+        if (surah.number != 9 && surah.number != 1) {
             Surface(
                 color = colors.surface,
                 shape = RoundedCornerShape(14.dp),
@@ -1803,16 +2110,37 @@ fun ZakatCalcScreen(colors: CustomThemeColors) {
 }
 
 fun stripBismillahIfPresent(ayahText: String): String {
-    val diacriticsRegex = Regex("[\u0610-\u061A\u064B-\u065F\u06D6-\u06ED]")
-    val words = ayahText.trim().split(Regex("\\s+"))
-    if (words.size < 4) return ayahText
-
-    val expectedBase = listOf("بسم", "الله", "الرحمن", "الرحيم")
-    val actualBase = words.take(4).map { diacriticsRegex.replace(it, "") }
-
-    return if (actualBase == expectedBase) {
-        words.drop(4).joinToString(" ")
-    } else {
-        ayahText
+    var text = ayahText.trim()
+    val knownPrefixes = listOf(
+        "بِسۡمِ ٱللَّهِ ٱلرَّحۡمَـٰنِ ٱلرَّحِیمِ",
+        "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ",
+        "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+        "بسم الله الرحمن الرحيم",
+        "بِسۡمِ ٱللَّهِ ٱلرَّحۡمَٰنِ ٱلرَّحِيمِ"
+    )
+    for (prefix in knownPrefixes) {
+        if (text.startsWith(prefix)) {
+            text = text.substring(prefix.length).trim()
+            // Some apis might have weird invisible chars or an extra space, trim again
+            return text
+        }
     }
+    
+    // Fallback: If it starts with bismi, remove up to 4 words.
+    // We will do a generic diacritic strip to check.
+    val diacriticRegex = Regex("[\\p{Mn}\\p{Me}\\u0640]+")
+    val cleanText = text.replace(diacriticRegex, "")
+        .replace("ٱ", "ا")
+        .replace("ی", "ي")
+        .replace("ى", "ي")
+        
+    if (cleanText.startsWith("بسم الله الرحمن الرحيم")) {
+        // Find the index of the 4th space in the original string? It's risky.
+        // Let's just find the first character of the next word.
+        val words = text.split(Regex("\\s+"))
+        if (words.size > 4) {
+            return words.drop(4).joinToString(" ").trim()
+        }
+    }
+    return text
 }
