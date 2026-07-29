@@ -1146,497 +1146,131 @@ fun AdhkarScreen(colors: CustomThemeColors) {
 
 @Composable
 fun TasbihScreen(colors: CustomThemeColors) {
-    val context = LocalContext.current
+    var count by remember { mutableStateOf(0) }
+    val maxCount = 33
     val haptic = LocalHapticFeedback.current
 
-    var count by remember { mutableStateOf(0) }
-    var targetCount by remember { mutableStateOf(33) }
-    var dhikrName by remember { mutableStateOf("سُبْحَانَ اللهِ") }
-    var lifetimeCount by remember { mutableStateOf(IslamicData.getLifetimeCount(context)) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
 
-    val defaultDhikrs = remember { listOf("سُبْحَانَ اللهِ", "الْحَمْدُ لِلَّهِ", "اللهُ أَكْبَرُ", "الْعَظِيمُ", "لَا إِلٰهَ إِلَّا اللهُ وَحْدَهُ لَا شَرِيكَ لَهُ", "أَسْتَغْفِرُ اللهَ الْعَظِيمَ") }
-    var customDhikrs by remember { mutableStateOf(IslamicData.getCustomDhikrs(context)) }
-
-    var showAddDialog by remember { mutableStateOf(false) }
-    var showManageDialog by remember { mutableStateOf(false) }
-    var newDhikrText by remember { mutableStateOf("") }
-
-    val allDhikrs = (defaultDhikrs + customDhikrs).distinct()
-
-    val bgOptions = listOf(
-        listOf(Color(0xFF582CBA), Color(0xFF33147F)) to Color(0xFF582CBA),
-        listOf(Color(0xFF0F766E), Color(0xFF07403B)) to Color(0xFF0F766E),
-        listOf(Color(0xFF1D4ED8), Color(0xFF112D82)) to Color(0xFF1D4ED8)
+    // أنيميشن الانكماش عند الضغط
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1.0f,
+        animationSpec = tween(durationMillis = 100),
+        label = "PressAnimation"
     )
-    var selectedBgIndex by remember { mutableStateOf(0) }
-    val currentBg = bgOptions[selectedBgIndex]
+
+    val goldGradients = listOf(
+        Color(0xFFF3E5AB),
+        Color(0xFFD4AF37),
+        Color(0xFFAA771C)
+    )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(colors.appBg)
-            .padding(14.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // Horizontal Scrollable Dhikr Selection Chips
-        Row(
+        // العنوان العلوي
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "الذِّكْرُ الحَالِي",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.Gray
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "سُبْحَانَ اللَّهِ وَبِحَمْدِهِ",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFD4AF37)
+            )
+        }
+
+        // المنطقة المركزية: زر التسبيح الرقمي الدائري
+        Box(
+            contentAlignment = Alignment.Center,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                color = colors.surface,
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier
-                    .clickable { showManageDialog = true }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                .size(280.dp)
+                .scale(scale)
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null
                 ) {
-                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.textMuted)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("إدارة", fontSize = 12.sp, color = colors.text)
+                    count = (count + 1) % (maxCount + 1)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 }
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val strokeWidth = 12.dp.toPx()
+                val diameter = size.minDimension - strokeWidth
+                val radius = diameter / 2
+                val sweepAngle = (count.toFloat() / maxCount.toFloat()) * 360f
+
+                // الحلقة الخلفية
+                drawCircle(
+                    color = Color(0xFF1E293B),
+                    radius = radius,
+                    style = Stroke(width = strokeWidth)
+                )
+
+                // حلقة التقدم المتممة للتسبيح
+                drawArc(
+                    brush = Brush.sweepGradient(goldGradients),
+                    startAngle = -90f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+
+                // قرص الزر الداخلي
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A))
+                    ),
+                    radius = radius - strokeWidth
+                )
             }
 
-            androidx.compose.foundation.lazy.LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                items(allDhikrs) { d ->
-                    val isSelected = dhikrName == d
-                    Surface(
-                        color = if (isSelected) colors.accent else colors.surface,
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier.clickable {
-                            dhikrName = d
-                            count = 0
-                        }
-                    ) {
-                        Text(
-                            text = d,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isSelected) Color.White else colors.text,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                        )
-                    }
-                }
-
-                item {
-                    OutlinedButton(
-                        onClick = { showAddDialog = true },
-                        shape = RoundedCornerShape(20.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent)
-                    ) {
-                        Text("+ إضافة ذكر", fontSize = 12.sp, color = colors.accent, fontWeight = FontWeight.Bold)
-                    }
-                }
+            // عرض الرقم في المنتصف (بدون أي نصوص توجيهية)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "$count",
+                    fontSize = 64.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFD4AF37)
+                )
+                Text(
+                    text = "من $maxCount",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Target goal chips row
+        // أزرار التحكم الفرعية
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("الهدف:", fontSize = 12.sp, color = colors.textMuted, fontWeight = FontWeight.Bold)
-            listOf(33, 99, 100, 500, 1000).forEach { target ->
-                Surface(
-                    color = if (targetCount == target) colors.accent else colors.surface,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.clickable { targetCount = target }
-                ) {
-                    Text(
-                        text = "$target",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (targetCount == target) Color.White else colors.text,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-    // Decorative Main Counter Card
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .clip(RoundedCornerShape(24.dp))
-                .background(Brush.linearGradient(colors = currentBg.first))
-        ) {
-            
-            Box(modifier = Modifier.fillMaxSize().padding(20.dp)) {
-                // Star decorations on corners
-                Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.TopStart))
-                Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.TopEnd))
-                Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.BottomStart))
-                Text("✦", fontSize = 18.sp, color = Color.White.copy(alpha = 0.4f), modifier = Modifier.align(Alignment.BottomEnd))
-
-                // Lifetime count badge
-                Surface(
-                    color = Color.White.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)
-                ) {
-                    Text(
-                        text = "📿 إجمالي التسبيحات: $lifetimeCount",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
-
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Top Goal Badge and BG selector
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            bgOptions.forEachIndexed { index, option ->
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(option.second)
-                                        .border(2.dp, if (selectedBgIndex == index) Color.White else Color.Transparent, CircleShape)
-                                        .clickable { selectedBgIndex = index }
-                                )
-                            }
-                        }
-                        
-                        Surface(
-                            color = Color.White.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                text = "🎯 المستهدف: $targetCount",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-
-                    // Dhikr Title Text with subtle background glow
-                    Surface(
-                        color = Color.White.copy(alpha = 0.08f),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    ) {
-                        Text(
-                            text = dhikrName,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
-                        )
-                    }
-
-                    // Tactile scaling animation state
-                    val coroutineScope = rememberCoroutineScope()
-                    var isPressed by remember { mutableStateOf(false) }
-                    val buttonScale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.90f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
-                        label = "tasbihButtonScale"
-                    )
-
-                    // Circular Counter Ring with illuminated beads drawing
-                    Box(
-                        modifier = Modifier
-                            .size(200.dp)
-                            .scale(buttonScale)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null // Custom visual feedback through scale & Canvas
-                            ) {
-                                isPressed = true
-                                coroutineScope.launch {
-                                    delay(80)
-                                    isPressed = false
-                                }
-                                count++
-                                lifetimeCount++
-                                try {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                } catch (_: Throwable) {}
-                                try {
-                                    IslamicData.incrementLifetimeCount(context)
-                                } catch (_: Throwable) {}
-                                
-                                if (count > 0 && count % targetCount == 0) {
-                                    try {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    } catch (_: Throwable) {}
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // Canvas to draw the gorgeous circular progress sweep & 33 prayer beads!
-                        val progressFraction = if (targetCount > 0) (count % targetCount).toFloat() / targetCount else 0f
-                        
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val centerOffset = Offset(size.width / 2, size.height / 2)
-                            val radiusOuter = size.width / 2 - 12.dp.toPx()
-                            val radiusInner = radiusOuter - 14.dp.toPx()
-                            
-                            // 1. Draw glowing background orbit track
-                            drawCircle(
-                                color = Color.White.copy(alpha = 0.12f),
-                                radius = radiusOuter,
-                                center = centerOffset,
-                                style = Stroke(width = 4.dp.toPx())
-                            )
-                            
-                            // 2. Draw progress sweep arc (Golden accent / White)
-                            drawArc(
-                                color = Color(0xFFFBBF24), // Gold glow
-                                startAngle = -90f,
-                                sweepAngle = progressFraction * 360f,
-                                useCenter = false,
-                                style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round),
-                                size = Size(radiusOuter * 2, radiusOuter * 2),
-                                topLeft = Offset(centerOffset.x - radiusOuter, centerOffset.y - radiusOuter)
-                            )
-                            
-                            // 3. Draw 33 physical prayer beads around the ring
-                            val totalBeads = 33
-                            val completedBeadsCount = (progressFraction * totalBeads).toInt()
-                            
-                            for (i in 0 until totalBeads) {
-                                val angleDegrees = (i * (360f / totalBeads)) - 90f
-                                val angleRad = Math.toRadians(angleDegrees.toDouble())
-                                val beadCenter = Offset(
-                                    (centerOffset.x + radiusOuter * cos(angleRad)).toFloat(),
-                                    (centerOffset.y + radiusOuter * sin(angleRad)).toFloat()
-                                )
-                                
-                                val isBeadCompleted = i < completedBeadsCount
-                                val beadColor = if (isBeadCompleted) {
-                                    Color(0xFFFBBF24) // Gold filled
-                                } else {
-                                    Color.White.copy(alpha = 0.4f) // Translucent white
-                                }
-                                val beadRadius = if (isBeadCompleted) 5.dp.toPx() else 3.5.dp.toPx()
-                                
-                                // Draw bead outer glow if completed
-                                if (isBeadCompleted) {
-                                    drawCircle(
-                                        color = Color(0xFFFBBF24).copy(alpha = 0.4f),
-                                        radius = beadRadius + 3.dp.toPx(),
-                                        center = beadCenter
-                                    )
-                                }
-                                
-                                drawCircle(
-                                    color = beadColor,
-                                    radius = beadRadius,
-                                    center = beadCenter
-                                )
-                            }
-                        }
-
-                        // Inner physical mother-of-pearl central touch button
-                        Box(
-                            modifier = Modifier
-                                .size(136.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            Color.White.copy(alpha = 0.35f),
-                                            Color.White.copy(alpha = 0.15f)
-                                        )
-                                    )
-                                )
-                                .border(2.dp, Color.White.copy(alpha = 0.5f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "$count",
-                                    fontSize = 52.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "من $targetCount",
-                                    fontSize = 12.sp,
-                                    color = Color.White.copy(alpha = 0.8f)
-                                )
-                            }
-                        }
-                    }
-
-                    // Tap hint with pulsing Arabic text
-                    Text(
-                        text = "— انقر في أي مكان داخل الدائرة للتسبيح —",
-                        fontSize = 11.sp,
-                        color = Color.White.copy(alpha = 0.75f),
-                        modifier = Modifier.padding(bottom = 24.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Action Buttons
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Button(
-                onClick = { count = 0 },
-                colors = ButtonDefaults.buttonColors(containerColor = colors.surface, contentColor = colors.text),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("إعادة العد 🔄", fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            }
-
-            OutlinedButton(
+            OutlinedIconButton(
                 onClick = {
                     count = 0
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 },
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444)),
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.weight(1f)
+                shape = CircleShape,
+                modifier = Modifier.size(56.dp)
             ) {
-                Text("تصفير الكل 🗑️", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "إعادة ضبط",
+                    tint = Color(0xFFD4AF37)
+                )
             }
         }
-    }
-
-    // Add Dhikr Dialog
-    if (showAddDialog) {
-        var newDhikrTargetText by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showAddDialog = false },
-            title = { Text("إضافة ذكر جديد", fontWeight = FontWeight.Bold, color = colors.text) },
-            text = {
-                Column {
-                    OutlinedTextField(
-                        value = newDhikrText,
-                        onValueChange = { newDhikrText = it },
-                        label = { Text("اكتب النص الخاص بالذكر") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = newDhikrTargetText,
-                        onValueChange = { newDhikrTargetText = it },
-                        label = { Text("العدد المطلوب (اختياري)") },
-                        singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (newDhikrText.isNotBlank()) {
-                            IslamicData.addCustomDhikr(context, newDhikrText)
-                            customDhikrs = IslamicData.getCustomDhikrs(context)
-                            dhikrName = newDhikrText.trim()
-                            
-                            val engTargetText = newDhikrTargetText
-                                .replace("٠", "0").replace("١", "1").replace("٢", "2")
-                                .replace("٣", "3").replace("٤", "4").replace("٥", "5")
-                                .replace("٦", "6").replace("٧", "7").replace("٨", "8")
-                                .replace("٩", "9")
-                                
-                            val target = engTargetText.toIntOrNull()
-                            if (target != null && target > 0) {
-                                targetCount = target
-                            }
-                            count = 0
-                            newDhikrText = ""
-                            showAddDialog = false
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
-                ) {
-                    Text("حفظ")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddDialog = false }) {
-                    Text("إلغاء", color = colors.textMuted)
-                }
-            },
-            containerColor = colors.surface
-        )
-    }
-
-    if (showManageDialog) {
-        AlertDialog(
-            onDismissRequest = { showManageDialog = false },
-            title = { Text("إدارة الأذكار", fontWeight = FontWeight.Bold, color = colors.text) },
-            text = {
-                LazyColumn {
-                    items(customDhikrs) { dhikrItem ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(dhikrItem, modifier = Modifier.weight(1f), color = colors.text)
-                            IconButton(onClick = {
-                                IslamicData.deleteCustomDhikr(context, dhikrItem)
-                                customDhikrs = IslamicData.getCustomDhikrs(context)
-                                if (dhikrName == dhikrItem) {
-                                    dhikrName = defaultDhikrs.first()
-                                    count = 0
-                                }
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "حذف", tint = Color.Red)
-                            }
-                        }
-                    }
-                    if (customDhikrs.isEmpty()) {
-                        item {
-                            Text("لا توجد أذكار مخصصة حالياً.", color = colors.textMuted, fontSize = 14.sp)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = { showManageDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
-                ) {
-                    Text("تم")
-                }
-            },
-            containerColor = colors.surface
-        )
     }
 }
 

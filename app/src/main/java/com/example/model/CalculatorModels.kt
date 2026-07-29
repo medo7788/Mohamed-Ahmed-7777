@@ -31,20 +31,20 @@ enum class CalcKey(
     AI("ai", "المساعد الذكي", "✨", CategoryKey.FEATURED, "AI", listOf("ذكاء", "ai", "chat", "دردشة", "مساعد")),
     LIVE_PRICES("live-prices", "الأسعار الحية", "📊", CategoryKey.FEATURED, "LIVE", listOf("أسعار", "ذهب", "فضة", "عملات", "نفط")),
     ECONOMIC_INDICATORS("economic-indicators", "مؤشرات الاقتصاد والخبير", "📈", CategoryKey.FEATURED, "AI", listOf("اقتصاد", "مؤشرات", "بورصة", "تضخم", "نمو", "استثمار", "تحليل")),
-    WEATHER("weather", "تحليل الطقس والمناخ", "🌤️", CategoryKey.FEATURED, "NEW", listOf("طقس", "حرارة", "مناخ", "مطرة", "رياح", "توقعات")),
+    WEATHER("weather", "تحليل الطقس والمناخ", "🌤️", CategoryKey.FEATURED, null, listOf("طقس", "حرارة", "مناخ", "مطرة", "رياح", "توقعات")),
 
     // 🕌 Islamic
     PRAYER("prayer", "مواقيت الصلاة", "🕌", CategoryKey.ISLAMIC, null, listOf("صلاة", "أذان", "فجر", "ظهر", "عصر", "مغرب", "عشاء")),
-    QIBLA("qibla", "اتجاه القبلة", "🕋", CategoryKey.ISLAMIC, "NEW", listOf("قبلة", "كعبة", "بوصلة", "اتجاه")),
-    ADHKAR("adhkar", "أذكار الصباح والمساء", "📿", CategoryKey.ISLAMIC, "NEW", listOf("أذكار", "ذكر", "صباح", "مساء")),
-    TASBIH("tasbih", "المسبحة الرقمية", "🕊️", CategoryKey.ISLAMIC, "NEW", listOf("تسبيح", "مسبحة", "سبحان")),
-    QURAN("quran", "القرآن الكريم", "📖", CategoryKey.ISLAMIC, "NEW", listOf("قرآن", "سورة", "آية", "مصحف")),
+    QIBLA("qibla", "اتجاه القبلة", "🕋", CategoryKey.ISLAMIC, null, listOf("قبلة", "كعبة", "بوصلة", "اتجاه")),
+    ADHKAR("adhkar", "أذكار الصباح والمساء", "📿", CategoryKey.ISLAMIC, null, listOf("أذكار", "ذكر", "صباح", "مساء")),
+    TASBIH("tasbih", "المسبحة الرقمية", "🕊️", CategoryKey.ISLAMIC, null, listOf("تسبيح", "مسبحة", "سبحان")),
+    QURAN("quran", "القرآن الكريم", "📖", CategoryKey.ISLAMIC, null, listOf("قرآن", "سورة", "آية", "مصحف")),
     ZAKAT("zakat", "حاسبة الزكاة", "💎", CategoryKey.ISLAMIC, null, listOf("زكاة", "نصاب", "مال", "ذهب")),
 
     // 🧮 Calculators & Currencies
     BASIC("basic", "الآلة الحاسبة", "🧮", CategoryKey.CALC, null, listOf("حساب", "رياضيات", "علمية")),
     CURRENCY("currency", "محول العملات", "💱", CategoryKey.CALC, null, listOf("عملة", "دولار", "يورو", "جنيه", "ريال")),
-    GOLD("gold", "حاسبة الذهب", "🥇", CategoryKey.CALC, "HOT", listOf("ذهب", "فضة", "عيار", "قيراط")),
+    GOLD("gold", "حاسبة الذهب", "🥇", CategoryKey.CALC, null, listOf("ذهب", "فضة", "عيار", "قيراط")),
     UNIT("unit", "محول الوحدات", "📏", CategoryKey.CALC, null, listOf("وحدات", "كم", "ميل", "كيلو", "جرام")),
 
     // 💼 Finance

@@ -284,6 +284,30 @@ object GeminiRepository {
         }
     }
 
+    suspend fun askEconomicExpert(context: Context, prompt: String, countryContext: String): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val fullPrompt = """
+                أنت خبير اقتصادي ومالي احترافي مدمج في تطبيق زكي.
+                الدولة المستهدفة بالتحليل: $countryContext.
+                قم بالبحث عن أحدث البيانات الاقتصادية الحية (أسعار الذهب، العملات المحلية مقابل الدولار، معدلات التضخم، المؤشرات) لعام 2026.
+                
+                سؤال المستخدم: $prompt
+                
+                شروط الإجابة:
+                1. تقديم أرقام ومؤشرات دقيقة ومحدثة مع التنويه بأحدث التطورات.
+                2. صياغة واضحة ومباشرة باللغة العربية.
+            """.trimIndent()
+
+            val response = generateContent(context, fullPrompt)
+            
+            if (response.contains("حدث خطأ") || response.contains("تعذر الحصول")) {
+                throw Exception(response)
+            }
+            
+            response.ifBlank { "عذراً، لم أتمكن من الحصول على إجابة حالياً. يرجى المحاولة لاحقاً." }
+        }
+    }
+
     private fun parseGoogleError(code: Int, body: String): String {
         var msg = "HTTP $code"
         try {

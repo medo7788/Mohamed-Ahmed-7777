@@ -116,7 +116,14 @@ class MainActivity : ComponentActivity() {
                                 }
                                 composable(CalcKey.AI.name) { AIAssistantScreen(colors) }
                                 composable(CalcKey.LIVE_PRICES.name) { LivePricesScreen(colors) }
-                                composable(CalcKey.ECONOMIC_INDICATORS.name) { EconomicIndicatorsScreen(colors) }
+                                composable(CalcKey.ECONOMIC_INDICATORS.name) { 
+                                    val context = LocalContext.current
+                                    EconomicAndWeatherScreen(
+                                        onAskExpert = { prompt, country -> 
+                                            com.example.data.GeminiRepository.askEconomicExpert(context, prompt, country)
+                                        }
+                                    )
+                                }
                                 composable(CalcKey.WEATHER.name) { WeatherScreen(colors) }
                                 composable(CalcKey.PRAYER.name) { PrayerTimesScreen(colors) }
                                 composable(CalcKey.QIBLA.name) { QiblaDirectionScreen(colors) }
