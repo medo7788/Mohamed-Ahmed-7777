@@ -2,18 +2,21 @@ package com.example.viewmodel
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.data.UserPreferencesRepository
 import com.example.model.CalcKey
 import com.example.ui.theme.AppThemeKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class MainViewModel : ViewModel() {
 
-    private val PREFS_NAME = "clevcalc_theme_prefs"
-    private val KEY_THEME = "selected_theme_key"
+    private var prefsRepository: UserPreferencesRepository? = null
 
-    private val _currentThemeKey = MutableStateFlow(AppThemeKey.ELEGANT_DARK)
+    private val _currentThemeKey = MutableStateFlow<AppThemeKey>(AppThemeKey.ELEGANT_DARK)
     val currentThemeKey: StateFlow<AppThemeKey> = _currentThemeKey.asStateFlow()
 
     private val _currentCalcKey = MutableStateFlow(CalcKey.HOME)
@@ -29,19 +32,32 @@ class MainViewModel : ViewModel() {
     val showAboutModal: StateFlow<Boolean> = _showAboutModal.asStateFlow()
 
     fun initTheme(context: Context) {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val savedThemeStr = prefs.getString(KEY_THEME, null)
-        if (savedThemeStr != null) {
-            try {
-                _currentThemeKey.value = AppThemeKey.valueOf(savedThemeStr)
-            } catch (_: Exception) {}
+        if (prefsRepository == null) {
+            val repo = UserPreferencesRepository(context.applicationContext)
+            prefsRepository = repo
+            viewModelScope.launch {
+                repo.selectedThemeFlow.collectLatest { themeKey ->
+                    _currentThemeKey.value = themeKey
+                }
+            }
         }
     }
 
     fun setTheme(context: Context, themeKey: AppThemeKey) {
         _currentThemeKey.value = themeKey
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_THEME, themeKey.name).apply()
+        viewModelScope.launch {
+            val repo = prefsRepository ?: UserPreferencesRepository(context.applicationContext).also { prefsRepository = it }
+            repo.saveTheme(themeKey)
+        }
+    }
+
+    fun toggleTheme(context: Context) {
+        val nextTheme = if (_currentThemeKey.value == AppThemeKey.ELEGANT_DARK) {
+            AppThemeKey.LIGHT
+        } else {
+            AppThemeKey.ELEGANT_DARK
+        }
+        setTheme(context, nextTheme)
     }
 
     fun setCalcKey(calcKey: CalcKey) {
@@ -60,3 +76,4 @@ class MainViewModel : ViewModel() {
         _showAboutModal.value = show
     }
 }
+

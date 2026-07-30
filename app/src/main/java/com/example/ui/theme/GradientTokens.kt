@@ -19,6 +19,11 @@ object GradientTokens {
         colors = listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8))
     )
 
+    // Main App Deep Teal Gradient
+    val MainBackground = Brush.verticalGradient(
+        colors = listOf(Color(0xFF0D2C28), Color(0xFF1A4D46))
+    )
+
     // Gold / Warm Premium / Fallback Gradient
     val PremiumGold = Brush.linearGradient(
         colors = listOf(Color(0xFFF59E0B), Color(0xFFD97706))

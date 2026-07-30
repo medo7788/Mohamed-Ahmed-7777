@@ -27,7 +27,7 @@ object EconomicRepository {
         CountryEconomicData(
             code = "EG",
             nameAr = "مصر",
-            flag = "🇪🇬",
+            flag = "",
             currency = "EGP",
             gdpGrowth = "+3.8%",
             inflationRate = "27.1%",
@@ -44,7 +44,7 @@ object EconomicRepository {
         CountryEconomicData(
             code = "SA",
             nameAr = "المملكة العربية السعودية",
-            flag = "🇸🇦",
+            flag = "",
             currency = "SAR",
             gdpGrowth = "+4.4%",
             inflationRate = "1.6%",
@@ -61,7 +61,7 @@ object EconomicRepository {
         CountryEconomicData(
             code = "AE",
             nameAr = "الإمارات العربية المتحدة",
-            flag = "🇦🇪",
+            flag = "",
             currency = "AED",
             gdpGrowth = "+3.9%",
             inflationRate = "2.1%",
@@ -78,7 +78,7 @@ object EconomicRepository {
         CountryEconomicData(
             code = "KW",
             nameAr = "الكويت",
-            flag = "🇰🇼",
+            flag = "",
             currency = "KWD",
             gdpGrowth = "+2.8%",
             inflationRate = "2.8%",
@@ -95,7 +95,7 @@ object EconomicRepository {
         CountryEconomicData(
             code = "QA",
             nameAr = "قطر",
-            flag = "🇶🇦",
+            flag = "",
             currency = "QAR",
             gdpGrowth = "+2.5%",
             inflationRate = "1.2%",
@@ -112,7 +112,7 @@ object EconomicRepository {
         CountryEconomicData(
             code = "JO",
             nameAr = "الأردن",
-            flag = "🇯🇴",
+            flag = "",
             currency = "JOD",
             gdpGrowth = "+2.6%",
             inflationRate = "1.8%",
@@ -129,7 +129,7 @@ object EconomicRepository {
         CountryEconomicData(
             code = "MA",
             nameAr = "المغرب",
-            flag = "🇲🇦",
+            flag = "",
             currency = "MAD",
             gdpGrowth = "+3.2%",
             inflationRate = "1.3%",
@@ -146,7 +146,7 @@ object EconomicRepository {
         CountryEconomicData(
             code = "US",
             nameAr = "الولايات المتحدة الأمريكية",
-            flag = "🇺🇸",
+            flag = "",
             currency = "USD",
             gdpGrowth = "+2.8%",
             inflationRate = "2.6%",
@@ -163,7 +163,7 @@ object EconomicRepository {
         CountryEconomicData(
             code = "TR",
             nameAr = "تركيا",
-            flag = "🇹🇷",
+            flag = "",
             currency = "TRY",
             gdpGrowth = "+3.1%",
             inflationRate = "61.8%",
@@ -187,7 +187,7 @@ object EconomicRepository {
         val prompt = if (query.isNullOrBlank()) {
             """
             أنت مستشار اقتصادي وخبير مالي دولي رفيع المستوى.
-            قدم تحليلاً شاملاً ودقيقاً للاقتصاد في دولة: ${country.nameAr} (${country.flag}) بناءً على البيانات التالية:
+            قدم تحليلاً شاملاً ودقيقاً للاقتصاد في دولة: ${country.nameAr} بناءً على البيانات التالية:
             - معدل نمو الناتج المحلي: ${country.gdpGrowth}
             - نسبة التضخم: ${country.inflationRate}
             - سعر الفائدة البنكي: ${country.interestRate}
@@ -198,17 +198,17 @@ object EconomicRepository {
             - أهم الصادرات والأنشطة: ${country.mainExport}
 
             يرجى تنظيم الإجابة في أجزاء واضحة بالشكل التالي:
-            1. 📊 **ملخص وضع السوق واقتصاد الدولة الحالي**
-            2. ⚠️ **المخاطر والتحديات الرئيسية (التضخم والفائدة)**
-            3. 💡 **فرص الاستثمار والنصائح المالية للمواطنين والمستثمرين**
-            4. 🔮 **التوقعات والنظرة المستقبلية للأسواق**
+            1. ملخص وضع السوق واقتصاد الدولة الحالي
+            2. المخاطر والتحديات الرئيسية (التضخم والفائدة)
+            3. فرص الاستثمار والنصائح المالية للمواطنين والمستثمرين
+            4. التوقعات والنظرة المستقبلية للأسواق
 
             اجعل الأسلوب مهنياً، ممتعاً، ومباشراً باللغة العربية.
             """.trimIndent()
         } else {
             """
             أنت خبير ومستشار اقتصادي ومالي.
-            السؤال أو الاستفسار المالي من المستخدم حول اقتصاد ${country.nameAr} (${country.flag}):
+            السؤال أو الاستفسار المالي من المستخدم حول اقتصاد ${country.nameAr}:
             "$query"
 
             معطيات أرقام الدولة الحالية:

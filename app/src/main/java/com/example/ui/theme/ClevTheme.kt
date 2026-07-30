@@ -8,14 +8,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 enum class AppThemeKey(val titleAr: String, val icon: String, val previewColorHex: String) {
-    ELEGANT_DARK("داكن أنيق", "✨", "#121212"),
-    LIGHT("فاتح ناصع", "☀️", "#FAFAFA"),
-    GOLD("ذهبي ملكي", "👑", "#D4AF37"),
-    ISLAMIC_GREEN("أخضر إسلامي", "🕌", "#046A38"),
-    NIGHT_BLUE("أزرق ليلي", "🌌", "#0A192F"),
-    DESERT("صحراوي", "🐪", "#C19A6B"),
-    ROSE("وردي هادئ", "🌸", "#E5B8B7"),
-    MONOCHROME("أحادي", "⚫", "#000000")
+    ELEGANT_DARK("داكن ملكي", "🌙", "#0F1717"),
+    LIGHT("فاتح ملكي", "☀️", "#FAF8F5"),
+    EMERALD_ISLAMIC("زمردي إسلامي", "🕌", "#042F2C"),
+    MIDNIGHT_PURPLE("ليل أرجواني", "🔮", "#1E1B2E"),
+    OCEAN_BLUE("أزرق ملكي", "🌊", "#0B192C"),
+    GOLDEN_LUXURY("ذهبي كلاسيك", "✨", "#1C1917")
 }
 
 data class CustomThemeColors(
@@ -35,115 +33,89 @@ data class CustomThemeColors(
 fun getThemeColors(key: AppThemeKey): CustomThemeColors {
     return when (key) {
         AppThemeKey.ELEGANT_DARK -> CustomThemeColors(
-            appBg = Color(0xFF121212),
-            headerBg = Color(0xFF1A1A1A),
-            headerFg = Color(0xFFFFFFFF),
-            surface = Color(0xFF1E1E1E),
-            surface2 = Color(0xFF2C2C2C),
-            border = Color(0xFF333333),
-            text = Color(0xFFF0F0F0),
-            textMuted = Color(0xFFA0A0A0),
-            accent = Color(0xFFD4AF37), // Elegant Gold
-            accentSecondary = Color(0xFFE5C05B),
+            appBg = Color(0xFF0F1717),
+            headerBg = Color(0xFF1A2E2E),
+            headerFg = Color(0xFFD4AF37),
+            surface = Color(0xFF172424),
+            surface2 = Color(0xFF233636),
+            border = Color(0x336AD7DE),
+            text = Color(0xFFDFE3E3),
+            textMuted = Color(0xFF90A4AE),
+            accent = Color(0xFFD4AF37),
+            accentSecondary = Color(0xFF6AD7DE),
             isDark = true
         )
         AppThemeKey.LIGHT -> CustomThemeColors(
-            appBg = Color(0xFFF9F9F9),
-            headerBg = Color(0xFFFFFFFF),
-            headerFg = Color(0xFF121212),
-            surface = Color(0xFFFFFFFF),
-            surface2 = Color(0xFFF0F0F0),
-            border = Color(0xFFE0E0E0),
-            text = Color(0xFF121212),
-            textMuted = Color(0xFF707070),
-            accent = Color(0xFF005C97),
-            accentSecondary = Color(0xFF363795),
-            isDark = false
-        )
-        AppThemeKey.GOLD -> CustomThemeColors(
             appBg = Color(0xFFFAF8F5),
-            headerBg = Color(0xFF1A1A1A),
+            headerBg = Color(0xFF003739),
             headerFg = Color(0xFFD4AF37),
             surface = Color(0xFFFFFFFF),
-            surface2 = Color(0xFFF3E5AB),
-            border = Color(0xFFE5C05B),
-            text = Color(0xFF2C2C2C),
-            textMuted = Color(0xFF8B7355),
-            accent = Color(0xFFD4AF37),
-            accentSecondary = Color(0xFFAA771C),
+            surface2 = Color(0xFFF1EDE6),
+            border = Color(0xFFE2D8C7),
+            text = Color(0xFF0F1C1C),
+            textMuted = Color(0xFF5A6B6B),
+            accent = Color(0xFF005A5B),
+            accentSecondary = Color(0xFFD4AF37),
             isDark = false
         )
-        AppThemeKey.ISLAMIC_GREEN -> CustomThemeColors(
-            appBg = Color(0xFFF3F7F3),
-            headerBg = Color(0xFF046A38),
-            headerFg = Color(0xFFFFFFFF),
-            surface = Color(0xFFFFFFFF),
-            surface2 = Color(0xFFE8F1E8),
-            border = Color(0xFFC8DEC8),
-            text = Color(0xFF113311),
-            textMuted = Color(0xFF4A7A4A),
-            accent = Color(0xFF046A38),
-            accentSecondary = Color(0xFF098246),
-            isDark = false
-        )
-        AppThemeKey.NIGHT_BLUE -> CustomThemeColors(
-            appBg = Color(0xFF0A192F),
-            headerBg = Color(0xFF020C1B),
-            headerFg = Color(0xFF64FFDA),
-            surface = Color(0xFF112240),
-            surface2 = Color(0xFF233554),
-            border = Color(0xFF233554),
-            text = Color(0xFFCCD6F6),
-            textMuted = Color(0xFF8892B0),
-            accent = Color(0xFF64FFDA),
-            accentSecondary = Color(0xFF4CD2B4),
+        AppThemeKey.EMERALD_ISLAMIC -> CustomThemeColors(
+            appBg = Color(0xFF042F2C),
+            headerBg = Color(0xFF0A403C),
+            headerFg = Color(0xFFFFD700),
+            surface = Color(0xFF0C4A45),
+            surface2 = Color(0xFF125C56),
+            border = Color(0x40FFD700),
+            text = Color(0xFFE6F4F1),
+            textMuted = Color(0xFFA3CFCB),
+            accent = Color(0xFFFFD700),
+            accentSecondary = Color(0xFF2DD4BF),
             isDark = true
         )
-        AppThemeKey.DESERT -> CustomThemeColors(
-            appBg = Color(0xFFFDF8F5),
-            headerBg = Color(0xFF8B5A2B),
-            headerFg = Color(0xFFFFFFFF),
-            surface = Color(0xFFFFFFFF),
-            surface2 = Color(0xFFF5E6D3),
-            border = Color(0xFFE6C298),
-            text = Color(0xFF4A3018),
-            textMuted = Color(0xFF8B7355),
-            accent = Color(0xFFC19A6B),
-            accentSecondary = Color(0xFFDEB887),
-            isDark = false
+        AppThemeKey.MIDNIGHT_PURPLE -> CustomThemeColors(
+            appBg = Color(0xFF13111C),
+            headerBg = Color(0xFF231E38),
+            headerFg = Color(0xFFF472B6),
+            surface = Color(0xFF1E1B2E),
+            surface2 = Color(0xFF2D2845),
+            border = Color(0x33C084FC),
+            text = Color(0xFFF3E8FF),
+            textMuted = Color(0xFFA78BFA),
+            accent = Color(0xFFC084FC),
+            accentSecondary = Color(0xFFF472B6),
+            isDark = true
         )
-        AppThemeKey.ROSE -> CustomThemeColors(
-            appBg = Color(0xFFFFF7F8),
-            headerBg = Color(0xFFFFFFFF),
-            headerFg = Color(0xFF333333),
-            surface = Color(0xFFFFFFFF),
-            surface2 = Color(0xFFFDECEE),
-            border = Color(0xFFFAD7DD),
-            text = Color(0xFF4A2B2D),
-            textMuted = Color(0xFF8B6C6E),
-            accent = Color(0xFFE5B8B7),
-            accentSecondary = Color(0xFFD49C9B),
-            isDark = false
+        AppThemeKey.OCEAN_BLUE -> CustomThemeColors(
+            appBg = Color(0xFF0B192C),
+            headerBg = Color(0xFF1E3E62),
+            headerFg = Color(0xFF38BDF8),
+            surface = Color(0xFF1E293B),
+            surface2 = Color(0xFF334155),
+            border = Color(0x3338BDF8),
+            text = Color(0xFFF1F5F9),
+            textMuted = Color(0xFF94A3B8),
+            accent = Color(0xFF38BDF8),
+            accentSecondary = Color(0xFF0EA5E9),
+            isDark = true
         )
-        AppThemeKey.MONOCHROME -> CustomThemeColors(
-            appBg = Color(0xFFFFFFFF),
-            headerBg = Color(0xFF000000),
-            headerFg = Color(0xFFFFFFFF),
-            surface = Color(0xFFF5F5F5),
-            surface2 = Color(0xFFE0E0E0),
-            border = Color(0xFFCCCCCC),
-            text = Color(0xFF000000),
-            textMuted = Color(0xFF666666),
-            accent = Color(0xFF000000),
-            accentSecondary = Color(0xFF333333),
-            isDark = false
+        AppThemeKey.GOLDEN_LUXURY -> CustomThemeColors(
+            appBg = Color(0xFF1C1917),
+            headerBg = Color(0xFF292524),
+            headerFg = Color(0xFFF59E0B),
+            surface = Color(0xFF292524),
+            surface2 = Color(0xFF3B3533),
+            border = Color(0x40F59E0B),
+            text = Color(0xFFFAFAF9),
+            textMuted = Color(0xFFA8A29E),
+            accent = Color(0xFFF59E0B),
+            accentSecondary = Color(0xFFFBBF24),
+            isDark = true
         )
     }
 }
 
 @Composable
 fun ClevCalcTheme(
-    themeKey: AppThemeKey = AppThemeKey.LIGHT,
+    themeKey: AppThemeKey = AppThemeKey.ELEGANT_DARK,
     content: @Composable () -> Unit
 ) {
     val themeColors = getThemeColors(themeKey)

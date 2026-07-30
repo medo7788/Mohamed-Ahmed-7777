@@ -21,8 +21,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.BorderStroke
 import com.example.data.LivePricesRepository
 import com.example.ui.theme.CustomThemeColors
+import com.example.ui.components.ToolScreenScaffold
+import com.example.ui.theme.AppIcons
+import com.example.ui.theme.Spacing
+import com.example.model.CalcKey
+import androidx.compose.material.icons.filled.*
 import kotlin.math.*
 
 @Composable
@@ -44,7 +50,13 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
                 try {
                     historyExpression = displayExpression
                     val eval = evaluateSimpleExpr(displayExpression)
-                    displayExpression = if (eval == eval.toLong().toDouble()) eval.toLong().toString() else String.format("%.4f", eval)
+                    displayExpression = if (eval == eval.toLong().toDouble()) {
+                        eval.toLong().toString()
+                    } else {
+                        String.format(java.util.Locale.US, "%.4f", eval)
+                            .trimEnd('0')
+                            .trimEnd('.')
+                    }
                 } catch (e: Exception) {
                     displayExpression = "خطأ"
                 }
@@ -75,33 +87,49 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
         "π", "e", "^", "x²"
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.BASIC),
+        title = "الآلة الحاسبة المتطورة",
+        subtitle = "إجراء العمليات الحسابية البسيطة والعلمية بدقة",
     ) {
         // Display Box
         Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(18.dp),
+            color = colors.surface2.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.35f)
+                .height(160.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(20.dp),
+                    .padding(horizontal = 24.dp, vertical = 20.dp),
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.Bottom
+                verticalArrangement = Arrangement.Center
             ) {
-                Text(historyExpression, fontSize = 16.sp, color = colors.textMuted, textAlign = TextAlign.End)
-                Spacer(modifier = Modifier.height(8.dp))
+                if (historyExpression.isNotEmpty()) {
+                    Text(
+                        historyExpression,
+                        fontSize = 18.sp,
+                        color = colors.textMuted,
+                        textAlign = TextAlign.End,
+                        maxLines = 1
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                val dynamicFontSize = when {
+                    displayExpression.length > 15 -> 24.sp
+                    displayExpression.length > 10 -> 32.sp
+                    else -> 48.sp
+                }
+
                 Text(
                     displayExpression,
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = dynamicFontSize,
+                    lineHeight = dynamicFontSize * 1.1f,
+                    fontWeight = FontWeight.Black,
                     color = colors.text,
                     textAlign = TextAlign.End,
                     maxLines = 2
@@ -109,7 +137,7 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.Medium))
 
         // Toggle Scientific
         Row(
@@ -117,27 +145,27 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
             horizontalArrangement = Arrangement.End
         ) {
             TextButton(onClick = { showScientific = !showScientific }) {
-                Text(if (showScientific) "إخفاء الدقائق العلمية 📐" else "الآلة العلمية 📐", color = colors.accent, fontSize = 12.sp)
+                Text(if (showScientific) "إخفاء اللوحة العلمية 📐" else "الآلة العلمية المتطورة 📐", color = colors.accent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         }
 
         if (showScientific) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(bottom = 6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.heightIn(max = 200.dp).padding(bottom = 12.dp)
             ) {
                 items(sciBtns) { btn ->
                     Surface(
                         color = colors.surface2,
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
-                            .height(42.dp)
+                            .height(48.dp)
                             .clickable { onBtnClick(btn) }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text(btn, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                            Text(btn, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.accent)
                         }
                     }
                 }
@@ -148,9 +176,9 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
         androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(0.65f)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.heightIn(max = 500.dp)
             ) {
                 items(basicBtns) { btn ->
                     val isOp = btn in listOf("÷", "×", "-", "+", "=")
@@ -160,7 +188,7 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
                         btn == "=" -> colors.accent
                         isOp -> colors.surface2
                         isAction -> colors.surface2.copy(alpha = 0.7f)
-                        else -> colors.surface
+                        else -> colors.surface2.copy(alpha = 0.3f)
                     }
 
                     val btnFg = when {
@@ -171,14 +199,15 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
 
                     Surface(
                         color = btnBg,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(18.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(1.2f)
-                            .clickable { onBtnClick(btn) }
+                            .aspectRatio(1.1f)
+                            .clickable { onBtnClick(btn) },
+                        shadowElevation = 2.dp
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text(btn, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = btnFg)
+                            Text(btn, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = btnFg)
                         }
                     }
                 }
@@ -220,39 +249,44 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
     val amount = amountText.toDoubleOrNull() ?: 0.0
     val converted = LivePricesRepository.convertCurrency(amount, fromCode, toCode)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.CURRENCY),
+        title = "محول العملات",
+        subtitle = "تحويل فوري ودقيق بين العملات العالمية بناءً على أسعار السوق الحالية"
     ) {
+        // Input Card
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("💱 محول العملات المباشر", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text)
-                Text("أسعار صرف حية محدثة من الأسواق المباشرة", fontSize = 11.sp, color = colors.textMuted)
-
-                Spacer(modifier = Modifier.height(16.dp))
-
+            Column(modifier = Modifier.padding(24.dp)) {
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it },
-                    label = { Text("المبلغ المراد تحويله", color = colors.textMuted) },
-                    placeholder = { Text("0", color = colors.textMuted) },
+                    label = { Text("المبلغ") },
+                    placeholder = { Text("أدخل القيمة") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.accent,
+                        unfocusedBorderColor = colors.border,
+                        focusedTextColor = colors.text,
+                        unfocusedTextColor = colors.text
+                    ),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // From Dropdown
+                    // From
                     var fromExpanded by remember { mutableStateOf(false) }
                     ExposedDropdownMenuBox(
                         expanded = fromExpanded,
@@ -263,8 +297,13 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
                             value = fromCode,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("من", color = colors.textMuted) },
-                            modifier = Modifier.menuAnchor()
+                            label = { Text("من") },
+                            modifier = Modifier.menuAnchor(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colors.accent,
+                                unfocusedBorderColor = colors.border
+                            )
                         )
                         ExposedDropdownMenu(
                             expanded = fromExpanded,
@@ -288,12 +327,12 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
                             fromCode = toCode
                             toCode = tmp
                         },
-                        modifier = Modifier.padding(horizontal = 4.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp)
                     ) {
-                        Icon(Icons.Default.SwapVert, contentDescription = "تبديل", tint = colors.accent)
+                        Icon(Icons.Default.SwapVert, null, tint = colors.accent)
                     }
 
-                    // To Dropdown
+                    // To
                     var toExpanded by remember { mutableStateOf(false) }
                     ExposedDropdownMenuBox(
                         expanded = toExpanded,
@@ -304,8 +343,13 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
                             value = toCode,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("إلى", color = colors.textMuted) },
-                            modifier = Modifier.menuAnchor()
+                            label = { Text("إلى") },
+                            modifier = Modifier.menuAnchor(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colors.accent,
+                                unfocusedBorderColor = colors.border
+                            )
                         )
                         ExposedDropdownMenu(
                             expanded = toExpanded,
@@ -326,25 +370,32 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Result Card
         Surface(
-            color = colors.surface2,
-            shape = RoundedCornerShape(18.dp),
+            color = colors.accent.copy(alpha = 0.05f),
+            shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("النتيجة المحولة:", fontSize = 13.sp, color = colors.textMuted)
-                Spacer(modifier = Modifier.height(4.dp))
+                Text("القيمة المحولة", fontSize = 14.sp, color = colors.textMuted)
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "${LivePricesRepository.formatNumber(converted)} $toCode",
                     fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Black,
                     color = colors.accent
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "1 $fromCode = ${LivePricesRepository.formatNumber(LivePricesRepository.convertCurrency(1.0, fromCode, toCode))} $toCode",
+                    fontSize = 12.sp,
+                    color = colors.textMuted
                 )
             }
         }
@@ -354,15 +405,11 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GoldCalcScreen(colors: CustomThemeColors) {
-    val coroutineScope = rememberCoroutineScope()
-    var isRefreshing by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         if (!LivePricesRepository.isLiveDataLoaded) {
-            isRefreshing = true
             LivePricesRepository.refreshLivePrices(context)
-            isRefreshing = false
         }
     }
 
@@ -380,28 +427,21 @@ fun GoldCalcScreen(colors: CustomThemeColors) {
 
     val totalGoldCost = grams * (pricePerGramLocal + fee)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.GOLD),
+        title = "حاسبة الذهب",
+        subtitle = "احسب تكلفة شراء الذهب بالعملة المحلية مع مراعاة المصنعية والعيار"
     ) {
+        // Main Input Card
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("🥇 حاسبة أسعار ومصنعية الذهب", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text)
-                Text(
-                    "سعر جرام عيار $selectedKarat الحالي: ${LivePricesRepository.formatNumber(pricePerGramLocal)} $selectedCurrencyCode",
-                    fontSize = 12.sp,
-                    color = colors.accent
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Currency Dropdown Selector
+            Column(modifier = Modifier.padding(24.dp)) {
+                // Currency Selector
                 ExposedDropdownMenuBox(
                     expanded = currencyExpanded,
                     onExpandedChange = { currencyExpanded = !currencyExpanded },
@@ -411,15 +451,12 @@ fun GoldCalcScreen(colors: CustomThemeColors) {
                         value = LivePricesRepository.currencies.find { it.code == selectedCurrencyCode }?.let { "${it.flag} ${it.nameAr} (${it.code})" } ?: selectedCurrencyCode,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("عملة الشراء والأسعار", color = colors.textMuted) },
+                        label = { Text("عملة الأسعار") },
                         modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = colors.surface2,
-                            unfocusedContainerColor = colors.surface2,
                             focusedBorderColor = colors.accent,
-                            unfocusedBorderColor = colors.border,
-                            focusedTextColor = colors.text,
-                            unfocusedTextColor = colors.text
+                            unfocusedBorderColor = colors.border
                         )
                     )
                     ExposedDropdownMenu(
@@ -438,73 +475,93 @@ fun GoldCalcScreen(colors: CustomThemeColors) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Karat Chips
+                // Karat Selection
+                Text("العيار", fontSize = 12.sp, color = colors.textMuted, modifier = Modifier.padding(bottom = 8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf(24, 22, 21, 18, 14).forEach { k ->
+                    listOf(24, 21, 18).forEach { k ->
                         Surface(
-                            color = if (selectedKarat == k) colors.accent else colors.surface2,
-                            shape = RoundedCornerShape(10.dp),
+                            color = if (selectedKarat == k) colors.accent else colors.surface2.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .weight(1f)
                                 .clickable { selectedKarat = k }
                         ) {
                             Text(
-                                "عيار $k",
-                                fontSize = 11.sp,
+                                "ع $k",
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (selectedKarat == k) Color.White else colors.text,
-                                modifier = Modifier.padding(8.dp),
+                                modifier = Modifier.padding(vertical = 12.dp),
                                 textAlign = TextAlign.Center
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = gramsText,
                     onValueChange = { gramsText = it },
-                    label = { Text("الوزن بالجرام", color = colors.textMuted) },
+                    label = { Text("الوزن (جرام)") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.accent,
+                        unfocusedBorderColor = colors.border
+                    ),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
                     value = makingFeeGrams,
                     onValueChange = { makingFeeGrams = it },
-                    label = { Text("مصنعية الجرام الواحد ($selectedCurrencyCode)", color = colors.textMuted) },
+                    label = { Text("المصنعية لكل جرام ($selectedCurrencyCode)") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.accent,
+                        unfocusedBorderColor = colors.border
+                    ),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
+        // Result Card
         Surface(
-            color = colors.surface2,
-            shape = RoundedCornerShape(18.dp),
+            color = colors.surface2.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(24.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("إجمالي التكلفة المتوقعة للشراء:", fontSize = 13.sp, color = colors.textMuted)
-                Spacer(modifier = Modifier.height(4.dp))
+                Text("التكلفة الإجمالية", fontSize = 14.sp, color = colors.textMuted)
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "${LivePricesRepository.formatNumber(totalGoldCost)} $selectedCurrencyCode",
                     fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.Black,
                     color = colors.accent
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "سعر الجرام الصافي: ${LivePricesRepository.formatNumber(pricePerGramLocal)}",
+                    fontSize = 12.sp,
+                    color = colors.textMuted
                 )
             }
         }
@@ -517,70 +574,110 @@ fun UnitConverterScreen(colors: CustomThemeColors) {
     var inputValue by remember { mutableStateOf("100") }
 
     val categories = listOf("الطول", "الكتلة", "المساحة", "الحرارة", "السرعة")
-
     val input = inputValue.toDoubleOrNull() ?: 0.0
 
     val converted = when (selectedCategory) {
-        "الطول" -> Pair("${input * 1000} متر", "${String.format("%.2f", input * 0.621371)} ميل")
-        "الكتلة" -> Pair("${input * 1000} جرام", "${String.format("%.2f", input * 2.20462)} رطل")
-        "المساحة" -> Pair("${input * 10000} م²", "${String.format("%.2f", input * 0.238)} فدان")
-        "الحرارة" -> Pair("${(input * 9/5) + 32} °F", "${input + 273.15} K")
-        else -> Pair("${String.format("%.2f", input * 0.277778)} م/ث", "${String.format("%.2f", input * 0.621371)} ميل/س")
+        "الطول" -> listOf("متر" to input * 1000, "ميل" to input * 0.621371)
+        "الكتلة" -> listOf("جرام" to input * 1000, "رطل" to input * 2.20462)
+        "المساحة" -> listOf("م²" to input * 10000, "فدان" to input * 0.238)
+        "الحرارة" -> listOf("°F" to (input * 9/5) + 32, "K" to input + 273.15)
+        else -> listOf("م/ث" to input * 0.277778, "ميل/س" to input * 0.621371)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.UNIT),
+        title = "محول الوحدات",
+        subtitle = "تحويل سريع وسهل بين مختلف وحدات القياس العالمية"
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        // Category Selection
+        Surface(
+            color = colors.surface2.copy(alpha = 0.3f),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            categories.forEach { cat ->
-                Surface(
-                    color = if (selectedCategory == cat) colors.accent else colors.surface,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { selectedCategory = cat }
-                ) {
-                    Text(
-                        cat,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (selectedCategory == cat) Color.White else colors.text,
-                        modifier = Modifier.padding(8.dp),
-                        textAlign = TextAlign.Center
-                    )
+            Row(
+                modifier = Modifier.padding(8.dp).fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                categories.forEach { cat ->
+                    Surface(
+                        color = if (selectedCategory == cat) colors.accent else Color.Transparent,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { selectedCategory = cat }
+                    ) {
+                        Text(
+                            cat,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selectedCategory == cat) Color.White else colors.text,
+                            modifier = Modifier.padding(vertical = 10.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        OutlinedTextField(
-            value = inputValue,
-            onValueChange = { inputValue = it },
-            label = { Text("القيمة المراد تحويلها", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
+        // Input Card
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("نتائج التحويل:", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("• ${converted.first}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("• ${converted.second}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+            Column(modifier = Modifier.padding(24.dp)) {
+                OutlinedTextField(
+                    value = inputValue,
+                    onValueChange = { inputValue = it },
+                    label = { Text("القيمة المدخلة") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.accent,
+                        unfocusedBorderColor = colors.border
+                    ),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Results Card
+        Surface(
+            color = colors.surface2.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("نتائج التحويل", fontSize = 14.sp, color = colors.textMuted, modifier = Modifier.padding(bottom = 16.dp))
+                
+                converted.forEach { (unit, value) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(colors.surface.copy(alpha = 0.5f))
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(unit, fontWeight = FontWeight.Bold, color = colors.text)
+                        Text(
+                            String.format("%.4f", value).trimEnd('0').trimEnd('.'),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Black,
+                            color = colors.accent
+                        )
+                    }
+                }
             }
         }
     }

@@ -89,6 +89,8 @@ object AppIcons {
     val Mic = Icons.Filled.Mic
     val Back = Icons.AutoMirrored.Filled.ArrowBack
     val Theme = Icons.Filled.Palette
+    val Sun = Icons.Filled.WbSunny
+    val Moon = Icons.Filled.DarkMode
     val More = Icons.Filled.MoreVert
     val Info = Icons.Filled.Info
     val Check = Icons.Filled.Check
@@ -103,4 +105,40 @@ object AppIcons {
     val Settings = Icons.Filled.Settings
     val PlayCircle = Icons.Filled.PlayCircle
     val Warning = Icons.Filled.WarningAmber
+
+    fun forWeather(iconId: String): ImageVector = when (iconId) {
+        "sunny" -> Icons.Filled.WbSunny
+        "partly_cloudy" -> Icons.Filled.WbCloudy
+        "cloudy" -> Icons.Filled.Cloud
+        "overcast" -> Icons.Filled.CloudQueue
+        "fog" -> Icons.Filled.Cloud // Fallback
+        "rain" -> Icons.Filled.WaterDrop
+        "heavy_rain" -> Icons.Filled.Umbrella
+        "thunderstorm" -> Icons.Filled.Thunderstorm
+        "snow" -> Icons.Filled.AcUnit
+        else -> Icons.Filled.WbSunny
+    }
+
+    val EconomicOverview = Icons.Filled.BarChart
+    val EconomicAdvisor = Icons.Filled.SupportAgent
+    val Inflation = Icons.Filled.ShowChart
+    val InterestRate = Icons.Filled.AccountBalance
+    val Growth = Icons.Filled.Speed
+    val Unemployment = Icons.Filled.Groups
+    val StockMarket = Icons.Filled.Store
+    val Summary = Icons.Filled.FactCheck
+    val Humidity = Icons.Filled.InvertColors
+    val Wind = Icons.Filled.Air
+    val Rain = Icons.Filled.Water
+    val Temperature = Icons.Filled.Thermostat
+    val Gold = Icons.Filled.Diamond
+    val AI = Icons.Filled.AutoAwesome
+
+    fun forCommodity(symbol: String): ImageVector = when (symbol) {
+        "oil" -> Icons.Filled.OilBarrel
+        "gasoline" -> Icons.Filled.LocalGasStation
+        "natural_gas" -> Icons.Filled.LocalFireDepartment
+        "copper" -> Icons.Filled.Hardware
+        else -> Icons.Filled.Inventory2
+    }
 }

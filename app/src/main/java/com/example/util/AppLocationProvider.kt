@@ -1,6 +1,7 @@
 package com.example.util
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
@@ -9,19 +10,18 @@ import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await
 import kotlin.coroutines.resume
 
 /**
  * Single source of truth for "where is the user right now".
- *
- * Every screen that previously rolled its own permission-check + LocationManager /
- * FusedLocationProviderClient call (Prayer times, Qibla, Weather...) should go through
- * this instead. It gives one consistent, professional flow:
- *   1. hasLocationPermission()      -> check before doing anything
- * 2. fetchCurrentLocation()       -> fresh GPS/network fix with a sane timeout,
- *                                     never a stale getLastKnownLocation() value.
  */
 object AppLocationProvider {
+
+    private const val PREFS_NAME = "app_location_cache"
+    private const val KEY_LAT = "cached_lat"
+    private const val KEY_LNG = "cached_lng"
+    private const val KEY_PLACE = "cached_place"
 
     sealed class Result {
         data class Success(val latitude: Double, val longitude: Double, val accuracyMeters: Float?) : Result()
@@ -29,6 +29,27 @@ object AppLocationProvider {
         object LocationDisabled : Result()
         object Timeout : Result()
         data class Error(val message: String) : Result()
+    }
+
+    data class CachedLocation(val lat: Double, val lng: Double, val placeName: String?)
+
+    fun saveLocationToCache(context: Context, lat: Double, lng: Double, placeName: String? = null) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().apply {
+            putFloat(KEY_LAT, lat.toFloat())
+            putFloat(KEY_LNG, lng.toFloat())
+            putString(KEY_PLACE, placeName)
+            apply()
+        }
+    }
+
+    fun getCachedLocation(context: Context): CachedLocation? {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.contains(KEY_LAT)) return null
+        return CachedLocation(
+            lat = prefs.getFloat(KEY_LAT, 0f).toDouble(),
+            lng = prefs.getFloat(KEY_LNG, 0f).toDouble(),
+            placeName = prefs.getString(KEY_PLACE, null)
+        )
     }
 
     fun hasLocationPermission(context: Context): Boolean {
@@ -40,6 +61,22 @@ object AppLocationProvider {
     fun isLocationServiceEnabled(context: Context): Boolean {
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return false
         return lm.isProviderEnabled(LocationManager.GPS_PROVIDER) || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+
+    @SuppressLint("MissingPermission")
+    suspend fun getLastKnownLocation(context: Context): Result {
+        if (!hasLocationPermission(context)) return Result.PermissionDenied
+        return try {
+            val client = LocationServices.getFusedLocationProviderClient(context)
+            val loc = client.lastLocation.await()
+            if (loc != null) {
+                Result.Success(loc.latitude, loc.longitude, loc.accuracy)
+            } else {
+                Result.Error("No last known location")
+            }
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Error getting last location")
+        }
     }
 
     suspend fun fetchCurrentLocation(context: Context): Result {

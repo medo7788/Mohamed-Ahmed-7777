@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "ClevCalc Pro"
+rootProject.name = "Clev App"
 
 include(":app")

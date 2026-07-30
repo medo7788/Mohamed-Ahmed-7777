@@ -1,37 +1,26 @@
 package com.example.ui.components
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.AppIcons
 import com.example.ui.theme.CustomThemeColors
-import kotlin.math.roundToInt
 
 enum class LocationCardState { IDLE, LOADING, SUCCESS, PERMISSION_DENIED, DISABLED, ERROR }
 
-/**
- * Professional "detecting your location" card, matching the pattern used by major
- * weather / maps / prayer-time apps: a live status line, a spinning locate icon while
- * searching, the resolved place name + GPS accuracy once found, and a clear one-tap
- * recovery action when permission is missing or GPS is off — instead of a silent
- * failure or a raw stack trace.
- */
 @Composable
 fun LocationStatusCard(
     colors: CustomThemeColors,
@@ -40,96 +29,119 @@ fun LocationStatusCard(
     accuracyMeters: Float? = null,
     onRequestPermission: () -> Unit,
     onOpenLocationSettings: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val transition = rememberInfiniteTransition(label = "locating")
-    val rotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
-        label = "rotation"
-    )
-
-    Surface(
-        color = colors.surface,
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
-        modifier = Modifier.fillMaxWidth()
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(90.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = colors.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val (icon, iconColor) = when (state) {
-                LocationCardState.LOADING -> AppIcons.LocationSearching to colors.accent
-                LocationCardState.SUCCESS -> AppIcons.Location to Color4(0xFF10B981)
-                LocationCardState.PERMISSION_DENIED, LocationCardState.DISABLED -> AppIcons.LocationOff to Color4(0xFFEF4444)
-                LocationCardState.ERROR -> AppIcons.Warning to Color4(0xFFF59E0B)
-                LocationCardState.IDLE -> AppIcons.Location to colors.textMuted
-            }
-
+            // Icon section
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(iconColor.copy(alpha = 0.14f)),
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (state == LocationCardState.ERROR) Color.Red.copy(alpha = 0.1f)
+                        else colors.accent.copy(alpha = 0.1f)
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    icon,
+                    imageVector = if (state == LocationCardState.ERROR) Icons.Default.Error else Icons.Default.LocationOn,
                     contentDescription = null,
-                    tint = iconColor,
-                    modifier = Modifier
-                        .size(20.dp)
-                        .then(if (state == LocationCardState.LOADING) Modifier.rotate(rotation) else Modifier)
+                    tint = if (state == LocationCardState.ERROR) Color.Red else colors.accent,
+                    modifier = Modifier.size(28.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
+            // Text section
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = when (state) {
-                        LocationCardState.LOADING -> "جارِ تحديد موقعك الحالي..."
-                        LocationCardState.SUCCESS -> placeName ?: "تم تحديد الموقع"
-                        LocationCardState.PERMISSION_DENIED -> "إذن الموقع غير مفعّل"
-                        LocationCardState.DISABLED -> "خدمة الموقع (GPS) مطفأة"
-                        LocationCardState.ERROR -> "تعذّر تحديد الموقع"
-                        LocationCardState.IDLE -> "الموقع غير محدد"
-                    },
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.text
-                )
-                val subtitle = when (state) {
-                    LocationCardState.SUCCESS -> accuracyMeters?.let { "دقة التحديد: ±${it.roundToInt()} متر" }
-                    LocationCardState.PERMISSION_DENIED -> "اسمح للتطبيق بالوصول لموقعك لعرض بيانات دقيقة"
-                    LocationCardState.DISABLED -> "فعّل خدمة الموقع من إعدادات الجهاز"
-                    LocationCardState.ERROR -> "تحقق من اتصال الإنترنت وحاول مرة أخرى"
-                    else -> null
-                }
-                if (subtitle != null) {
-                    Text(subtitle, fontSize = 11.sp, color = colors.textMuted)
+                when (state) {
+                    LocationCardState.SUCCESS -> {
+                        Text(
+                            text = placeName ?: "الموقع الحالي",
+                            fontSize = 18.sp,
+                            color = colors.text,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (accuracyMeters != null) "دقة الموقع: ${accuracyMeters.toInt()} م" else "تم تحديد الموقع بنجاح",
+                            fontSize = 12.sp,
+                            color = Color(0xFF4CAF50),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    LocationCardState.LOADING -> {
+                        Text(
+                            text = "جاري تحديد الموقع...",
+                            fontSize = 16.sp,
+                            color = colors.text,
+                            fontWeight = FontWeight.Bold
+                        )
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            color = colors.accent,
+                            trackColor = colors.accent.copy(alpha = 0.1f)
+                        )
+                    }
+                    LocationCardState.ERROR, LocationCardState.PERMISSION_DENIED, LocationCardState.DISABLED -> {
+                        Text(
+                            text = when(state) {
+                                LocationCardState.PERMISSION_DENIED -> "الأذن مرفوض"
+                                LocationCardState.DISABLED -> "الموقع غير مفعل"
+                                else -> "فشل في تحديد الموقع"
+                            },
+                            fontSize = 16.sp,
+                            color = Color.Red,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "اضغط للتحديث",
+                            fontSize = 12.sp,
+                            color = colors.textMuted,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    else -> {
+                        Text(
+                            text = "تحديد الموقع",
+                            fontSize = 16.sp,
+                            color = colors.text,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
-            when (state) {
-                LocationCardState.PERMISSION_DENIED -> TextButton(onClick = onRequestPermission) {
-                    Text("سماح", color = colors.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            // Action button section
+            if (state == LocationCardState.ERROR || state == LocationCardState.PERMISSION_DENIED || state == LocationCardState.DISABLED || state == LocationCardState.IDLE) {
+                IconButton(
+                    onClick = when(state) {
+                        LocationCardState.PERMISSION_DENIED -> onRequestPermission
+                        LocationCardState.DISABLED -> onOpenLocationSettings
+                        else -> onRetry
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Retry",
+                        tint = colors.accent
+                    )
                 }
-                LocationCardState.DISABLED -> TextButton(onClick = onOpenLocationSettings) {
-                    Text("الإعدادات", color = colors.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-                LocationCardState.ERROR -> IconButton(onClick = onRetry) {
-                    Icon(AppIcons.Refresh, contentDescription = "إعادة المحاولة", tint = colors.accent)
-                }
-                else -> {}
             }
         }
     }
 }
-
-// small local helper so this file has no extra import surprises for callers copy-pasting it
-private fun Color4(value: Long) = androidx.compose.ui.graphics.Color(value)

@@ -13,9 +13,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,6 +31,9 @@ import androidx.compose.ui.unit.sp
 import com.example.data.GeminiRepository
 import com.example.data.LivePricesRepository
 import com.example.ui.theme.CustomThemeColors
+import com.example.ui.theme.AppIcons
+import com.example.ui.theme.Spacing
+import com.example.model.CalcKey
 import kotlinx.coroutines.launch
 
 data class ChatMessage(
@@ -49,7 +52,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
     
     val messages = remember {
         mutableStateListOf(
-            ChatMessage("ai", "أهلاً بك! أنا المساعد الذكي الخاص بك المدعوم بـ Gemini. يمكنني مساعدتك في الحسابات المعقدة، فتاوى الزكاة، تحليل أسعار السوق، وأكثر من ذلك. كيف يمكنني مساعدتك اليوم؟ ✨")
+            ChatMessage("ai", "أهلاً بك! أنا المساعد الذكي الخاص بك المدعوم بـ Gemini. يمكنني مساعدتك في الحسابات المعقدة، فتاوى الزكاة، تحليل أسعار السوق، وأكثر من ذلك. كيف يمكنني مساعدتك اليوم؟")
         )
     }
     val coroutineScope = rememberCoroutineScope()
@@ -99,7 +102,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                             .background(Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("✨", fontSize = 16.sp, color = Color.White)
+                        Icon(AppIcons.AI, null, tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
@@ -108,7 +111,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                     }
                 }
                 IconButton(onClick = { showSettingsDialog = true }) {
-                    Icon(Icons.Default.Settings, contentDescription = "الإعدادات", tint = colors.textMuted)
+                    Icon(Icons.Filled.Settings, contentDescription = "الإعدادات", tint = colors.textMuted)
                 }
             }
         }
@@ -141,7 +144,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                                 .background(Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("✨", fontSize = 12.sp, color = Color.White)
+                            Icon(AppIcons.AI, null, tint = Color.White, modifier = Modifier.size(16.dp))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                     }
@@ -192,7 +195,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                                 .background(Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("✨", fontSize = 12.sp, color = Color.White)
+                            Icon(AppIcons.AI, null, tint = Color.White, modifier = Modifier.size(16.dp))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
@@ -264,7 +267,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                     if (isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = colors.textMuted, strokeWidth = 2.dp)
                     } else {
-                        Icon(Icons.Default.Send, contentDescription = "إرسال", tint = if (inputText.isNotBlank()) Color.White else colors.textMuted, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.Send, contentDescription = "إرسال", tint = if (inputText.isNotBlank()) Color.White else colors.textMuted, modifier = Modifier.size(20.dp))
                     }
                 }
             }
@@ -285,7 +288,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
             onDismissRequest = { showSettingsDialog = false },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Settings, contentDescription = null, tint = colors.accent)
+                    Icon(Icons.Filled.Settings, contentDescription = null, tint = colors.accent)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("إعدادات الذكاء الاصطناعي", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
@@ -518,11 +521,11 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (isRefreshing) {
-                            CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp, color = Color.White)
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Color.White)
                         } else {
-                            Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                            Icon(AppIcons.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text("تحديث", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
@@ -546,11 +549,11 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(selectedCurrency.flag, fontSize = 18.sp)
+                    Icon(AppIcons.forCalc(CalcKey.WORLD_TIME), null, tint = colors.accent, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(selectedCurrency.nameAr, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("▾", fontSize = 12.sp, color = colors.textMuted)
+                    Icon(Icons.Filled.ArrowDropDown, null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -572,7 +575,9 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("المعادن الثمينة 💰", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        Icon(AppIcons.forCalc(CalcKey.CURRENCY), null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("المعادن الثمينة", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
                     }
 
                     Surface(
@@ -654,7 +659,7 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                                         Text("الذهب", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                         Text("XAU", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
                                     }
-                                    Text("🥇", fontSize = 20.sp)
+                                    Icon(AppIcons.Gold, null, tint = Color.White, modifier = Modifier.size(24.dp))
                                 }
 
                                 Column {
@@ -708,7 +713,7 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                                         Text("الفضة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                         Text("XAG", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
                                     }
-                                    Text("🥈", fontSize = 20.sp)
+                                    Icon(Icons.Filled.Circle, null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(24.dp))
                                 }
 
                                 Column {
@@ -770,7 +775,7 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                                         Text("البلاتين", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                         Text("XPT", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
                                     }
-                                    Text("💎", fontSize = 20.sp)
+                                    Icon(Icons.Filled.Diamond, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(24.dp))
                                 }
 
                                 Column {
@@ -822,7 +827,7 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                                         Text("البلاديوم", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                         Text("XPD", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
                                     }
-                                    Text("⚪", fontSize = 20.sp)
+                                    Icon(Icons.Filled.Circle, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
                                 }
 
                                 Column {
@@ -889,7 +894,7 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(commodity.icon, fontSize = 22.sp)
+                            Icon(AppIcons.forCommodity(commodity.icon), null, tint = colors.accent, modifier = Modifier.size(24.dp))
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(commodity.nameAr, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
@@ -913,13 +918,17 @@ fun LivePricesScreen(colors: CustomThemeColors) {
             // Section 3: Currencies vs Selected Currency
             item {
                 Spacer(modifier = Modifier.height(14.dp))
-                Text(
-                    "أسعار العملات (مقابل ${selectedCurrency.nameAr}) 💱",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.text,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.CurrencyExchange, null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "أسعار العملات (مقابل ${selectedCurrency.nameAr})",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.text
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             items(LivePricesRepository.currencies.filter { it.code != currCode }) { c ->
@@ -939,7 +948,7 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(c.flag, fontSize = 20.sp)
+                            Icon(Icons.Filled.Public, null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(c.nameAr, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.text)
@@ -979,7 +988,11 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                 }
             },
             title = {
-                Text("🌐 اختر دولة العملة", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Public, null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("اختر دولة العملة", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
             },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {

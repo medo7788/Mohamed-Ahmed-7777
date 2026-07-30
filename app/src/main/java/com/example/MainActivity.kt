@@ -10,21 +10,38 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.model.CalcKey
 import com.example.ui.components.*
 import com.example.ui.screens.*
+import androidx.compose.ui.text.font.FontWeight
 import com.example.ui.theme.AppThemeKey
 import com.example.ui.theme.ClevCalcTheme
 import com.example.ui.theme.getThemeColors
 import com.example.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.TrendingUp
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.MoreHoriz
 
 class MainActivity : ComponentActivity() {
 
@@ -86,9 +103,60 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 },
+                                onToggleTheme = { viewModel.toggleTheme(context) },
                                 onOpenThemes = { viewModel.setShowThemesModal(true) },
                                 onOpenAbout = { viewModel.setShowAboutModal(true) }
                             )
+                        },
+                        bottomBar = {
+                            if (currentCalcKey == CalcKey.HOME || currentCalcKey == CalcKey.WEATHER || 
+                                currentCalcKey == CalcKey.LIVE_PRICES || currentCalcKey == CalcKey.ECONOMIC_INDICATORS) {
+                                NavigationBar(
+                                    containerColor = colors.surface,
+                                    tonalElevation = 3.dp,
+                                    modifier = Modifier.height(80.dp)
+                                ) {
+                                    val items = listOf(
+                                        Triple("الرئيسية", CalcKey.HOME, Icons.Default.Home),
+                                        Triple("الطقس", CalcKey.WEATHER, Icons.Default.Cloud),
+                                        Triple("الاقتصاد", CalcKey.LIVE_PRICES, Icons.Default.TrendingUp),
+                                        Triple("الأدوات", CalcKey.BASIC, Icons.Default.Build),
+                                        Triple("المزيد", CalcKey.ADHAN_SETTINGS, Icons.Default.MoreHoriz)
+                                    )
+                                    
+                                    items.forEach { (label, key, icon) ->
+                                        val isSelected = currentCalcKey == key || (key == CalcKey.BASIC && currentCalcKey != CalcKey.HOME && currentCalcKey != CalcKey.WEATHER && currentCalcKey != CalcKey.LIVE_PRICES)
+                                        
+                                        NavigationBarItem(
+                                            selected = isSelected,
+                                            onClick = {
+                                                if (currentCalcKey != key) {
+                                                    navController.navigate(key.name) {
+                                                        popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                        launchSingleTop = true
+                                                        restoreState = true
+                                                    }
+                                                }
+                                            },
+                                            icon = { 
+                                                Icon(
+                                                    icon, 
+                                                    contentDescription = label,
+                                                    modifier = Modifier.size(26.dp)
+                                                ) 
+                                            },
+                                            label = { Text(label, fontSize = 10.sp, fontWeight = FontWeight.Medium) },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = colors.accent,
+                                                selectedTextColor = colors.accent,
+                                                indicatorColor = colors.accent.copy(alpha = 0.12f),
+                                                unselectedIconColor = colors.textMuted,
+                                                unselectedTextColor = colors.textMuted
+                                            )
+                                        )
+                                    }
+                                }
+                            }
                         },
                         containerColor = colors.appBg
                     ) { innerPadding ->
@@ -116,14 +184,7 @@ class MainActivity : ComponentActivity() {
                                 }
                                 composable(CalcKey.AI.name) { AIAssistantScreen(colors) }
                                 composable(CalcKey.LIVE_PRICES.name) { LivePricesScreen(colors) }
-                                composable(CalcKey.ECONOMIC_INDICATORS.name) { 
-                                    val context = LocalContext.current
-                                    EconomicAndWeatherScreen(
-                                        onAskExpert = { prompt, country -> 
-                                            com.example.data.GeminiRepository.askEconomicExpert(context, prompt, country)
-                                        }
-                                    )
-                                }
+                                 composable(CalcKey.ECONOMIC_INDICATORS.name) { EconomicIndicatorsScreen(colors) }
                                 composable(CalcKey.WEATHER.name) { WeatherScreen(colors) }
                                 composable(CalcKey.PRAYER.name) { PrayerTimesScreen(colors) }
                                 composable(CalcKey.QIBLA.name) { QiblaDirectionScreen(colors) }

@@ -1,208 +1,892 @@
 package com.example.ui.screens
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 
-import androidx.compose.animation.*
+import android.content.Intent
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.util.AppLocationProvider
+import com.example.ui.components.LocationStatusCard
+import com.example.ui.components.LocationCardState
+import com.example.ui.components.ToolScreenScaffold
+import com.example.ui.theme.AppIcons
+import com.example.model.CalcKey
+import com.example.ui.theme.GradientTokens
+import com.example.ui.theme.Spacing
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
+import android.location.Geocoder
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
+import androidx.core.content.ContextCompat
+import com.example.data.CountryEconomicData
+import com.example.data.EconomicRepository
+import com.example.data.WeatherCity
+import com.example.data.WeatherRepository
+import com.example.data.CurrentWeatherData
+import com.example.ui.theme.CustomThemeColors
 
-data class EconomicChatMessage(val text: String, val isUser: Boolean)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EconomicAndWeatherScreen(
-    onAskExpert: suspend (String, String) -> Result<String>
-) {
-    val countries = remember { listOf("مصر 🇪🇬", "السعودية 🇸🇦", "الإمارات 🇦🇪", "الكويت 🇰🇼", "قطر 🇶🇦") }
-    var selectedCountry by remember { mutableStateOf(countries[0]) }
-    var expandedCountryDropdown by remember { mutableStateOf(false) }
-    
-    var userQuery by remember { mutableStateOf("") }
-    val chatMessages = remember { mutableStateListOf<EconomicChatMessage>() }
-    var isLoading by remember { mutableStateOf(false) }
+fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
+    val context = LocalContext.current
+    var selectedCountryCode by remember { mutableStateOf("EG") }
+    val country = remember(selectedCountryCode) { EconomicRepository.getCountryByCode(selectedCountryCode) }
+
+    var showCountryPicker by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(0) } // 0: Overview & Metrics, 1: AI Economic Advisor
+
+    // AI Advisor Chat state
+    var aiReportText by remember { mutableStateOf<String?>(null) }
+    var isGeneratingReport by remember { mutableStateOf(false) }
+    var userPromptText by remember { mutableStateOf("") }
+    var isSendingPrompt by remember { mutableStateOf(false) }
+    var chatMessages by remember { mutableStateOf(listOf<Pair<Boolean, String>>()) } // Pair(isUser, text)
+
     val coroutineScope = rememberCoroutineScope()
+
+    fun generateFullReport() {
+        isGeneratingReport = true
+        coroutineScope.launch {
+            val report = EconomicRepository.getAIEconomicReport(context, country)
+            aiReportText = report
+            isGeneratingReport = false
+        }
+    }
+
+    LaunchedEffect(country.code) {
+        aiReportText = null
+        chatMessages = emptyList()
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp)
-            .imePadding()
+            .background(colors.appBg)
+            .padding(12.dp)
     ) {
-        // Dashboard Panel & Country Selector
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(16.dp)
+        // Header Banner (Purple Theme)
+        Surface(
+            color = colors.surface,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = "المؤشر الاقتصادي:",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Box {
-                    OutlinedButton(
-                        onClick = { expandedCountryDropdown = true },
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = selectedCountry,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(AppIcons.EconomicOverview, null, tint = colors.accent, modifier = Modifier.size(28.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text("مؤشرات الاقتصاد والخبير الذكي", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
+                        Text("بيانات رسمية وتوقع حركة الأسواق بافتراضات خبير", fontSize = 11.sp, color = colors.textMuted)
                     }
-                    DropdownMenu(
-                        expanded = expandedCountryDropdown,
-                        onDismissRequest = { expandedCountryDropdown = false }
+                }
+
+                Surface(
+                    color = colors.accent,
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.clickable { showCountryPicker = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        countries.forEach { country ->
-                            DropdownMenuItem(
-                                text = { Text(country, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                onClick = {
-                                    selectedCountry = country
-                                    expandedCountryDropdown = false
+                        Text(country.nameAr, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.ArrowDropDown, null, tint = Color.White.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Tabs
+        TabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = colors.surface,
+            contentColor = colors.accent,
+            modifier = Modifier.clip(RoundedCornerShape(12.dp))
+        ) {
+            Tab(
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(AppIcons.StockMarket, null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("المؤشرات والبورصة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            )
+            Tab(
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(AppIcons.EconomicAdvisor, null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("المستشار الاقتصادي AI", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (selectedTab == 0) {
+            // Screen 1: Economic Overview & Metrics
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                // Summary Card
+                item {
+                    Surface(
+                        color = colors.surface,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 10.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("حالة اقتصاد ${country.nameAr}", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
+                                Surface(
+                                    color = colors.accent.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text(country.currency, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.accent, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
                                 }
-                            )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(country.economicSummaryAr, fontSize = 12.sp, color = colors.textMuted, lineHeight = 18.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                color = colors.surface2,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    "💡 أرقام مؤشرات الاقتصاد المذكورة هي بيانات إحصائية مرجعية تحديث 2024/2025 صادرة عن التقارير الرسمية للبنوك المركزية.",
+                                    fontSize = 10.sp,
+                                    color = colors.textMuted,
+                                    modifier = Modifier.padding(8.dp)
+                                )
+                            }
                         }
                     }
                 }
-            }
-        }
 
-        // LazyColumn Chat Stream
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(chatMessages) { message ->
-                ChatBubble(message = message)
-            }
-            if (isLoading) {
+                // 2x2 Grid Row 1: Inflation & Interest Rate
                 item {
-                    Box(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(8.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(bottom = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                        MetricCard(
+                            title = "معدل التضخم السنوي",
+                            value = country.inflationRate,
+                            subtitle = "مستوى أسعار المستهلكين",
+                            icon = AppIcons.Inflation,
+                            colors = colors,
+                            modifier = Modifier.weight(1f)
+                        )
+                        MetricCard(
+                            title = "سعر الفائدة البنكي",
+                            value = country.interestRate,
+                            subtitle = "البنك المركزي",
+                            icon = AppIcons.InterestRate,
+                            colors = colors,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
-            }
-        }
 
-        // Chat Input Controls
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            shape = RoundedCornerShape(24.dp),
-            tonalElevation = 2.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = userQuery,
-                    onValueChange = { userQuery = it },
-                    placeholder = { Text("اسأل الخبير الاقتصادي...") },
-                    modifier = Modifier.weight(1f),
-                    maxLines = 3,
-                    shape = RoundedCornerShape(20.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
-                    )
-                )
+                // 2x2 Grid Row 2: GDP Growth & Unemployment
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        MetricCard(
+                            title = "نمو الناتج المحلي (GDP)",
+                            value = country.gdpGrowth,
+                            subtitle = "معدل النمو السنوي",
+                            icon = AppIcons.Growth,
+                            colors = colors,
+                            modifier = Modifier.weight(1f)
+                        )
+                        MetricCard(
+                            title = "نسبة البطالة",
+                            value = country.unemployment,
+                            subtitle = "إجمالي قوة العمل",
+                            icon = AppIcons.Unemployment,
+                            colors = colors,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
 
-                IconButton(
-                    onClick = {
-                        if (userQuery.isNotBlank() && !isLoading) {
-                            val prompt = userQuery
-                            chatMessages.add(EconomicChatMessage(prompt, isUser = true))
-                            userQuery = ""
-                            isLoading = true
+                // Stock Exchange Card
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFF1E293B), Color(0xFF0F172A))
+                                    )
+                                )
+                                .padding(16.dp)
+                        ) {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(country.stockExchangeName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                        Text("أداء سوق المال المحلي", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f))
+                                    }
+                                    Icon(AppIcons.StockMarket, null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(24.dp))
+                                }
 
-                            coroutineScope.launch {
-                                val result = onAskExpert(prompt, selectedCountry)
-                                isLoading = false
-                                result.onSuccess { responseText ->
-                                    chatMessages.add(EconomicChatMessage(responseText, isUser = false))
-                                }.onFailure { error ->
-                                    chatMessages.add(EconomicChatMessage("حدث خطأ أثناء الاتصال: ${error.localizedMessage}", isUser = false))
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Row(
+                                    verticalAlignment = Alignment.Bottom,
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(country.stockExchangeValue, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    Surface(
+                                        color = if (country.stockExchangeChange.startsWith("-")) Color(0xFFEF4444) else Color(0xFF10B981),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text(
+                                            country.stockExchangeChange,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
-                    },
-                    enabled = userQuery.isNotBlank() && !isLoading
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Send,
-                        contentDescription = "إرسال",
-                        tint = if (userQuery.isNotBlank()) MaterialTheme.colorScheme.primary else Color.Gray
-                    )
+                    }
+                }
+
+                // Reserve & Debt Details
+                item {
+                    Surface(
+                        color = colors.surface,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(AppIcons.Summary, null, tint = colors.accent, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("تفاصيل المؤشرات الكلية", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            DetailRow("الاحتياطي الأجنبي:", country.centralBankReserves, colors)
+                            DetailRow("نسبة الدين للناتج:", country.debtToGdp, colors)
+                            DetailRow("أهم الصادرات والقطاعات:", country.mainExport, colors)
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = {
+                            selectedTab = 1
+                            if (aiReportText == null) generateFullReport()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(AppIcons.EconomicAdvisor, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("اطلب تقرير واستشارة الخبير الاقتصادي الذكي", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                 }
             }
+        } else {
+            // Screen 2: AI Economic Advisor Chat & Analysis
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                // Initial Generate Report Button Card
+                Surface(
+                    color = colors.surface,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 10.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(AppIcons.EconomicAdvisor, null, tint = colors.accent, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("المستشار الاقتصادي الذكي", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
+                            }
+                            if (isGeneratingReport) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = colors.accent)
+                            } else {
+                                Button(
+                                    onClick = { generateFullReport() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text("توليد تقرير كامل", fontSize = 11.sp, color = Color.White)
+                                }
+                            }
+                        }
+
+                        if (aiReportText != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(aiReportText!!, fontSize = 12.sp, color = colors.text, lineHeight = 19.sp)
+                        } else if (!isGeneratingReport) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text("اضغط على الزر أعلاه للحصول على تقرير شامل عن فرص الاستثمار والتضخم والأسواق في ${country.nameAr}، أو اسأل الخبير المالي أي سؤال مباشرة.", fontSize = 12.sp, color = colors.textMuted)
+                        }
+                    }
+                }
+
+                // Chat Messages List
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    items(chatMessages) { (isUser, text) ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            contentAlignment = if (isUser) Alignment.CenterStart else Alignment.CenterEnd
+                        ) {
+                            Surface(
+                                color = if (isUser) colors.accent else colors.surface,
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.widthIn(max = 280.dp)
+                            ) {
+                                Text(
+                                    text = text,
+                                    fontSize = 12.sp,
+                                    color = if (isUser) Color.White else colors.text,
+                                    modifier = Modifier.padding(12.dp),
+                                    lineHeight = 18.sp
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Chat Input Bar
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = userPromptText,
+                        onValueChange = { userPromptText = it },
+                        placeholder = { Text("اسأل الخبير الاقتصادي...", fontSize = 12.sp, color = colors.textMuted) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(20.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = colors.surface,
+                            unfocusedContainerColor = colors.surface,
+                            focusedBorderColor = colors.accent,
+                            unfocusedBorderColor = colors.border,
+                            focusedTextColor = colors.text,
+                            unfocusedTextColor = colors.text
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(
+                        onClick = {
+                            if (userPromptText.isNotBlank() && !isSendingPrompt) {
+                                val query = userPromptText.trim()
+                                chatMessages = chatMessages + Pair(true, query)
+                                userPromptText = ""
+                                isSendingPrompt = true
+                                coroutineScope.launch {
+                                    val answer = EconomicRepository.getAIEconomicReport(context, country, query)
+                                    chatMessages = chatMessages + Pair(false, answer)
+                                    isSendingPrompt = false
+                                }
+                            }
+                        },
+                        enabled = !isSendingPrompt
+                    ) {
+                        if (isSendingPrompt) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = colors.accent)
+                        } else {
+                            Icon(Icons.Default.Send, contentDescription = "إرسال", tint = colors.accent)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Country Picker Dialog
+    if (showCountryPicker) {
+        AlertDialog(
+            onDismissRequest = { showCountryPicker = false },
+            confirmButton = {
+                TextButton(onClick = { showCountryPicker = false }) {
+                    Text("إغلاق", color = colors.accent, fontWeight = FontWeight.Bold)
+                }
+            },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(androidx.compose.material.icons.Icons.Default.Public, null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("اختر الدولة لمتابعة اقتصادها", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                ) {
+                    items(EconomicRepository.countries) { item ->
+                        val isSelected = item.code == selectedCountryCode
+                        Surface(
+                            color = if (isSelected) colors.accent.copy(alpha = 0.15f) else colors.surface,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp)
+                                .clickable {
+                                    selectedCountryCode = item.code
+                                    showCountryPicker = false
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(androidx.compose.material.icons.Icons.Default.Public, null, tint = colors.textMuted, modifier = Modifier.size(22.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(item.nameAr, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                                        Text("${item.currency} • بورصة ${item.stockExchangeName}", fontSize = 11.sp, color = colors.textMuted)
+                                    }
+                                }
+                                if (isSelected) {
+                                    Text("✓", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            containerColor = colors.surface,
+            titleContentColor = colors.text,
+            textContentColor = colors.text
+        )
+    }
+}
+
+@Composable
+fun MetricCard(
+    title: String,
+    value: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    colors: CustomThemeColors,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = colors.surface,
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, fontSize = 11.sp, color = colors.textMuted, fontWeight = FontWeight.Medium)
+                Icon(icon, null, tint = colors.accent, modifier = Modifier.size(16.dp))
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+            Text(subtitle, fontSize = 10.sp, color = colors.textMuted)
         }
     }
 }
 
 @Composable
-fun ChatBubble(message: EconomicChatMessage) {
-    val alignment = if (message.isUser) Alignment.CenterEnd else Alignment.CenterStart
-    val bgColor = if (message.isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer
-    val textColor = if (message.isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
-
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = alignment
+fun DetailRow(label: String, value: String, colors: CustomThemeColors) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(
-            color = bgColor,
-            shape = RoundedCornerShape(
-                topStart = 16.dp,
-                topEnd = 16.dp,
-                bottomStart = if (message.isUser) 16.dp else 2.dp,
-                bottomEnd = if (message.isUser) 2.dp else 16.dp
-            ),
-            modifier = Modifier.widthIn(max = 290.dp)
-        ) {
-            Text(
-                text = message.text,
-                color = textColor,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(12.dp)
-            )
-        }
+        Text(label, fontSize = 12.sp, color = colors.textMuted)
+        Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.text)
     }
 }
+
+@Composable
+fun WeatherScreen(colors: CustomThemeColors) {
+    val context = LocalContext.current
+    var selectedCity by remember { mutableStateOf(WeatherRepository.defaultCities[0]) }
+    var weatherData by remember { mutableStateOf<CurrentWeatherData?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var showCityPicker by remember { mutableStateOf(false) }
+    var aiAdviceText by remember { mutableStateOf<String?>(null) }
+    var isGeneratingAdvice by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    var locState by remember { mutableStateOf(LocationCardState.IDLE) }
+    var locName by remember { mutableStateOf<String?>(null) }
+    var lat by remember { mutableStateOf<Double?>(null) }
+    var lng by remember { mutableStateOf<Double?>(null) }
+    var accuracy by remember { mutableStateOf<Float?>(null) }
+
+    val locationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            locState = LocationCardState.LOADING
+        } else {
+            locState = LocationCardState.PERMISSION_DENIED
+        }
+    }
+
+    fun fetchLocation() {
+        locState = LocationCardState.LOADING
+        coroutineScope.launch {
+            val result = AppLocationProvider.fetchCurrentLocation(context)
+            when (result) {
+                is AppLocationProvider.Result.Success -> {
+                    lat = result.latitude
+                    lng = result.longitude
+                    accuracy = result.accuracyMeters
+                    locState = LocationCardState.SUCCESS
+                    try {
+                        val geocoder = android.location.Geocoder(context, java.util.Locale("ar"))
+                        val addresses = withContext(Dispatchers.IO) { geocoder.getFromLocation(result.latitude, result.longitude, 1) }
+                        if (!addresses.isNullOrEmpty()) {
+                            val address = addresses[0]
+                            val parts = listOfNotNull(address.countryName, address.adminArea, address.locality ?: address.subAdminArea)
+                            if (parts.isNotEmpty()) locName = parts.joinToString("، ")
+                        }
+                    } catch (e: Exception) {}
+                    
+                    // Update weather based on location
+                    selectedCity = WeatherCity(locName ?: "موقعي", "موقعي", result.latitude, result.longitude, "")
+                }
+                is AppLocationProvider.Result.PermissionDenied -> locState = LocationCardState.PERMISSION_DENIED
+                is AppLocationProvider.Result.LocationDisabled -> locState = LocationCardState.DISABLED
+                is AppLocationProvider.Result.Timeout, is AppLocationProvider.Result.Error -> locState = LocationCardState.ERROR
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        fetchLocation()
+    }
+
+    LaunchedEffect(selectedCity) {
+        isLoading = true
+        weatherData = WeatherRepository.fetchRealWeather(context, selectedCity.lat, selectedCity.lng)
+        isLoading = false
+    }
+
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.WEATHER),
+        title = CalcKey.WEATHER.title,
+        subtitle = "تحليل وتوقعات الطقس المباشرة",
+    ) {
+        LocationStatusCard(
+            colors = colors,
+            state = locState,
+            placeName = locName,
+            accuracyMeters = accuracy,
+            onRequestPermission = {
+                locationLauncher.launch(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                )
+            },
+            onOpenLocationSettings = {
+                context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            },
+            onRetry = { fetchLocation() }
+        )
+
+        Spacer(modifier = Modifier.height(Spacing.Medium))
+
+        // City Picker Button
+        OutlinedButton(
+            onClick = { showCityPicker = true },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Icon(Icons.Filled.LocationCity, null, tint = colors.accent, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(selectedCity.nameAr, color = colors.text, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.weight(1f))
+            Text("تغيير", color = colors.accent, fontSize = 12.sp)
+        }
+
+        Spacer(modifier = Modifier.height(Spacing.Medium))
+
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = colors.accent)
+            }
+        } else if (weatherData != null) {
+            val weather = weatherData!!
+            val (desc, iconId) = WeatherRepository.decodeWmoCode(weather.weatherCode)
+            
+            // Weather Display
+            Surface(
+                color = colors.surface,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.Medium)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(Spacing.Medium),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        AppIcons.forWeather(iconId),
+                        null,
+                        tint = colors.accent,
+                        modifier = Modifier.size(72.dp)
+                    )
+                        Text(
+                            "${weather.tempC.toInt()}°C",
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.text
+                        )
+                        Text(desc, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = colors.textMuted)
+                        
+                        Spacer(modifier = Modifier.height(Spacing.Medium))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            MetricItem("الرطوبة", "${weather.humidityPercent}%", AppIcons.Humidity, colors)
+                            MetricItem("الرياح", "${weather.windSpeedKmh.toInt()} كم/س", AppIcons.Wind, colors)
+                            MetricItem("الأمطار", "${weather.precipitationMm} مم", AppIcons.Rain, colors)
+                        }
+                    }
+                }
+                
+                // AI Advice
+                Surface(
+                    color = colors.surface,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.Medium)
+                ) {
+                    Column(modifier = Modifier.padding(Spacing.Medium)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(AppIcons.EconomicAdvisor, null, tint = colors.accent, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("نصيحة الذكاء الاصطناعي", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
+                            }
+                            if (isGeneratingAdvice) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = colors.accent)
+                            } else {
+                                Button(
+                                    onClick = {
+                                        isGeneratingAdvice = true
+                                        coroutineScope.launch {
+                                            aiAdviceText = WeatherRepository.getAIWeatherAdvice(context, selectedCity.nameAr, weather)
+                                            isGeneratingAdvice = false
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text("استشِر", fontSize = 11.sp, color = androidx.compose.ui.graphics.Color.White)
+                                }
+                            }
+                        }
+                        if (aiAdviceText != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(aiAdviceText!!, fontSize = 12.sp, color = colors.text, lineHeight = 18.sp)
+                        }
+                    }
+                }
+                
+                // Forecast
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp).align(Alignment.Start)) {
+                    Icon(androidx.compose.material.icons.Icons.Default.CalendarMonth, null, tint = colors.text, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("التوقعات", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
+                    for (idx in weather.dailyMaxTemp.indices) {
+                        val maxT = weather.dailyMaxTemp[idx]
+                        val minT = weather.dailyMinTemp[idx]
+                        val code = weather.dailyWeatherCodes[idx]
+                        val (_, fIconId) = WeatherRepository.decodeWmoCode(code)
+                        Surface(
+                            color = colors.surface,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(AppIcons.forWeather(fIconId), null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text("اليوم ${idx + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                                }
+                                Text("${maxT.toInt()}° / ${minT.toInt()}° C", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("تعذر جلب بيانات الطقس", color = colors.text)
+            }
+        }
+
+    if (showCityPicker) {
+        AlertDialog(
+            onDismissRequest = { showCityPicker = false },
+            confirmButton = {
+                TextButton(onClick = { showCityPicker = false }) { Text("إغلاق", color = colors.accent) }
+            },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(androidx.compose.material.icons.Icons.Default.Public, null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("اختر المدينة", color = colors.text)
+                }
+            },
+            text = {
+                androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.height(300.dp)) {
+                    items(WeatherRepository.defaultCities) { item ->
+                        val isSelected = item.nameAr == selectedCity.nameAr
+                        Surface(
+                            color = if (isSelected) colors.accent.copy(alpha = 0.15f) else colors.surface,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp)
+                                .clickable { selectedCity = item; showCityPicker = false }
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.LocationCity, null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("${item.nameAr} - ${item.countryAr}", fontSize = 13.sp, color = colors.text)
+                            }
+                        }
+                    }
+                }
+            },
+            containerColor = colors.surface
+        )
+    }
+}
+
+@Composable
+fun MetricItem(title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, colors: CustomThemeColors) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(icon, null, tint = colors.accent, modifier = Modifier.size(24.dp))
+        Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+        Text(title, fontSize = 11.sp, color = colors.textMuted)
+    }
+}
+

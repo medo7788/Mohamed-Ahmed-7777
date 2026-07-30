@@ -12,6 +12,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.LivePricesRepository
 import com.example.ui.theme.CustomThemeColors
+import com.example.ui.components.ToolScreenScaffold
+import com.example.ui.theme.AppIcons
+import com.example.ui.theme.Spacing
+import com.example.model.CalcKey
 import com.example.util.TafqeetArabic
 
 @Composable
@@ -27,64 +31,71 @@ fun FuelCostCalcScreen(colors: CustomThemeColors) {
     val litersNeeded = (dist / 100.0) * cons
     val totalCost = litersNeeded * price
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.FUEL_COST),
+        title = "تكلفة الوقود",
+        subtitle = "حساب تكلفة البنزين المقدرة للرحلات والمسافات الطويلة"
     ) {
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("⛽ حاسبة تكلفة الوقود والبنزين للرحلات", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = distanceText,
-                    onValueChange = { distanceText = it },
-                    label = { Text("المسافة المستهدفة (كم)", color = colors.textMuted) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("التكلفة التقديرية", color = colors.textMuted, fontSize = 14.sp)
+                Text(
+                    "${LivePricesRepository.formatNumber(totalCost)} EGP",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accent
                 )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                OutlinedTextField(
-                    value = consumptionText,
-                    onValueChange = { consumptionText = it },
-                    label = { Text("استهلاك السيارة (لتر / 100 كم)", color = colors.textMuted) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                OutlinedTextField(
-                    value = pricePerLiterText,
-                    onValueChange = { pricePerLiterText = it },
-                    label = { Text("سعر لتر البنزين/الوقود", color = colors.textMuted) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                Text(
+                    "كمية الوقود: ${LivePricesRepository.formatNumber(litersNeeded)} لتر",
+                    fontSize = 13.sp,
+                    color = colors.text,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        Surface(
-            color = colors.surface2,
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("التكلفة الإجمالية للرحلة:", fontSize = 13.sp, color = colors.textMuted)
-                Text("${LivePricesRepository.formatNumber(totalCost)} EGP", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("كمية الوقود المطلوبة: ${LivePricesRepository.formatNumber(litersNeeded)} لتر", fontSize = 13.sp, color = colors.text)
-            }
+        OutlinedTextField(
+            value = distanceText,
+            onValueChange = { distanceText = it },
+            label = { Text("المسافة (كم)") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = colors.accent,
+                unfocusedBorderColor = colors.border,
+                focusedTextColor = colors.text,
+                unfocusedTextColor = colors.text
+            ),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                value = consumptionText,
+                onValueChange = { consumptionText = it },
+                label = { Text("استهلاك (لتر/100كم)") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+            )
+            OutlinedTextField(
+                value = pricePerLiterText,
+                onValueChange = { pricePerLiterText = it },
+                label = { Text("سعر اللتر") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+            )
         }
     }
 }
@@ -100,55 +111,60 @@ fun FuelEfficiencyCalcScreen(colors: CustomThemeColors) {
     val lPer100km = (liters / dist) * 100.0
     val kmPerL = if (liters > 0) dist / liters else 0.0
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.FUEL_EFF),
+        title = "كفاءة الوقود",
+        subtitle = "احسب معدل استهلاك سيارتك للبنزين لكل 100 كيلومتر"
     ) {
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("🏎️ حاسبة معدل استهلاك الوقود", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = distanceText,
-                    onValueChange = { distanceText = it },
-                    label = { Text("المسافة المقطوعة (كم)", color = colors.textMuted) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("معدل الاستهلاك", color = colors.textMuted, fontSize = 14.sp)
+                Text(
+                    "${LivePricesRepository.formatNumber(lPer100km)} لتر",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accent
                 )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                OutlinedTextField(
-                    value = litersText,
-                    onValueChange = { litersText = it },
-                    label = { Text("كمية الوقود المستهلكة (لتر)", color = colors.textMuted) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                Text("لكل 100 كيلومتر", fontSize = 14.sp, color = colors.textMuted)
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = colors.border.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    "أو: ${LivePricesRepository.formatNumber(kmPerL)} كم / لتر",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.text
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        Surface(
-            color = colors.surface2,
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("معدل الكفاءة والاستهلاك:", fontSize = 13.sp, color = colors.textMuted)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("${LivePricesRepository.formatNumber(lPer100km)} لتر / 100 كم", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("أو: ${LivePricesRepository.formatNumber(kmPerL)} كم / لتر واحد", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
-            }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                value = distanceText,
+                onValueChange = { distanceText = it },
+                label = { Text("المسافة (كم)") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+            )
+            OutlinedTextField(
+                value = litersText,
+                onValueChange = { litersText = it },
+                label = { Text("لتر مستهلك") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(16.dp),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+            )
         }
     }
 }
@@ -161,100 +177,102 @@ fun NumberToWordsScreen(colors: CustomThemeColors) {
     val num = numberText.toDoubleOrNull() ?: 0.0
     val tafqeetResult = TafqeetArabic.convertToWords(num, selectedCurrency)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.NUM_WORDS),
+        title = "تحويل الأرقام لكلمات",
+        subtitle = "تحويل المبالغ المالية إلى صيغة نصية باللغة العربية (التفقيط)"
     ) {
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("✍️ تحويل الأرقام إلى كلمات (تفقيط الشيكات)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = numberText,
-                    onValueChange = { numberText = it },
-                    label = { Text("اكتب المبلغ الرقمي هنا", color = colors.textMuted) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Surface(
-            color = colors.surface2,
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("الصياغة اللفظية الرسمية (التفقيط):", fontSize = 13.sp, color = colors.textMuted)
-                Spacer(modifier = Modifier.height(6.dp))
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("الصياغة اللفظية", color = colors.textMuted, fontSize = 12.sp)
                 Text(
                     tafqeetResult,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.accent,
-                    lineHeight = 26.sp
+                    lineHeight = 28.sp
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = numberText,
+            onValueChange = { numberText = it },
+            label = { Text("المبلغ الرقمي") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = colors.accent,
+                unfocusedBorderColor = colors.border,
+                focusedTextColor = colors.text,
+                unfocusedTextColor = colors.text
+            ),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
+        )
     }
 }
 
 @Composable
 fun GPACalcScreen(colors: CustomThemeColors) {
     var gpaSumText by remember { mutableStateOf("3.45") }
+    val gpaVal = gpaSumText.toDoubleOrNull() ?: 0.0
+    val gpa5 = (gpaVal / 4.0) * 5.0
+    val percentage = (gpaVal / 4.0) * 100.0
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.GPA),
+        title = "حاسبة المعدل",
+        subtitle = "تحويل المعدل الجامعي بين الأنظمة المختلفة (4.0، 5.0، مئوي)"
     ) {
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("🎓 حاسبة المعدل التراكمي الجامعي (GPA)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = gpaSumText,
-                    onValueChange = { gpaSumText = it },
-                    label = { Text("المعدل من 4.0", color = colors.textMuted) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("النتائج المحولة", color = colors.textMuted, fontSize = 14.sp)
+                Text(
+                    "${String.format("%.2f", gpa5)} / 5.0",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accent
+                )
+                Text(
+                    "النسبة المئوية: ${String.format("%.1f", percentage)}%",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.text,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        val gpaVal = gpaSumText.toDoubleOrNull() ?: 0.0
-        val gpa5 = (gpaVal / 4.0) * 5.0
-        val percentage = (gpaVal / 4.0) * 100.0
-
-        Surface(
-            color = colors.surface2,
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("تحويلات المعدل:", fontSize = 13.sp, color = colors.textMuted)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("• المعدل من 5.0: ${String.format("%.2f", gpa5)} / 5.00", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Text("• النسبة المئوية: ${String.format("%.1f", percentage)}%", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-            }
-        }
+        OutlinedTextField(
+            value = gpaSumText,
+            onValueChange = { gpaSumText = it },
+            label = { Text("المعدل الحالي (من 4.0)") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = colors.accent,
+                unfocusedBorderColor = colors.border,
+                focusedTextColor = colors.text,
+                unfocusedTextColor = colors.text
+            ),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+        )
     }
 }
 
@@ -267,45 +285,50 @@ fun HexConverterScreen(colors: CustomThemeColors) {
     val binVal = decVal.toString(2)
     val octVal = decVal.toString(8)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.HEX),
+        title = "محول الأنظمة",
+        subtitle = "تحويل الأرقام بين الأنظمة (العشري، الست عشري، الثنائي، الثماني)"
     ) {
         Surface(
             color = colors.surface,
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column {
+                    Text("Hexadecimal", color = colors.textMuted, fontSize = 11.sp)
+                    Text(hexVal, fontSize = 24.sp, fontWeight = FontWeight.Black, color = colors.accent)
+                }
+                Divider(color = colors.border.copy(alpha = 0.3f))
+                Column {
+                    Text("Binary", color = colors.textMuted, fontSize = 11.sp)
+                    Text(binVal, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                }
+                Column {
+                    Text("Octal", color = colors.textMuted, fontSize = 11.sp)
+                    Text(octVal, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = decInputText,
+            onValueChange = { decInputText = it },
+            label = { Text("الرقم العشري (Decimal)") },
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("💻 محول الأنظمة العددية (Hex/Dec/Bin/Oct)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = decInputText,
-                    onValueChange = { decInputText = it },
-                    label = { Text("الرقم بالنظام العشري (Decimal)", color = colors.textMuted) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Surface(
-            color = colors.surface2,
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("• النظام الست عشري (Hexadecimal): $hexVal", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("• النظام الثنائي (Binary): $binVal", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("• النظام الثماني (Octal): $octVal", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
-            }
-        }
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = colors.accent,
+                unfocusedBorderColor = colors.border,
+                focusedTextColor = colors.text,
+                unfocusedTextColor = colors.text
+            ),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+        )
     }
 }

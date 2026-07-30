@@ -16,8 +16,32 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.LivePricesRepository
 import com.example.ui.theme.CustomThemeColors
+import com.example.ui.components.ToolScreenScaffold
+import com.example.ui.theme.AppIcons
+import com.example.ui.theme.Spacing
+import com.example.model.CalcKey
+import androidx.compose.foundation.BorderStroke
 import kotlin.math.max
 import kotlin.math.pow
+
+@Composable
+fun FinanceInputField(label: String, value: String, colors: CustomThemeColors, onValueChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = colors.accent,
+            unfocusedBorderColor = colors.border,
+            focusedTextColor = colors.text,
+            unfocusedTextColor = colors.text,
+            focusedLabelColor = colors.accent
+        ),
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+    )
+}
 
 @Composable
 fun DiscountCalcScreen(colors: CustomThemeColors) {
@@ -30,44 +54,48 @@ fun DiscountCalcScreen(colors: CustomThemeColors) {
     val savedAmount = price * (discountPercent / 100.0)
     val finalPrice = price - savedAmount
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.DISCOUNT),
+        title = "حاسبة الخصم",
+        subtitle = "احسب السعر النهائي بعد التخفيض ومقدار التوفير المحقق"
     ) {
-        OutlinedTextField(
-            value = priceText,
-            onValueChange = { priceText = it },
-            label = { Text("السعر الأصلي (قبل الخصم)", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = discountText,
-            onValueChange = { discountText = it },
-            label = { Text("نسبة الخصم (%)", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
+        // Result Card
         Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(18.dp),
+            color = colors.accent.copy(alpha = 0.05f),
+            shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("السعر النهائي بعد الخصم:", fontSize = 13.sp, color = colors.textMuted)
-                Text("${LivePricesRepository.formatNumber(finalPrice)} EGP", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("مبلغ الخصم المحفوظ: ${LivePricesRepository.formatNumber(savedAmount)} EGP", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("السعر النهائي", color = colors.textMuted, fontSize = 14.sp)
+                Text(
+                    "${LivePricesRepository.formatNumber(finalPrice)} EGP",
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accent
+                )
+                Surface(
+                    color = Color(0xFF10B981).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.padding(top = 12.dp)
+                ) {
+                    Text(
+                        "وفرت ${LivePricesRepository.formatNumber(savedAmount)} EGP",
+                        color = Color(0xFF10B981),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        FinanceInputField("السعر الأصلي", priceText, colors) { priceText = it }
+        Spacer(modifier = Modifier.height(16.dp))
+        FinanceInputField("نسبة الخصم (%)", discountText, colors) { discountText = it }
     }
 }
 
@@ -91,55 +119,52 @@ fun LoanCalcScreen(colors: CustomThemeColors) {
     val totalPayment = emi * months
     val totalInterest = totalPayment - principal
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.LOAN),
+        title = "حاسبة القروض",
+        subtitle = "احسب الأقساط الشهرية وإجمالي الفوائد المترتبة على القروض"
     ) {
-        OutlinedTextField(
-            value = loanText,
-            onValueChange = { loanText = it },
-            label = { Text("مبلغ القرض الكلي", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = rateText,
-            onValueChange = { rateText = it },
-            label = { Text("نسبة الفائدة السنوية (%)", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = monthsText,
-            onValueChange = { monthsText = it },
-            label = { Text("مدة القرض بالشهور", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
+        // Result Card
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("القسط الشهري المستحق (EMI):", fontSize = 13.sp, color = colors.textMuted)
-                Text("${LivePricesRepository.formatNumber(emi)} EGP", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Spacer(modifier = Modifier.height(10.dp))
-                Text("• إجمالي الفوائد: ${LivePricesRepository.formatNumber(totalInterest)} EGP", fontSize = 13.sp, color = colors.text)
-                Text("• إجمالي المبلغ المسدد: ${LivePricesRepository.formatNumber(totalPayment)} EGP", fontSize = 13.sp, color = colors.text)
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("القسط الشهري (EMI)", color = colors.textMuted, fontSize = 14.sp)
+                Text(
+                    "${LivePricesRepository.formatNumber(emi)} EGP",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accent
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = colors.border.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column {
+                        Text("إجمالي الفائدة", fontSize = 12.sp, color = colors.textMuted)
+                        Text("${LivePricesRepository.formatNumber(totalInterest)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("إجمالي السداد", fontSize = 12.sp, color = colors.textMuted)
+                        Text("${LivePricesRepository.formatNumber(totalPayment)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    }
+                }
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        FinanceInputField("مبلغ القرض", loanText, colors) { loanText = it }
+        Spacer(modifier = Modifier.height(12.dp))
+        FinanceInputField("الفائدة السنوية (%)", rateText, colors) { rateText = it }
+        Spacer(modifier = Modifier.height(12.dp))
+        FinanceInputField("المدة (بالشهور)", monthsText, colors) { monthsText = it }
     }
 }
 
@@ -156,54 +181,50 @@ fun SavingsCalcScreen(colors: CustomThemeColors) {
     val futureValue = deposit * (1 + (rate / 100.0)).pow(years)
     val netProfit = futureValue - deposit
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.SAVINGS),
+        title = "حاسبة الادخار",
+        subtitle = "توقع نمو مدخراتك بمرور الوقت مع الفوائد المركبة"
     ) {
-        OutlinedTextField(
-            value = depositText,
-            onValueChange = { depositText = it },
-            label = { Text("مبلغ الوديعة / الادخار الأولية", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = rateText,
-            onValueChange = { rateText = it },
-            label = { Text("نسبة الربح/الفائدة السنوية (%)", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = yearsText,
-            onValueChange = { yearsText = it },
-            label = { Text("عدد السنوات", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
+        // Result Card
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("القيمة المستقبلية للمدخرات:", fontSize = 13.sp, color = colors.textMuted)
-                Text("${LivePricesRepository.formatNumber(futureValue)} EGP", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("صافي الأرباح المحققة: +${LivePricesRepository.formatNumber(netProfit)} EGP", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("القيمة المستقبلية المتوقعة", color = colors.textMuted, fontSize = 14.sp)
+                Text(
+                    "${LivePricesRepository.formatNumber(futureValue)} EGP",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accent
+                )
+                Surface(
+                    color = Color(0xFF10B981).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.padding(top = 12.dp)
+                ) {
+                    Text(
+                        "ربح صافي +${LivePricesRepository.formatNumber(netProfit)}",
+                        color = Color(0xFF10B981),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    )
+                }
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        FinanceInputField("المبلغ الأولي", depositText, colors) { depositText = it }
+        Spacer(modifier = Modifier.height(12.dp))
+        FinanceInputField("نسبة الربح السنوي (%)", rateText, colors) { rateText = it }
+        Spacer(modifier = Modifier.height(12.dp))
+        FinanceInputField("عدد السنوات", yearsText, colors) { yearsText = it }
     }
 }
 
@@ -218,44 +239,40 @@ fun SalesTaxCalcScreen(colors: CustomThemeColors) {
     val taxVal = amount * (taxRate / 100.0)
     val totalWithTax = amount + taxVal
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.SALES_TAX),
+        title = "ضريبة المبيعات",
+        subtitle = "احسب ضريبة القيمة المضافة وإجمالي السعر شامل الضريبة"
     ) {
-        OutlinedTextField(
-            value = amountText,
-            onValueChange = { amountText = it },
-            label = { Text("المبلغ قبل الضريبة", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = taxRateText,
-            onValueChange = { taxRateText = it },
-            label = { Text("نسبة ضريبة القيمة المضافة VAT (%)", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("المبلغ الإجمالي شاملاً الضريبة:", fontSize = 13.sp, color = colors.textMuted)
-                Text("${LivePricesRepository.formatNumber(totalWithTax)} EGP", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("مقدار الضريبة المضافة: ${LivePricesRepository.formatNumber(taxVal)} EGP", fontSize = 13.sp, color = colors.text)
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("الإجمالي شامل الضريبة", color = colors.textMuted, fontSize = 14.sp)
+                Text(
+                    "${LivePricesRepository.formatNumber(totalWithTax)} EGP",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accent
+                )
+                Text(
+                    "مقدار الضريبة (VAT): ${LivePricesRepository.formatNumber(taxVal)}",
+                    fontSize = 13.sp,
+                    color = colors.textMuted,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        FinanceInputField("المبلغ قبل الضريبة", amountText, colors) { amountText = it }
+        Spacer(modifier = Modifier.height(12.dp))
+        FinanceInputField("نسبة الضريبة (%)", taxRateText, colors) { taxRateText = it }
     }
 }
 
@@ -273,55 +290,51 @@ fun TipCalcScreen(colors: CustomThemeColors) {
     val grandTotal = bill + tipTotal
     val perPerson = grandTotal / max(1.0, persons)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.TIP),
+        title = "حاسبة البقشيش",
+        subtitle = "احسب البقشيش المناسب وقسّم الفاتورة بسهولة بين الأصدقاء"
     ) {
-        OutlinedTextField(
-            value = billText,
-            onValueChange = { billText = it },
-            label = { Text("قيمة الفاتورة الإجمالية", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = tipPercentText,
-            onValueChange = { tipPercentText = it },
-            label = { Text("نسبة البقشيش (%)", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = personsText,
-            onValueChange = { personsText = it },
-            label = { Text("عدد الأشخاص للتقسيم", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         Surface(
             color = colors.surface,
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("المبلغ المستحق للشخص الواحد:", fontSize = 13.sp, color = colors.textMuted)
-                Text("${LivePricesRepository.formatNumber(perPerson)} EGP", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("• إجمالي البقشيش: ${LivePricesRepository.formatNumber(tipTotal)} EGP", fontSize = 13.sp, color = colors.text)
-                Text("• المبلغ الكلي شامل البقشيش: ${LivePricesRepository.formatNumber(grandTotal)} EGP", fontSize = 13.sp, color = colors.text)
+            Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("المستحق للشخص الواحد", color = colors.textMuted, fontSize = 14.sp)
+                Text(
+                    "${LivePricesRepository.formatNumber(perPerson)} EGP",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accent
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = colors.border.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Column {
+                        Text("إجمالي البقشيش", fontSize = 12.sp, color = colors.textMuted)
+                        Text("${LivePricesRepository.formatNumber(tipTotal)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("الإجمالي الكلي", fontSize = 12.sp, color = colors.textMuted)
+                        Text("${LivePricesRepository.formatNumber(grandTotal)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    }
+                }
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        FinanceInputField("قيمة الفاتورة", billText, colors) { billText = it }
+        Spacer(modifier = Modifier.height(12.dp))
+        FinanceInputField("نسبة البقشيش (%)", tipPercentText, colors) { tipPercentText = it }
+        Spacer(modifier = Modifier.height(12.dp))
+        FinanceInputField("عدد الأشخاص", personsText, colors) { personsText = it }
     }
 }
 
@@ -336,47 +349,32 @@ fun PercentageCalcScreen(colors: CustomThemeColors) {
     val result1 = (v1 / 100.0) * v2
     val result2 = if (v2 != 0.0) (v1 / v2) * 100.0 else 0.0
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.PERCENT),
+        title = "النسبة المئوية",
+        subtitle = "إجراء عمليات النسبة المئوية المختلفة بسهولة ودقة"
     ) {
-        OutlinedTextField(
-            value = val1,
-            onValueChange = { val1 = it },
-            label = { Text("الرقم الأول (X)", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        OutlinedTextField(
-            value = val2,
-            onValueChange = { val2 = it },
-            label = { Text("الرقم الثاني (Y)", color = colors.textMuted) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("1. كم يساوي $v1% من $v2 ؟", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.text)
-                Text("${LivePricesRepository.formatNumber(result1)}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colors.accent)
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text("2. ما هي النسبة المئوية لـ $v1 من $v2 ؟", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.text)
-                Text("${LivePricesRepository.formatNumber(result2)}%", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Surface(color = colors.surface, shape = RoundedCornerShape(24.dp), tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("كم يساوي $v1% من $v2 ؟", color = colors.textMuted, fontSize = 13.sp)
+                    Text("${LivePricesRepository.formatNumber(result1)}", fontSize = 24.sp, fontWeight = FontWeight.Black, color = colors.accent)
+                }
+            }
+            
+            Surface(color = colors.surface, shape = RoundedCornerShape(24.dp), tonalElevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("ما هي نسبة $v1 من $v2 ؟", color = colors.textMuted, fontSize = 13.sp)
+                    Text("${LivePricesRepository.formatNumber(result2)}%", fontSize = 24.sp, fontWeight = FontWeight.Black, color = colors.accent)
+                }
             }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        FinanceInputField("الرقم الأول (X)", val1, colors) { val1 = it }
+        Spacer(modifier = Modifier.height(12.dp))
+        FinanceInputField("الرقم الثاني (Y)", val2, colors) { val2 = it }
     }
 }
 
@@ -399,50 +397,51 @@ fun UnitPriceCalcScreen(colors: CustomThemeColors) {
 
     val isABetter = unitA < unitB
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.UNIT_PRICE),
+        title = "مقارنة الأسعار",
+        subtitle = "قارن بين منتجين لمعرفة العرض الأوفر بناءً على سعر الوحدة"
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Surface(color = colors.surface, shape = RoundedCornerShape(14.dp), modifier = Modifier.weight(1f)) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("المنتج (أ)", fontWeight = FontWeight.Bold, color = colors.text)
-                    OutlinedTextField(value = priceA, onValueChange = { priceA = it }, label = { Text("السعر") }, singleLine = true)
-                    OutlinedTextField(value = qtyA, onValueChange = { qtyA = it }, label = { Text("الكمية/الوزن") }, singleLine = true)
-                }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("المنتج (أ)", fontWeight = FontWeight.Bold, color = colors.text, modifier = Modifier.padding(start = 4.dp))
+                FinanceInputField("السعر", priceA, colors) { priceA = it }
+                FinanceInputField("الكمية", qtyA, colors) { qtyA = it }
             }
-
-            Surface(color = colors.surface, shape = RoundedCornerShape(14.dp), modifier = Modifier.weight(1f)) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text("المنتج (ب)", fontWeight = FontWeight.Bold, color = colors.text)
-                    OutlinedTextField(value = priceB, onValueChange = { priceB = it }, label = { Text("السعر") }, singleLine = true)
-                    OutlinedTextField(value = qtyB, onValueChange = { qtyB = it }, label = { Text("الكمية/الوزن") }, singleLine = true)
-                }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("المنتج (ب)", fontWeight = FontWeight.Bold, color = colors.text, modifier = Modifier.padding(start = 4.dp))
+                FinanceInputField("السعر", priceB, colors) { priceB = it }
+                FinanceInputField("الكمية", qtyB, colors) { qtyB = it }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(16.dp),
+            color = Color(0xFF10B981).copy(alpha = 0.05f),
+            shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.3f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    if (isABetter) "🎉 المنتج (أ) هو الصفقة الأوفر والأنسب!" else "🎉 المنتج (ب) هو الصفقة الأوفر والأنسب!",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
+                    if (isABetter) "المنتج (أ) هو الأوفر ✅" else "المنتج (ب) هو الأوفر ✅",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
                     color = Color(0xFF10B981)
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("سعر الوحدة أ: ${String.format("%.4f", unitA)} / وحدة", fontSize = 12.sp, color = colors.text)
-                Text("سعر الوحدة ب: ${String.format("%.4f", unitB)} / وحدة", fontSize = 12.sp, color = colors.text)
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("سعر وحدة (أ)", fontSize = 11.sp, color = colors.textMuted)
+                        Text(String.format("%.3f", unitA), fontWeight = FontWeight.Bold, color = colors.text)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("سعر وحدة (ب)", fontSize = 11.sp, color = colors.textMuted)
+                        Text(String.format("%.3f", unitB), fontWeight = FontWeight.Bold, color = colors.text)
+                    }
+                }
             }
         }
     }

@@ -54,36 +54,36 @@ object LivePricesRepository {
         private set
 
     val currencies = mutableStateListOf(
-        CurrencyRate("EGP", "جنيه مصري", "🇪🇬", "مصر", 48.65),
-        CurrencyRate("SAR", "ريال سعودي", "🇸🇦", "السعودية", 3.75),
-        CurrencyRate("AED", "درهم إماراتي", "🇦🇪", "الإمارات", 3.67),
-        CurrencyRate("KWD", "دينار كويتي", "🇰🇼", "الكويت", 0.306),
-        CurrencyRate("QAR", "ريال قطري", "🇶🇦", "قطر", 3.64),
-        CurrencyRate("BHD", "دينار بحريني", "🇧🇭", "البحرين", 0.376),
-        CurrencyRate("OMR", "ريال عماني", "🇴🇲", "عمان", 0.385),
-        CurrencyRate("JOD", "دينار أردني", "🇯🇴", "الأردن", 0.709),
-        CurrencyRate("DZD", "دينار جزائري", "🇩🇿", "الجزائر", 134.2),
-        CurrencyRate("MAD", "درهم مغربي", "🇲🇦", "المغرب", 9.85),
-        CurrencyRate("TND", "دينار تونسي", "🇹🇳", "تونس", 3.12),
-        CurrencyRate("LYD", "دينار ليبي", "🇱🇾", "ليبيا", 4.82),
-        CurrencyRate("SDG", "جنيه سوداني", "🇸🇩", "السودان", 601.0),
-        CurrencyRate("IQD", "دينار عراقي", "🇮🇶", "العراق", 1310.0),
-        CurrencyRate("LBP", "ليرة لبنانية", "🇱🇧", "لبنان", 89500.0),
-        CurrencyRate("SYP", "ليرة سورية", "🇸🇾", "سوريا", 13000.0),
-        CurrencyRate("YER", "ريال يمني", "🇾🇪", "اليمن", 250.0),
-        CurrencyRate("ILS", "شيكل", "🇵🇸", "فلسطين", 3.65),
-        CurrencyRate("MRU", "أوقية موريتانية", "🇲🇷", "موريتانيا", 39.5),
-        CurrencyRate("SOS", "شلن صومالي", "🇸🇴", "الصومال", 570.0),
-        CurrencyRate("TRY", "ليرة تركية", "🇹🇷", "تركيا", 32.85),
-        CurrencyRate("USD", "دولار أمريكي", "🇺🇸", "الولايات المتحدة", 1.0),
-        CurrencyRate("EUR", "يورو", "🇪🇺", "أوروبا", 0.922),
-        CurrencyRate("GBP", "جنيه إسترليني", "🇬🇧", "المملكة المتحدة", 0.778),
-        CurrencyRate("CAD", "دولار كندي", "🇨🇦", "كندا", 1.368),
-        CurrencyRate("AUD", "دولار أسترالي", "🇦🇺", "أستراليا", 1.512),
-        CurrencyRate("JPY", "ين ياباني", "🇯🇵", "اليابان", 155.4),
-        CurrencyRate("CNY", "يوان صيني", "🇨🇳", "الصين", 7.25),
-        CurrencyRate("INR", "روبية هندية", "🇮🇳", "الهند", 83.5),
-        CurrencyRate("MYR", "رينغيت ماليزي", "🇲🇾", "ماليزيا", 4.70)
+        CurrencyRate("EGP", "جنيه مصري", "", "مصر", 48.65),
+        CurrencyRate("SAR", "ريال سعودي", "", "السعودية", 3.75),
+        CurrencyRate("AED", "درهم إماراتي", "", "الإمارات", 3.67),
+        CurrencyRate("KWD", "دينار كويتي", "", "الكويت", 0.306),
+        CurrencyRate("QAR", "ريال قطري", "", "قطر", 3.64),
+        CurrencyRate("BHD", "دينار بحريني", "", "البحرين", 0.376),
+        CurrencyRate("OMR", "ريال عماني", "", "عمان", 0.385),
+        CurrencyRate("JOD", "دينار أردني", "", "الأردن", 0.709),
+        CurrencyRate("DZD", "دينار جزائري", "", "الجزائر", 134.2),
+        CurrencyRate("MAD", "درهم مغربي", "", "المغرب", 9.85),
+        CurrencyRate("TND", "دينار تونسي", "", "تونس", 3.12),
+        CurrencyRate("LYD", "دينار ليبي", "", "ليبيا", 4.82),
+        CurrencyRate("SDG", "جنيه سوداني", "", "السودان", 601.0),
+        CurrencyRate("IQD", "دينار عراقي", "", "العراق", 1310.0),
+        CurrencyRate("LBP", "ليرة لبنانية", "", "لبنان", 89500.0),
+        CurrencyRate("SYP", "ليرة سورية", "", "سوريا", 13000.0),
+        CurrencyRate("YER", "ريال يمني", "", "اليمن", 250.0),
+        CurrencyRate("ILS", "شيكل", "", "فلسطين", 3.65),
+        CurrencyRate("MRU", "أوقية موريتانية", "", "موريتانيا", 39.5),
+        CurrencyRate("SOS", "شلن صومالي", "", "الصومال", 570.0),
+        CurrencyRate("TRY", "ليرة تركية", "", "تركيا", 32.85),
+        CurrencyRate("USD", "دولار أمريكي", "", "الولايات المتحدة", 1.0),
+        CurrencyRate("EUR", "يورو", "", "أوروبا", 0.922),
+        CurrencyRate("GBP", "جنيه إسترليني", "", "المملكة المتحدة", 0.778),
+        CurrencyRate("CAD", "دولار كندي", "", "كندا", 1.368),
+        CurrencyRate("AUD", "دولار أسترالي", "", "أستراليا", 1.512),
+        CurrencyRate("JPY", "ين ياباني", "", "اليابان", 155.4),
+        CurrencyRate("CNY", "يوان صيني", "", "الصين", 7.25),
+        CurrencyRate("INR", "روبية هندية", "", "الهند", 83.5),
+        CurrencyRate("MYR", "رينغيت ماليزي", "", "ماليزيا", 4.70)
     )
 
     fun getSelectedCurrency(context: Context): CurrencyRate {
@@ -137,10 +137,10 @@ object LivePricesRepository {
     )
 
     val commodityPrices = mutableStateListOf(
-        CommodityPrice("خام برنت", "BRENT", "🛢️", "برميل", 84.015, 0.65),
-        CommodityPrice("نفط غرب تكساس", "WTI", "⛽", "برميل", 79.95, 0.55),
-        CommodityPrice("الغاز الطبيعي", "GAS", "🔥", "MMBtu", 2.44, -1.20),
-        CommodityPrice("النحاس الخام", "COPPER", "🔩", "رطل", 4.34, 0.15)
+        CommodityPrice("خام برنت", "BRENT", "oil", "برميل", 84.015, 0.65),
+        CommodityPrice("نفط غرب تكساس", "WTI", "gasoline", "برميل", 79.95, 0.55),
+        CommodityPrice("الغاز الطبيعي", "GAS", "natural_gas", "MMBtu", 2.44, -1.20),
+        CommodityPrice("النحاس الخام", "COPPER", "copper", "رطل", 4.34, 0.15)
     )
 
     private fun updateMetalList() {
@@ -294,7 +294,8 @@ object LivePricesRepository {
 
     fun formatNumber(valNumber: Double, decimals: Int = 2): String {
         val pattern = if (decimals == 0) "#,##0" else "#,##0." + "0".repeat(decimals)
-        val df = DecimalFormat(pattern)
+        val symbols = java.text.DecimalFormatSymbols(java.util.Locale.US)
+        val df = java.text.DecimalFormat(pattern, symbols)
         return df.format(valNumber)
     }
 }

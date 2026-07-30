@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -32,6 +34,7 @@ fun AppHeader(
     currentCalc: CalcKey,
     colors: CustomThemeColors,
     onGoHome: () -> Unit,
+    onToggleTheme: () -> Unit,
     onOpenThemes: () -> Unit,
     onOpenAbout: () -> Unit
 ) {
@@ -104,8 +107,12 @@ fun AppHeader(
 
             Box {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onOpenThemes) {
-                        Icon(AppIcons.Theme, contentDescription = "المظهر", tint = colors.headerFg)
+                    IconButton(onClick = onToggleTheme) {
+                        Icon(
+                            imageVector = if (colors.isDark) AppIcons.Sun else AppIcons.Moon,
+                            contentDescription = if (colors.isDark) "الوضع النهاري" else "الوضع الليلي",
+                            tint = colors.accent
+                        )
                     }
                     IconButton(onClick = { menuOpen = true }) {
                         Icon(AppIcons.More, contentDescription = "خيارات", tint = colors.headerFg)
@@ -117,6 +124,14 @@ fun AppHeader(
                     onDismissRequest = { menuOpen = false },
                     modifier = Modifier.background(colors.surface)
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("اختر المظهر", color = colors.text) },
+                        leadingIcon = { Icon(AppIcons.Theme, contentDescription = null, tint = colors.accent) },
+                        onClick = {
+                            menuOpen = false
+                            onOpenThemes()
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text("حول التطبيق", color = colors.text) },
                         leadingIcon = { Icon(AppIcons.Info, contentDescription = null, tint = colors.textMuted) },
@@ -153,7 +168,13 @@ fun ThemeSelectorModal(
             }
         },
         text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            val scrollState = rememberScrollState()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(scrollState)
+            ) {
                 AppThemeKey.values().forEach { key ->
                     val isSelected = key == currentTheme
                     val tColors = com.example.ui.theme.getThemeColors(key)

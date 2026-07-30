@@ -26,7 +26,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.AppIcons
 import com.example.ui.theme.CustomThemeColors
+import com.example.ui.components.ToolScreenScaffold
+import com.example.model.CalcKey
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.BorderStroke
 import com.example.util.AdhanScheduler
+import com.example.ui.theme.Spacing
 
 private const val PREFS_NAME = "clevcalc_adhan_prefs"
 private const val KEY_SOUND_URI = "adhan_sound_uri"
@@ -101,138 +106,154 @@ fun AdhanSettingsScreen(colors: CustomThemeColors) {
         } catch (_: Exception) { /* best-effort preview only */ }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.ADHAN_SETTINGS),
+        title = "إعدادات الأذان",
+        subtitle = "تخصيص تنبيهات الصلاة واختيار أصوات الأذان والاهتزاز"
     ) {
-        item {
-            Text("تفعيل الأذان لكل صلاة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
-        }
+        Text("تفعيل التنبيهات", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.text)
+        
+        Spacer(modifier = Modifier.height(Spacing.Medium))
 
-        items(PRAYER_TOGGLES) { toggle ->
-            Surface(
-                color = colors.surface,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
+            PRAYER_TOGGLES.forEach { toggle ->
+                Surface(
+                    color = colors.surface,
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(AppIcons.forCalc(com.example.model.CalcKey.PRAYER), contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(toggle.label, fontSize = 14.sp, color = colors.text)
-                    }
-                    Switch(
-                        checked = togglesState[toggle.key] == true,
-                        onCheckedChange = { checked ->
-                            togglesState = togglesState.toMutableMap().apply { put(toggle.key, checked) }
-                            prefs.edit().putBoolean(toggle.key, checked).apply()
-                            AdhanScheduler.rescheduleAllFromPreferences(context)
-                        },
-                        colors = SwitchDefaults.colors(checkedThumbColor = colors.accent)
-                    )
-                }
-            }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("الصوت والتنبيه", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
-        }
-
-        item {
-            Surface(color = colors.surface, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(colors.accent.copy(alpha = 0.14f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(AppIcons.VolumeUp, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("صوت الأذان", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = colors.text)
-                            Text(
-                                RingtoneManager.getRingtone(context, soundUri)?.getTitle(context) ?: "افتراضي النظام",
-                                fontSize = 11.sp,
-                                color = colors.textMuted
-                            )
-                        }
-                        IconButton(onClick = { previewSound() }) {
-                            Icon(AppIcons.PlayCircle, contentDescription = "تشغيل تجريبي", tint = colors.accent)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = { openSoundPicker() },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(Spacing.Medium),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("تغيير صوت الأذان", color = colors.accent)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(AppIcons.forCalc(CalcKey.PRAYER), null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(toggle.label, fontSize = 16.sp, color = colors.text, fontWeight = FontWeight.Medium)
+                        }
+                        Switch(
+                            checked = togglesState[toggle.key] == true,
+                            onCheckedChange = { checked ->
+                                togglesState = togglesState.toMutableMap().apply { put(toggle.key, checked) }
+                                prefs.edit().putBoolean(toggle.key, checked).apply()
+                                AdhanScheduler.rescheduleAllFromPreferences(context)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = colors.accent,
+                                uncheckedThumbColor = colors.textMuted,
+                                uncheckedTrackColor = colors.surface2
+                            )
+                        )
                     }
-                    Text(
-                        "يفتح منتقي الأصوات الرسمي بالنظام — يمكنك اختيار أي نغمة منبّه مثبّتة على جهازك، أو إضافة ملف أذان خاص بك من إعدادات الجهاز.",
-                        fontSize = 10.sp,
-                        color = colors.textMuted,
-                        modifier = Modifier.padding(top = 6.dp)
-                    )
                 }
             }
         }
 
-        item {
-            Surface(color = colors.surface, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("تخصيص التنبيه", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.text)
+
+        // Sound Picker Card
+        Surface(
+            color = colors.surface,
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 2.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(colors.accent.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(AppIcons.VolumeUp, null, tint = colors.accent, modifier = Modifier.size(24.dp))
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("نغمة الأذان", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        Text(
+                            RingtoneManager.getRingtone(context, soundUri)?.getTitle(context) ?: "افتراضي النظام",
+                            fontSize = 12.sp,
+                            color = colors.textMuted
+                        )
+                    }
+                    IconButton(onClick = { previewSound() }) {
+                        Icon(AppIcons.PlayCircle, null, tint = colors.accent, modifier = Modifier.size(28.dp))
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Button(
+                    onClick = { openSoundPicker() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(AppIcons.Vibration, contentDescription = null, tint = colors.accent, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text("الاهتزاز مع الأذان", fontSize = 13.sp, color = colors.text)
-                    }
-                    Switch(
-                        checked = vibrateEnabled,
-                        onCheckedChange = {
-                            vibrateEnabled = it
-                            prefs.edit().putBoolean(KEY_VIBRATE, it).apply()
-                        },
-                        colors = SwitchDefaults.colors(checkedThumbColor = colors.accent)
-                    )
+                    Text("اختيار نغمة من الجهاز", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
 
-        item {
-            OutlinedButton(
-                onClick = {
-                    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                    }
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Vibrate Card
+        Surface(
+            color = colors.surface,
+            shape = RoundedCornerShape(20.dp),
+            tonalElevation = 2.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(AppIcons.Notifications, contentDescription = null, tint = colors.accent, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("إدارة أذونات الإشعارات من إعدادات النظام", color = colors.accent, fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(AppIcons.Vibration, null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text("الاهتزاز", fontSize = 16.sp, color = colors.text, fontWeight = FontWeight.Medium)
+                }
+                Switch(
+                    checked = vibrateEnabled,
+                    onCheckedChange = {
+                        vibrateEnabled = it
+                        prefs.edit().putBoolean(KEY_VIBRATE, it).apply()
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = colors.accent
+                    )
+                )
             }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedButton(
+            onClick = {
+                val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                }
+                context.startActivity(intent)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.5f))
+        ) {
+            Icon(AppIcons.Notifications, null, tint = colors.accent, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(12.dp))
+            Text("إعدادات إشعارات النظام", color = colors.accent, fontWeight = FontWeight.Bold)
         }
     }
 }
