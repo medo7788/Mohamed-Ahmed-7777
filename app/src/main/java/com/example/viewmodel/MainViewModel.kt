@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MainViewModel : ViewModel() {
@@ -31,6 +33,13 @@ class MainViewModel : ViewModel() {
     private val _showAboutModal = MutableStateFlow(false)
     val showAboutModal: StateFlow<Boolean> = _showAboutModal.asStateFlow()
 
+    // Persistent favorites & recents
+    private val _favoriteTools = MutableStateFlow<Set<String>>(emptySet())
+    val favoriteTools: StateFlow<Set<String>> = _favoriteTools.asStateFlow()
+
+    private val _recentTools = MutableStateFlow<List<String>>(emptyList())
+    val recentTools: StateFlow<List<String>> = _recentTools.asStateFlow()
+
     fun initTheme(context: Context) {
         if (prefsRepository == null) {
             val repo = UserPreferencesRepository(context.applicationContext)
@@ -38,6 +47,16 @@ class MainViewModel : ViewModel() {
             viewModelScope.launch {
                 repo.selectedThemeFlow.collectLatest { themeKey ->
                     _currentThemeKey.value = themeKey
+                }
+            }
+            viewModelScope.launch {
+                repo.favoriteToolsFlow.collectLatest { favorites ->
+                    _favoriteTools.value = favorites
+                }
+            }
+            viewModelScope.launch {
+                repo.recentToolsFlow.collectLatest { recents ->
+                    _recentTools.value = recents
                 }
             }
         }
@@ -75,5 +94,21 @@ class MainViewModel : ViewModel() {
     fun setShowAboutModal(show: Boolean) {
         _showAboutModal.value = show
     }
-}
 
+    // Toggle favorite tool status
+    fun toggleFavorite(context: Context, toolId: String) {
+        viewModelScope.launch {
+            val repo = prefsRepository ?: UserPreferencesRepository(context.applicationContext).also { prefsRepository = it }
+            repo.toggleFavoriteTool(toolId)
+        }
+    }
+
+    // Record tool opening
+    fun recordToolOpened(context: Context, toolId: String) {
+        if (toolId == "HOME" || toolId == "home") return
+        viewModelScope.launch {
+            val repo = prefsRepository ?: UserPreferencesRepository(context.applicationContext).also { prefsRepository = it }
+            repo.addRecentTool(toolId)
+        }
+    }
+}

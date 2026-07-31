@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -41,19 +42,26 @@ import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.model.CalcKey
 import com.example.model.CategoryKey
-import com.example.ui.components.LocationCardState
-import com.example.ui.components.LocationStatusCard
 import com.example.ui.theme.AppIcons
 import com.example.ui.theme.CustomThemeColors
+import com.example.viewmodel.MainViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun HomeScreen(
     colors: CustomThemeColors,
+    viewModel: MainViewModel,
     onSelectCalc: (CalcKey) -> Unit
 ) {
+    val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<CategoryKey?>(null) }
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    val favoriteTools by viewModel.favoriteTools.collectAsState()
+    val recentTools by viewModel.recentTools.collectAsState()
 
     val allTools = remember { CalcKey.values().filter { it != CalcKey.HOME } }
 
@@ -67,6 +75,28 @@ fun HomeScreen(
         }
     }
 
+    // Dynamic greeting based on time of day
+    val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    val dynamicGreetingText = when {
+        currentHour in 5..11 -> "صباح الخير والبركة 👋"
+        currentHour in 12..16 -> "طاب يومك بكل خير 👋"
+        currentHour in 17..21 -> "مساء النور والسرور 👋"
+        else -> "أسعد الله مساؤك بالخير 👋"
+    }
+
+    // Current Date Formatter
+    val arabicLocale = Locale("ar")
+    val dayName = SimpleDateFormat("EEEE", arabicLocale).format(Date())
+    val dayOfMonth = SimpleDateFormat("d MMMM yyyy", arabicLocale).format(Date())
+    val hijriDateStr = remember {
+        // Simple mock hijri date calculation
+        val hc = GregorianCalendar()
+        val hYear = hc.get(Calendar.YEAR) - 579
+        val hMonths = listOf("محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة")
+        // Just mock a nice day
+        "15 ${hMonths[((hc.get(Calendar.MONTH) + 5) % 12)]} ${hYear}هـ"
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -74,128 +104,259 @@ fun HomeScreen(
                 if (colors.isDark) {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF0F1717),
-                            Color(0xFF1A2E2E),
-                            Color(0xFF0F1415)
+                            Color(0xFF121212),
+                            Color(0xFF1E1E1E),
+                            Color(0xFF121212)
                         )
                     )
                 } else {
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFFAF8F5),
-                            Color(0xFFF3EFEA),
-                            Color(0xFFFAF8F5)
+                            Color(0xFFF5F8F9),
+                            Color(0xFFE7ECEF),
+                            Color(0xFFF5F8F9)
                         )
                     )
                 }
             )
     ) {
-        // Geometric Pattern Background Overlay
-        Image(
-            painter = painterResource(id = R.drawable.ic_islamic_pattern),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .alpha(if (colors.isDark) 0.04f else 0.02f),
-            contentScale = ContentScale.Inside,
-            colorFilter = ColorFilter.tint(colors.accent)
-        )
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 100.dp)
         ) {
-            // --- 1. Top Royal Header ---
-            Row(
+            // --- 1. Header (Dynamic Premium Gradient & Islamic Pattern) ---
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .height(180.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = if (colors.isDark) {
+                                listOf(Color(0xFF1B8A6B), Color(0xFF121212))
+                            } else {
+                                listOf(Color(0xFFD8EEE7), Color(0xFFBFE5DA))
+                            }
+                        )
+                    )
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        modifier = Modifier.size(44.dp),
-                        shape = CircleShape,
-                        color = colors.accent.copy(alpha = 0.15f),
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, colors.accent)
+                // Transparent Islamic Pattern overlay at 5% opacity
+                Image(
+                    painter = painterResource(id = R.drawable.ic_islamic_pattern),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .alpha(0.05f),
+                    contentScale = ContentScale.Inside,
+                    colorFilter = ColorFilter.tint(if (colors.isDark) Color.White else Color(0xFF1B8A6B))
+                )
+
+                // Layout inside Header
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                modifier = Modifier.size(48.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (colors.isDark) Color(0xFF242424) else Color.White,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (colors.isDark) colors.border else Color(0xFF1B8A6B).copy(alpha = 0.2f)
+                                ),
+                                shadowElevation = 2.dp
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = Color(0xFF1B8A6B),
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "ClevCalc Pro",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = if (colors.isDark) Color.White else Color(0xFF1B8A6B)
+                                )
+                                Text(
+                                    text = "المنصة الذكية المتكاملة",
+                                    fontSize = 11.sp,
+                                    color = if (colors.isDark) colors.textMuted else Color(0xFF1B8A6B).copy(alpha = 0.8f),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Weather Miniature & Date
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "القاهرة، مصر",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (colors.isDark) Color.White else Color(0xFF1B8A6B)
+                                )
+                                Text(
+                                    text = "28° م • مشمس",
+                                    fontSize = 10.sp,
+                                    color = if (colors.isDark) colors.textMuted else Color(0xFF1B8A6B).copy(alpha = 0.7f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Icon(
-                                imageVector = Icons.Default.AutoAwesome,
+                                imageVector = Icons.Default.WbSunny,
                                 contentDescription = null,
-                                tint = colors.accent,
+                                tint = if (colors.isDark) Color(0xFFF59E0B) else Color(0xFFE28A13),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            "ClevCalc Pro",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = colors.accent
-                        )
-                        Text(
-                            "31 أداة وحاسبة ملكية",
-                            fontSize = 12.sp,
-                            color = colors.textMuted
-                        )
-                    }
-                }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Surface(
-                        shape = CircleShape,
-                        color = colors.surface,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .clickable { onSelectCalc(CalcKey.AI) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = "AI",
-                                tint = Color(0xFFD4AF37),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                        Column {
                             Text(
-                                "المساعد الذكي",
+                                text = "$dayName، $dayOfMonth",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = colors.accent
+                                color = if (colors.isDark) Color.White else Color(0xFF1B8A6B)
                             )
+                            Text(
+                                text = hijriDateStr,
+                                fontSize = 11.sp,
+                                color = if (colors.isDark) colors.textMuted else Color(0xFF1B8A6B).copy(alpha = 0.7f)
+                            )
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = colors.surface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .clickable { onSelectCalc(CalcKey.AI) }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = "AI",
+                                    tint = Color(0xFF7E57C2),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    "المستشار الذكي AI",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.accent
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // --- 2. Search Field ---
+            // --- 2. Smart Greeting Card ---
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .offset(y = (-16).dp),
+                shape = RoundedCornerShape(24.dp),
+                color = colors.surface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.4f)),
+                shadowElevation = 4.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = dynamicGreetingText,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = colors.text
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "جاهز لتسهيل حساباتك وإنجاز يومك بذكاء.",
+                            fontSize = 11.sp,
+                            color = colors.textMuted
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(colors.accent.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WbCloudy,
+                            contentDescription = null,
+                            tint = colors.accent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            // --- 3. Floating Modern Search Bar ---
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("ابحث في 31 أداة وحاسبة...", color = colors.textMuted, fontSize = 14.sp) },
+                placeholder = {
+                    Text(
+                        "ابحث عن أي أداة أو حاسبة...",
+                        color = colors.textMuted,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                },
                 leadingIcon = { Icon(Icons.Default.Search, null, tint = colors.accent) },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, null, tint = colors.textMuted)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Clear, null, tint = colors.textMuted)
+                            }
+                        }
+                        IconButton(onClick = { /* Voice Search Action */ }) {
+                            Icon(Icons.Default.Mic, "صوت", tint = colors.accent)
                         }
                     }
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(28.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = colors.surface,
                     unfocusedContainerColor = colors.surface,
@@ -206,72 +367,66 @@ fun HomeScreen(
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .height(58.dp)
+                    .padding(horizontal = 16.dp)
             )
 
-            // --- 3. Live Banner Card (Royal Accent) ---
-            if (searchQuery.isBlank()) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .clickable { onSelectCalc(CalcKey.LIVE_PRICES) },
-                    color = colors.surface,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
-                    shadowElevation = 6.dp
+            // --- 4. Quick Actions (Horizontal Chips) ---
+            Spacer(modifier = Modifier.height(16.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "الوصول السريع",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.text,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Box(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                    val quickActions = listOf(
+                        Triple("الآلة الحاسبة", CalcKey.BASIC, Color(0xFF0077CC)),
+                        Triple("المساعد الذكي", CalcKey.AI, Color(0xFF7E57C2)),
+                        Triple("مواقيت الصلاة", CalcKey.PRAYER, Color(0xFF2D8C73)),
+                        Triple("حاسبة الذهب", CalcKey.GOLD, Color(0xFFFFD700)),
+                        Triple("محول العملات", CalcKey.CURRENCY, Color(0xFF2E7D32)),
+                        Triple("تحليل الطقس", CalcKey.WEATHER, Color(0xFF0288D1))
+                    )
+                    items(quickActions) { (label, key, actionColor) ->
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = colors.surface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, actionColor.copy(alpha = 0.3f)),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable { onSelectCalc(key) }
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF27AE60))
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        "مباشر • الأسعار والأسواق",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF27AE60)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(actionColor.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = AppIcons.forCalc(key),
+                                        contentDescription = null,
+                                        tint = actionColor,
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    "ذهب، عملات، نفط ومؤشرات اقتصادية",
-                                    fontSize = 15.sp,
+                                    text = label,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = colors.text
-                                )
-                                Text(
-                                    "تحديث فوري مع تحليلات ذكية لأحدث التغيرات",
-                                    fontSize = 11.sp,
-                                    color = colors.textMuted
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color(0xFFD4AF37), Color(0xFFB8860B))
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.TrendingUp,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
@@ -279,37 +434,247 @@ fun HomeScreen(
                 }
             }
 
-            // --- 4. Category Filter Chips ---
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                item {
-                    CategoryChip(
-                        label = "الكل (${allTools.size})",
-                        icon = "✨",
-                        isSelected = selectedCategory == null,
-                        colors = colors,
-                        onClick = { selectedCategory = null }
-                    )
+            // --- 5. Favorites (Stateful Pinned / Starred Tools) ---
+            if (favoriteTools.isNotEmpty() && searchQuery.isBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.PushPin,
+                                contentDescription = null,
+                                tint = Color(0xFFF59E0B),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "أدواتك المثبتة (المفضلة)",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.text
+                            )
+                        }
+                    }
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(favoriteTools.toList()) { toolId ->
+                            val tool = allTools.find { it.name == toolId }
+                            if (tool != null) {
+                                PremiumToolCardMini(
+                                    tool = tool,
+                                    colors = colors,
+                                    isFavorite = true,
+                                    onToggleFavorite = { viewModel.toggleFavorite(context, tool.name) },
+                                    onClick = { onSelectCalc(tool) }
+                                )
+                            }
+                        }
+                    }
                 }
-                items(CategoryKey.values().toList()) { cat ->
-                    val count = allTools.count { it.category == cat }
-                    CategoryChip(
-                        label = "${cat.label} ($count)",
-                        icon = cat.icon,
-                        isSelected = selectedCategory == cat,
-                        colors = colors,
-                        onClick = { selectedCategory = cat }
+            }
+
+            // --- 6. Continue Using (Recent Tools) ---
+            if (recentTools.isNotEmpty() && searchQuery.isBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = null,
+                                tint = colors.accent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "متابعة الاستخدام (الأخيرة)",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.text
+                            )
+                        }
+                    }
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        items(recentTools) { toolId ->
+                            val tool = allTools.find { it.name == toolId }
+                            if (tool != null) {
+                                PremiumToolCardMini(
+                                    tool = tool,
+                                    colors = colors,
+                                    isFavorite = favoriteTools.contains(tool.name),
+                                    onToggleFavorite = { viewModel.toggleFavorite(context, tool.name) },
+                                    onClick = { onSelectCalc(tool) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // --- 7. Suggested Tools Section (Based on Time of Day / Context) ---
+            if (searchQuery.isBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    Text(
+                        text = "مقترح لك الآن",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.text,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
                     )
+
+                    // Suggested Tool Card Based on Time
+                    val suggestedTool = when {
+                        currentHour in 5..9 -> CalcKey.ADHKAR // Morning Azhkar
+                        currentHour in 11..14 -> CalcKey.PRAYER // Prayer Times
+                        currentHour in 17..20 -> CalcKey.TASBIH // Electronic tasbih
+                        else -> CalcKey.QURAN // Night Quran Reading
+                    }
+
+                    val suggestedTitle = when (suggestedTool) {
+                        CalcKey.ADHKAR -> "أذكار الصباح والمساء"
+                        CalcKey.PRAYER -> "مواقيت الصلاة والأذان"
+                        CalcKey.TASBIH -> "المسبحة الرقمية والأذكار"
+                        else -> "تلاوة القرآن الكريم"
+                    }
+
+                    val suggestedDesc = when (suggestedTool) {
+                        CalcKey.ADHKAR -> "ابدأ يومك بذكر الله وحصن نفسك."
+                        CalcKey.PRAYER -> "تابع مواقيت الصلاة القادمة وتنبيهات الأذان."
+                        CalcKey.TASBIH -> "الاستغفار والتسبيح اليومي بلمسة ذكية."
+                        else -> "وردك القرآني اليومي بأجمل تصميم وتفسير."
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .clickable { onSelectCalc(suggestedTool) },
+                        color = colors.surface,
+                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF7E57C2).copy(alpha = 0.3f)),
+                        shadowElevation = 3.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(18.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(Color(0xFF7E57C2), Color(0xFF673AB7))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = AppIcons.forCalc(suggestedTool),
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        color = Color(0xFF7E57C2).copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "اقتراح ذكي",
+                                            fontSize = 9.sp,
+                                            color = Color(0xFF7E57C2),
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = suggestedTitle,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.text
+                                )
+                                Text(
+                                    text = suggestedDesc,
+                                    fontSize = 11.sp,
+                                    color = colors.textMuted
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronLeft,
+                                contentDescription = null,
+                                tint = colors.textMuted,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // --- 8. Categories Filter Section ---
+            Spacer(modifier = Modifier.height(20.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "الأقسام والخدمات",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.text,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    item {
+                        CategoryChip(
+                            label = "الكل (${allTools.size})",
+                            icon = "✨",
+                            isSelected = selectedCategory == null,
+                            colors = colors,
+                            onClick = { selectedCategory = null }
+                        )
+                    }
+                    items(CategoryKey.values().toList()) { cat ->
+                        val count = allTools.count { it.category == cat }
+                        CategoryChip(
+                            label = "${cat.label} ($count)",
+                            icon = cat.icon,
+                            isSelected = selectedCategory == cat,
+                            colors = colors,
+                            onClick = { selectedCategory = cat }
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- 5. All Tools Grid Section ---
+            // --- 9. All Tools (Grid Layout 24dp Corner Cards) ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -319,7 +684,7 @@ fun HomeScreen(
             ) {
                 Text(
                     text = if (selectedCategory != null) selectedCategory!!.label else "جميع الأدوات والخدمات",
-                    fontSize = 18.sp,
+                    fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.text
                 )
@@ -355,7 +720,7 @@ fun HomeScreen(
                 }
             } else {
                 Column(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     filteredTools.chunked(2).forEach { rowTools ->
@@ -364,9 +729,11 @@ fun HomeScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             rowTools.forEach { tool ->
-                                RoyalToolCard(
+                                PremiumToolCard(
                                     tool = tool,
                                     colors = colors,
+                                    isFavorite = favoriteTools.contains(tool.name),
+                                    onToggleFavorite = { viewModel.toggleFavorite(context, tool.name) },
                                     onClick = { onSelectCalc(tool) },
                                     modifier = Modifier.weight(1f)
                                 )
@@ -418,44 +785,162 @@ fun CategoryChip(
 }
 
 @Composable
-fun RoyalToolCard(
+fun PremiumToolCardMini(
     tool: CalcKey,
     colors: CustomThemeColors,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val categoryGradient = when (tool.category) {
-        CategoryKey.ISLAMIC -> Brush.linearGradient(listOf(Color(0xFF0D9488), Color(0xFF0F766E)))
-        CategoryKey.FINANCE -> Brush.linearGradient(listOf(Color(0xFFD4AF37), Color(0xFFB8860B)))
-        CategoryKey.CALC -> Brush.linearGradient(listOf(Color(0xFF0EA5E9), Color(0xFF0284C7)))
-        CategoryKey.HEALTH -> Brush.linearGradient(listOf(Color(0xFF10B981), Color(0xFF047857)))
-        CategoryKey.VEHICLE -> Brush.linearGradient(listOf(Color(0xFF6366F1), Color(0xFF4338CA)))
-        CategoryKey.DATES -> Brush.linearGradient(listOf(Color(0xFFEC4899), Color(0xFFBE185D)))
-        CategoryKey.UTILITY -> Brush.linearGradient(listOf(Color(0xFF64748B), Color(0xFF475569)))
-        else -> Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6D28D9)))
+    val categoryColor = when (tool.category) {
+        CategoryKey.ISLAMIC -> Color(0xFF2D8C73)
+        CategoryKey.FINANCE -> Color(0xFF2E7D32)
+        CategoryKey.CALC -> Color(0xFF0077CC)
+        CategoryKey.HEALTH -> Color(0xFFD81B60)
+        CategoryKey.VEHICLE -> Color(0xFFEF6C00)
+        CategoryKey.DATES -> Color(0xFF1565C0)
+        CategoryKey.UTILITY -> Color(0xFF546E7A)
+        else -> Color(0xFF7E57C2)
     }
 
     Surface(
         modifier = modifier
-            .height(118.dp)
+            .width(150.dp)
+            .height(100.dp)
             .clip(RoundedCornerShape(20.dp))
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         color = colors.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
+        shadowElevation = 2.dp
+    ) {
+        Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+            // Unpin button
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .clickable { onToggleFavorite() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                    contentDescription = null,
+                    tint = if (isFavorite) Color(0xFFF59E0B) else colors.textMuted,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.Start
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(categoryColor.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = AppIcons.forCalc(tool),
+                        contentDescription = null,
+                        tint = categoryColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = tool.title,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = tool.category.label,
+                        fontSize = 9.sp,
+                        color = colors.textMuted,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PremiumToolCard(
+    tool: CalcKey,
+    colors: CustomThemeColors,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val categoryColor = when (tool.category) {
+        CategoryKey.ISLAMIC -> Color(0xFF2D8C73)
+        CategoryKey.FINANCE -> Color(0xFF2E7D32)
+        CategoryKey.CALC -> Color(0xFF0077CC)
+        CategoryKey.HEALTH -> Color(0xFFD81B60)
+        CategoryKey.VEHICLE -> Color(0xFFEF6C00)
+        CategoryKey.DATES -> Color(0xFF1565C0)
+        CategoryKey.UTILITY -> Color(0xFF546E7A)
+        else -> Color(0xFF7E57C2)
+    }
+
+    Surface(
+        modifier = modifier
+            .height(130.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(24.dp),
+        color = colors.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.6f)),
         shadowElevation = 3.dp
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Badge tag if present
+            // Pinned/Favorite toggle button
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(colors.appBg.copy(alpha = 0.5f))
+                    .clickable { onToggleFavorite() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                    contentDescription = "تثبيت الأداة",
+                    tint = if (isFavorite) Color(0xFFF59E0B) else colors.textMuted,
+                    modifier = Modifier.size(15.dp)
+                )
+            }
+
+            // Optional Badge tags
             if (tool.badge != null) {
                 Surface(
-                    color = colors.accent,
-                    shape = RoundedCornerShape(bottomStart = 10.dp, topEnd = 20.dp),
-                    modifier = Modifier.align(Alignment.TopEnd)
+                    color = when (tool.badge) {
+                        "NEW" -> Color(0xFF43A047)
+                        "HOT" -> Color(0xFFEF6C00)
+                        "LIVE" -> Color(0xFFD32F2F)
+                        "AI" -> Color(0xFF7E57C2)
+                        "PRO" -> Color(0xFF0077CC)
+                        else -> colors.accent
+                    },
+                    shape = RoundedCornerShape(bottomStart = 10.dp, topEnd = 24.dp),
+                    modifier = Modifier.align(Alignment.TopStart)
                 ) {
                     Text(
                         text = tool.badge,
-                        fontSize = 9.sp,
+                        fontSize = 8.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -466,47 +951,44 @@ fun RoyalToolCard(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
+                // Large Icon in beautiful circular/rounded container (Radius 18dp)
                 Box(
                     modifier = Modifier
                         .size(46.dp)
-                        .clip(CircleShape)
-                        .background(categoryGradient),
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(categoryColor.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    when (val icon = AppIcons.forCalc(tool)) {
-                        is ImageVector -> Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        else -> Text(tool.icon, fontSize = 22.sp)
-                    }
+                    Icon(
+                        imageVector = AppIcons.forCalc(tool),
+                        contentDescription = null,
+                        tint = categoryColor,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = tool.title,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.text,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Text(
-                    text = tool.category.label,
-                    fontSize = 10.sp,
-                    color = colors.textMuted,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1
-                )
+                Column {
+                    Text(
+                        text = tool.title,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colors.text,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = tool.category.label,
+                        fontSize = 10.sp,
+                        color = colors.textMuted,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }

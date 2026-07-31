@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.ui.theme.AppThemeKey
 import kotlinx.coroutines.flow.Flow
@@ -18,6 +19,8 @@ class UserPreferencesRepository(private val context: Context) {
         val SELECTED_THEME = stringPreferencesKey("selected_theme_key")
         val PREFERRED_CURRENCY = stringPreferencesKey("preferred_currency_key")
         val PREFERRED_UNIT = stringPreferencesKey("preferred_unit_key")
+        val FAVORITE_TOOLS = stringSetPreferencesKey("favorite_tools_key")
+        val RECENT_TOOLS = stringPreferencesKey("recent_tools_key") // comma-separated tool IDs
     }
 
     val selectedThemeFlow: Flow<AppThemeKey> = context.dataStore.data.map { preferences ->
@@ -42,6 +45,53 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun savePreferredCurrency(currency: String) {
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.PREFERRED_CURRENCY] = currency
+        }
+    }
+
+    // Favorites (Pinned) tools list as flow
+    val favoriteToolsFlow: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.FAVORITE_TOOLS] ?: emptySet()
+    }
+
+    suspend fun toggleFavoriteTool(toolId: String) {
+        context.dataStore.edit { preferences ->
+            val currentFavorites = preferences[PreferencesKeys.FAVORITE_TOOLS] ?: emptySet()
+            val newFavorites = if (currentFavorites.contains(toolId)) {
+                currentFavorites - toolId
+            } else {
+                currentFavorites + toolId
+            }
+            preferences[PreferencesKeys.FAVORITE_TOOLS] = newFavorites
+        }
+    }
+
+    // Recently used tools as flow (comma-separated string)
+    val recentToolsFlow: Flow<List<String>> = context.dataStore.data.map { preferences ->
+        val recentStr = preferences[PreferencesKeys.RECENT_TOOLS] ?: ""
+        if (recentStr.isBlank()) {
+            emptyList()
+        } else {
+            recentStr.split(",").filter { it.isNotBlank() }
+        }
+    }
+
+    suspend fun addRecentTool(toolId: String) {
+        if (toolId == "HOME") return
+        context.dataStore.edit { preferences ->
+            val recentStr = preferences[PreferencesKeys.RECENT_TOOLS] ?: ""
+            val currentRecents = if (recentStr.isBlank()) {
+                emptyList()
+            } else {
+                recentStr.split(",").filter { it.isNotBlank() }
+            }.toMutableList()
+
+            // Move to front or add
+            currentRecents.remove(toolId)
+            currentRecents.add(0, toolId)
+
+            // Keep max 5 recent tools
+            val trimmedRecents = currentRecents.take(5)
+            preferences[PreferencesKeys.RECENT_TOOLS] = trimmedRecents.joinToString(",")
         }
     }
 }

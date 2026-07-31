@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,7 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -111,49 +115,93 @@ class MainActivity : ComponentActivity() {
                         bottomBar = {
                             if (currentCalcKey == CalcKey.HOME || currentCalcKey == CalcKey.WEATHER || 
                                 currentCalcKey == CalcKey.LIVE_PRICES || currentCalcKey == CalcKey.ECONOMIC_INDICATORS) {
-                                NavigationBar(
-                                    containerColor = colors.surface,
-                                    tonalElevation = 3.dp,
-                                    modifier = Modifier.height(80.dp)
+
+                                // Beautiful modern floating navigation bar
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .navigationBarsPadding()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp)
                                 ) {
-                                    val items = listOf(
-                                        Triple("الرئيسية", CalcKey.HOME, Icons.Default.Home),
-                                        Triple("الطقس", CalcKey.WEATHER, Icons.Default.Cloud),
-                                        Triple("الاقتصاد", CalcKey.LIVE_PRICES, Icons.Default.TrendingUp),
-                                        Triple("الأدوات", CalcKey.BASIC, Icons.Default.Build),
-                                        Triple("المزيد", CalcKey.ADHAN_SETTINGS, Icons.Default.MoreHoriz)
-                                    )
-                                    
-                                    items.forEach { (label, key, icon) ->
-                                        val isSelected = currentCalcKey == key || (key == CalcKey.BASIC && currentCalcKey != CalcKey.HOME && currentCalcKey != CalcKey.WEATHER && currentCalcKey != CalcKey.LIVE_PRICES)
-                                        
-                                        NavigationBarItem(
-                                            selected = isSelected,
-                                            onClick = {
-                                                if (currentCalcKey != key) {
-                                                    navController.navigate(key.name) {
-                                                        popUpTo(CalcKey.HOME.name) { saveState = true }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                            },
-                                            icon = { 
-                                                Icon(
-                                                    icon, 
-                                                    contentDescription = label,
-                                                    modifier = Modifier.size(26.dp)
-                                                ) 
-                                            },
-                                            label = { Text(label, fontSize = 10.sp, fontWeight = FontWeight.Medium) },
-                                            colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = colors.accent,
-                                                selectedTextColor = colors.accent,
-                                                indicatorColor = colors.accent.copy(alpha = 0.12f),
-                                                unselectedIconColor = colors.textMuted,
-                                                unselectedTextColor = colors.textMuted
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(72.dp),
+                                        shape = RoundedCornerShape(24.dp),
+                                        color = colors.surface.copy(alpha = 0.96f),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
+                                        shadowElevation = 8.dp
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(horizontal = 8.dp),
+                                            horizontalArrangement = Arrangement.SpaceAround,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            val items = listOf(
+                                                Triple("الرئيسية", CalcKey.HOME, Icons.Default.Home),
+                                                Triple("الطقس", CalcKey.WEATHER, Icons.Default.Cloud),
+                                                Triple("الاقتصاد", CalcKey.LIVE_PRICES, Icons.Default.TrendingUp),
+                                                Triple("الأدوات", CalcKey.BASIC, Icons.Default.Build),
+                                                Triple("المزيد", CalcKey.ADHAN_SETTINGS, Icons.Default.MoreHoriz)
                                             )
-                                        )
+
+                                            items.forEach { (label, key, icon) ->
+                                                val isSelected = currentCalcKey == key || (key == CalcKey.BASIC && currentCalcKey != CalcKey.HOME && currentCalcKey != CalcKey.WEATHER && currentCalcKey != CalcKey.LIVE_PRICES)
+
+                                                Column(
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .fillMaxHeight()
+                                                        .clip(RoundedCornerShape(16.dp))
+                                                        .clickable {
+                                                            if (currentCalcKey != key) {
+                                                                navController.navigate(key.name) {
+                                                                    popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                                    launchSingleTop = true
+                                                                    restoreState = true
+                                                                }
+                                                            }
+                                                        }
+                                                        .padding(vertical = 6.dp),
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    verticalArrangement = Arrangement.Center
+                                                ) {
+                                                    // Capsule background for the selected item
+                                                    if (isSelected) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(16.dp))
+                                                                .background(colors.accent.copy(alpha = 0.15f))
+                                                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(
+                                                                icon,
+                                                                contentDescription = label,
+                                                                tint = colors.accent,
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                        }
+                                                    } else {
+                                                        Icon(
+                                                            icon,
+                                                            contentDescription = label,
+                                                            tint = colors.textMuted,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                    }
+                                                    Spacer(modifier = Modifier.height(3.dp))
+                                                    Text(
+                                                        label,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        color = if (isSelected) colors.accent else colors.textMuted
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -174,13 +222,18 @@ class MainActivity : ComponentActivity() {
                                 popExitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(300)) }
                             ) {
                                 composable(CalcKey.HOME.name) {
-                                    HomeScreen(colors) { key ->
-                                        navController.navigate(key.name) {
-                                            popUpTo(CalcKey.HOME.name) { saveState = true }
-                                            launchSingleTop = true
-                                            restoreState = true
+                                    HomeScreen(
+                                        colors = colors,
+                                        viewModel = viewModel,
+                                        onSelectCalc = { key ->
+                                            viewModel.recordToolOpened(context, key.name)
+                                            navController.navigate(key.name) {
+                                                popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
                                         }
-                                    }
+                                    )
                                 }
                                 composable(CalcKey.AI.name) { AIAssistantScreen(colors) }
                                 composable(CalcKey.LIVE_PRICES.name) { LivePricesScreen(colors) }
