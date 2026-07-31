@@ -2,21 +2,37 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Mockup palette
-val SurfaceTeal = Color(0xFF1A2E2E)
-val SurfaceBright = Color(0xFF353A3A)
-val DeepBackground = Color(0xFF0F1717)
-val GoldAccent = Color(0xFFD4AF37)
-val Primary = Color(0xFF6AD7DE)
-val OnSurface = Color(0xFFDFE3E3)
-val CriticalRed = Color(0xFFE74C3C)
-val SuccessGreen = Color(0xFF27AE60)
-val Background = Color(0xFF0F1415)
-val Surface = Color(0xFF0F1415)
-val GlassBorder = Color(0x1F76FFFF) // Simplified opacity
-val OnSurfaceVariant = Color(0xFFBCC9C9)
+// Premium FinTech & Soft Frosted Crystal Dark Theme Colors
+val PremiumBackgroundDark = Color(0xFF121417)
+val PremiumSurfaceDark = Color(0xFF1A1E22)
+val PremiumCardDark = Color(0xFF20262B)
+val PremiumGlassOverlayDark = Color(0xC01A1E22) // 75% Opacity representation
+val RoyalGold = Color(0xFFD4AF37)
+val EmeraldGreen = Color(0xFF22B573)
+val SoftCrimson = Color(0xFFE45B5B)
+val IceCyan = Color(0xFF38BDF8)
+val SoftRose = Color(0xFFF472B6)
+val Lavender = Color(0xFFC084FC)
 
-// Compatibility aliases for existing ClevTheme.kt
+// Text and Dividers
+val TextPrimaryDark = Color(0xFFFFFFFF)
+val TextSecondaryDark = Color(0xFFC7CDD4)
+val DividerDark = Color(0x14FFFFFF) // rgba(255,255,255,0.08)
+
+// Compatibility aliases for existing classes
+val SurfaceTeal = PremiumSurfaceDark
+val SurfaceBright = PremiumCardDark
+val DeepBackground = PremiumBackgroundDark
+val GoldAccent = RoyalGold
+val Primary = EmeraldGreen
+val OnSurface = TextPrimaryDark
+val CriticalRed = SoftCrimson
+val SuccessGreen = EmeraldGreen
+val Background = PremiumBackgroundDark
+val Surface = PremiumSurfaceDark
+val GlassBorder = RoyalGold.copy(alpha = 0.3f)
+val OnSurfaceVariant = TextSecondaryDark
+
 val DeepTeal = SurfaceTeal
 val MediumTeal = Primary
 val DarkEmerald = SurfaceBright
