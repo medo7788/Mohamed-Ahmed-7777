@@ -29,15 +29,21 @@ import com.example.ui.theme.AppIcons
 import com.example.ui.theme.Spacing
 import com.example.model.CalcKey
 import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
 import kotlin.math.*
 
 @Composable
 fun BasicCalculatorScreen(colors: CustomThemeColors) {
+    val haptic = LocalHapticFeedback.current
     var displayExpression by remember { mutableStateOf("0") }
     var historyExpression by remember { mutableStateOf("") }
     var showScientific by remember { mutableStateOf(false) }
 
     fun onBtnClick(label: String) {
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         when (label) {
             "C" -> {
                 displayExpression = "0"
@@ -93,10 +99,11 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
         title = "الآلة الحاسبة المتطورة",
         subtitle = "إجراء العمليات الحسابية البسيطة والعلمية بدقة",
     ) {
-        // Display Box
+        // Display Box: Obsidian Glass #1E262C, 75% Opacity, 24dp Radius, 1dp Royal Gold border
         Surface(
-            color = colors.surface2.copy(alpha = 0.5f),
+            color = Color(0xFF1E262C).copy(alpha = 0.75f),
             shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, colors.accent),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(160.dp)
@@ -130,7 +137,7 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
                     fontSize = dynamicFontSize,
                     lineHeight = dynamicFontSize * 1.1f,
                     fontWeight = FontWeight.Black,
-                    color = colors.text,
+                    color = Color.White,
                     textAlign = TextAlign.End,
                     maxLines = 2
                 )
@@ -158,21 +165,22 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
             ) {
                 items(sciBtns) { btn ->
                     Surface(
-                        color = colors.surface2,
+                        color = colors.surface.copy(alpha = 0.75f),
                         shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.2f)),
                         modifier = Modifier
-                            .height(48.dp)
+                            .height(56.dp)
                             .clickable { onBtnClick(btn) }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text(btn, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                            Text(btn, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF38BDF8)) // Ice Cyan text
                         }
                     }
                 }
             }
         }
 
-        // Keypad Grid
+        // Keypad Grid: 5 rows fully responsive
         androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
@@ -185,28 +193,43 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
                     val isAction = btn in listOf("C", "⌫", "%", "±")
 
                     val btnBg = when {
-                        btn == "=" -> colors.accent
-                        isOp -> colors.surface2
-                        isAction -> colors.surface2.copy(alpha = 0.7f)
-                        else -> colors.surface2.copy(alpha = 0.3f)
+                        isOp -> colors.surface2.copy(alpha = 0.75f)
+                        isAction -> colors.surface2.copy(alpha = 0.6f)
+                        else -> colors.surface.copy(alpha = 0.75f)
                     }
 
                     val btnFg = when {
-                        btn == "=" -> Color.White
+                        btn == "=" -> colors.appBg
                         isOp -> colors.accent
-                        else -> colors.text
+                        isAction -> Color(0xFF38BDF8) // Ice Cyan Functions
+                        else -> Color.White
                     }
 
                     Surface(
-                        color = btnBg,
                         shape = RoundedCornerShape(18.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            if (btn == "=") colors.accent else colors.accent.copy(alpha = 0.2f)
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(1.1f)
-                            .clickable { onBtnClick(btn) },
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable { onBtnClick(btn) }
+                            .then(
+                                if (btn == "=") {
+                                    Modifier.background(Brush.linearGradient(listOf(colors.accent, Color(0xFFCA8A04))))
+                                } else {
+                                    Modifier.background(btnBg)
+                                }
+                            ),
+                        color = Color.Transparent,
                         shadowElevation = 2.dp
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
                             Text(btn, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = btnFg)
                         }
                     }
