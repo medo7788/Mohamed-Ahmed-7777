@@ -89,69 +89,48 @@ fun HomeScreen(
     val dayName = SimpleDateFormat("EEEE", arabicLocale).format(Date())
     val dayOfMonth = SimpleDateFormat("d MMMM yyyy", arabicLocale).format(Date())
     val hijriDateStr = remember {
-        // Simple mock hijri date calculation
         val hc = GregorianCalendar()
         val hYear = hc.get(Calendar.YEAR) - 579
         val hMonths = listOf("محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة")
-        // Just mock a nice day
         "15 ${hMonths[((hc.get(Calendar.MONTH) + 5) % 12)]} ${hYear}هـ"
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                if (colors.isDark) {
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF121212),
-                            Color(0xFF1E1E1E),
-                            Color(0xFF121212)
-                        )
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFFF5F8F9),
-                            Color(0xFFE7ECEF),
-                            Color(0xFFF5F8F9)
-                        )
-                    )
-                }
-            )
+            .background(colors.appBg)
     ) {
+        // Subtle Islamic pattern in background at exactly 3% opacity
+        Image(
+            painter = painterResource(id = R.drawable.ic_islamic_pattern),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(0.03f),
+            contentScale = ContentScale.Inside,
+            colorFilter = ColorFilter.tint(colors.accent.copy(alpha = 0.5f))
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 100.dp)
         ) {
-            // --- 1. Header (Dynamic Premium Gradient & Islamic Pattern) ---
+            // --- 1. Header (Premium Soft Frosted Glass Header) ---
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
                     .background(
                         Brush.verticalGradient(
-                            colors = if (colors.isDark) {
-                                listOf(Color(0xFF1B8A6B), Color(0xFF121212))
-                            } else {
-                                listOf(Color(0xFFD8EEE7), Color(0xFFBFE5DA))
-                            }
+                            colors = listOf(
+                                colors.headerBg.copy(alpha = 0.9f),
+                                colors.appBg
+                            )
                         )
                     )
             ) {
-                // Transparent Islamic Pattern overlay at 5% opacity
-                Image(
-                    painter = painterResource(id = R.drawable.ic_islamic_pattern),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .alpha(0.05f),
-                    contentScale = ContentScale.Inside,
-                    colorFilter = ColorFilter.tint(if (colors.isDark) Color.White else Color(0xFF1B8A6B))
-                )
-
                 // Layout inside Header
                 Column(
                     modifier = Modifier
@@ -169,10 +148,10 @@ fun HomeScreen(
                             Surface(
                                 modifier = Modifier.size(48.dp),
                                 shape = RoundedCornerShape(14.dp),
-                                color = if (colors.isDark) Color(0xFF242424) else Color.White,
+                                color = colors.surface.copy(alpha = 0.75f),
                                 border = androidx.compose.foundation.BorderStroke(
                                     1.dp,
-                                    if (colors.isDark) colors.border else Color(0xFF1B8A6B).copy(alpha = 0.2f)
+                                    colors.accent.copy(alpha = 0.3f)
                                 ),
                                 shadowElevation = 2.dp
                             ) {
@@ -180,7 +159,7 @@ fun HomeScreen(
                                     Icon(
                                         imageVector = Icons.Default.AutoAwesome,
                                         contentDescription = null,
-                                        tint = Color(0xFF1B8A6B),
+                                        tint = colors.accent,
                                         modifier = Modifier.size(26.dp)
                                     )
                                 }
@@ -191,12 +170,12 @@ fun HomeScreen(
                                     text = "ClevCalc Pro",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (colors.isDark) Color.White else Color(0xFF1B8A6B)
+                                    color = colors.text
                                 )
                                 Text(
                                     text = "المنصة الذكية المتكاملة",
                                     fontSize = 11.sp,
-                                    color = if (colors.isDark) colors.textMuted else Color(0xFF1B8A6B).copy(alpha = 0.8f),
+                                    color = colors.textMuted,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -212,19 +191,19 @@ fun HomeScreen(
                                     text = "القاهرة، مصر",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (colors.isDark) Color.White else Color(0xFF1B8A6B)
+                                    color = colors.text
                                 )
                                 Text(
                                     text = "28° م • مشمس",
                                     fontSize = 10.sp,
-                                    color = if (colors.isDark) colors.textMuted else Color(0xFF1B8A6B).copy(alpha = 0.7f)
+                                    color = colors.textMuted
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(
                                 imageVector = Icons.Default.WbSunny,
                                 contentDescription = null,
-                                tint = if (colors.isDark) Color(0xFFF59E0B) else Color(0xFFE28A13),
+                                tint = colors.accent,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -240,18 +219,18 @@ fun HomeScreen(
                                 text = "$dayName، $dayOfMonth",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (colors.isDark) Color.White else Color(0xFF1B8A6B)
+                                color = colors.text
                             )
                             Text(
                                 text = hijriDateStr,
                                 fontSize = 11.sp,
-                                color = if (colors.isDark) colors.textMuted else Color(0xFF1B8A6B).copy(alpha = 0.7f)
+                                color = colors.textMuted
                             )
                         }
 
                         Surface(
                             shape = CircleShape,
-                            color = colors.surface,
+                            color = colors.surface.copy(alpha = 0.75f),
                             border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
                             modifier = Modifier
                                 .clip(CircleShape)
@@ -264,7 +243,7 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = Icons.Default.AutoAwesome,
                                     contentDescription = "AI",
-                                    tint = Color(0xFF7E57C2),
+                                    tint = Color(0xFFC084FC),
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -272,7 +251,7 @@ fun HomeScreen(
                                     "المستشار الذكي AI",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = colors.accent
+                                    color = colors.text
                                 )
                             }
                         }
@@ -287,8 +266,8 @@ fun HomeScreen(
                     .padding(horizontal = 16.dp)
                     .offset(y = (-16).dp),
                 shape = RoundedCornerShape(24.dp),
-                color = colors.surface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.4f)),
+                color = colors.surface.copy(alpha = 0.75f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
                 shadowElevation = 4.dp
             ) {
                 Row(
@@ -358,10 +337,10 @@ fun HomeScreen(
                 keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
                 shape = RoundedCornerShape(28.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = colors.surface,
-                    unfocusedContainerColor = colors.surface,
+                    focusedContainerColor = colors.surface.copy(alpha = 0.75f),
+                    unfocusedContainerColor = colors.surface.copy(alpha = 0.75f),
                     focusedBorderColor = colors.accent,
-                    unfocusedBorderColor = colors.border,
+                    unfocusedBorderColor = colors.accent.copy(alpha = 0.3f),
                     focusedTextColor = colors.text,
                     unfocusedTextColor = colors.text
                 ),
@@ -387,18 +366,18 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     val quickActions = listOf(
-                        Triple("الآلة الحاسبة", CalcKey.BASIC, Color(0xFF0077CC)),
-                        Triple("المساعد الذكي", CalcKey.AI, Color(0xFF7E57C2)),
-                        Triple("مواقيت الصلاة", CalcKey.PRAYER, Color(0xFF2D8C73)),
-                        Triple("حاسبة الذهب", CalcKey.GOLD, Color(0xFFFFD700)),
-                        Triple("محول العملات", CalcKey.CURRENCY, Color(0xFF2E7D32)),
-                        Triple("تحليل الطقس", CalcKey.WEATHER, Color(0xFF0288D1))
+                        Triple("الآلة الحاسبة", CalcKey.BASIC, Color(0xFF38BDF8)),
+                        Triple("المساعد الذكي", CalcKey.AI, Color(0xFFC084FC)),
+                        Triple("مواقيت الصلاة", CalcKey.PRAYER, Color(0xFF22B573)),
+                        Triple("حاسبة الذهب", CalcKey.GOLD, Color(0xFFD4AF37)),
+                        Triple("محول العملات", CalcKey.CURRENCY, Color(0xFF22B573)),
+                        Triple("تحليل الطقس", CalcKey.WEATHER, Color(0xFF38BDF8))
                     )
                     items(quickActions) { (label, key, actionColor) ->
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = colors.surface,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, actionColor.copy(alpha = 0.3f)),
+                            color = colors.surface.copy(alpha = 0.75f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
                                 .clickable { onSelectCalc(key) }
@@ -449,7 +428,7 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Default.PushPin,
                                 contentDescription = null,
-                                tint = Color(0xFFF59E0B),
+                                tint = colors.accent,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -569,8 +548,8 @@ fun HomeScreen(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(24.dp))
                             .clickable { onSelectCalc(suggestedTool) },
-                        color = colors.surface,
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF7E57C2).copy(alpha = 0.3f)),
+                        color = colors.surface.copy(alpha = 0.75f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
                         shadowElevation = 3.dp
                     ) {
                         Row(
@@ -583,7 +562,7 @@ fun HomeScreen(
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(
                                         Brush.linearGradient(
-                                            listOf(Color(0xFF7E57C2), Color(0xFF673AB7))
+                                            listOf(colors.accent, colors.accentSecondary)
                                         )
                                     ),
                                 contentAlignment = Alignment.Center
@@ -591,7 +570,7 @@ fun HomeScreen(
                                 Icon(
                                     imageVector = AppIcons.forCalc(suggestedTool),
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = colors.appBg,
                                     modifier = Modifier.size(28.dp)
                                 )
                             }
@@ -599,13 +578,13 @@ fun HomeScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Surface(
-                                        color = Color(0xFF7E57C2).copy(alpha = 0.15f),
+                                        color = colors.accent.copy(alpha = 0.15f),
                                         shape = RoundedCornerShape(6.dp)
                                     ) {
                                         Text(
                                             text = "اقتراح ذكي",
                                             fontSize = 9.sp,
-                                            color = Color(0xFF7E57C2),
+                                            color = colors.accent,
                                             fontWeight = FontWeight.Bold,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
@@ -759,10 +738,10 @@ fun CategoryChip(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) colors.accent else colors.surface,
+        color = if (isSelected) colors.accent else colors.surface.copy(alpha = 0.75f),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (isSelected) colors.accent else colors.border
+            if (isSelected) colors.accent else colors.accent.copy(alpha = 0.3f)
         ),
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
@@ -778,7 +757,7 @@ fun CategoryChip(
                 text = label,
                 fontSize = 12.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color.White else colors.text
+                color = if (isSelected) colors.appBg else colors.text
             )
         }
     }
@@ -794,14 +773,14 @@ fun PremiumToolCardMini(
     modifier: Modifier = Modifier
 ) {
     val categoryColor = when (tool.category) {
-        CategoryKey.ISLAMIC -> Color(0xFF2D8C73)
-        CategoryKey.FINANCE -> Color(0xFF2E7D32)
-        CategoryKey.CALC -> Color(0xFF0077CC)
-        CategoryKey.HEALTH -> Color(0xFFD81B60)
-        CategoryKey.VEHICLE -> Color(0xFFEF6C00)
-        CategoryKey.DATES -> Color(0xFF1565C0)
-        CategoryKey.UTILITY -> Color(0xFF546E7A)
-        else -> Color(0xFF7E57C2)
+        CategoryKey.ISLAMIC -> Color(0xFF22B573)
+        CategoryKey.FINANCE -> Color(0xFF22B573)
+        CategoryKey.CALC -> Color(0xFF38BDF8)
+        CategoryKey.HEALTH -> Color(0xFFF472B6)
+        CategoryKey.VEHICLE -> Color(0xFFD4AF37)
+        CategoryKey.DATES -> Color(0xFFC084FC)
+        CategoryKey.UTILITY -> Color(0xFFC7CDD4)
+        else -> Color(0xFFC084FC)
     }
 
     Surface(
@@ -811,8 +790,8 @@ fun PremiumToolCardMini(
             .clip(RoundedCornerShape(20.dp))
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
-        color = colors.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
+        color = colors.surface.copy(alpha = 0.75f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
         shadowElevation = 2.dp
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
@@ -828,7 +807,7 @@ fun PremiumToolCardMini(
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.PushPin else Icons.Outlined.PushPin,
                     contentDescription = null,
-                    tint = if (isFavorite) Color(0xFFF59E0B) else colors.textMuted,
+                    tint = if (isFavorite) colors.accent else colors.textMuted,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -884,14 +863,14 @@ fun PremiumToolCard(
     modifier: Modifier = Modifier
 ) {
     val categoryColor = when (tool.category) {
-        CategoryKey.ISLAMIC -> Color(0xFF2D8C73)
-        CategoryKey.FINANCE -> Color(0xFF2E7D32)
-        CategoryKey.CALC -> Color(0xFF0077CC)
-        CategoryKey.HEALTH -> Color(0xFFD81B60)
-        CategoryKey.VEHICLE -> Color(0xFFEF6C00)
-        CategoryKey.DATES -> Color(0xFF1565C0)
-        CategoryKey.UTILITY -> Color(0xFF546E7A)
-        else -> Color(0xFF7E57C2)
+        CategoryKey.ISLAMIC -> Color(0xFF22B573)
+        CategoryKey.FINANCE -> Color(0xFF22B573)
+        CategoryKey.CALC -> Color(0xFF38BDF8)
+        CategoryKey.HEALTH -> Color(0xFFF472B6)
+        CategoryKey.VEHICLE -> Color(0xFFD4AF37)
+        CategoryKey.DATES -> Color(0xFFC084FC)
+        CategoryKey.UTILITY -> Color(0xFFC7CDD4)
+        else -> Color(0xFFC084FC)
     }
 
     Surface(
@@ -900,8 +879,8 @@ fun PremiumToolCard(
             .clip(RoundedCornerShape(24.dp))
             .clickable { onClick() },
         shape = RoundedCornerShape(24.dp),
-        color = colors.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.6f)),
+        color = colors.surface.copy(alpha = 0.75f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
         shadowElevation = 3.dp
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -919,7 +898,7 @@ fun PremiumToolCard(
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.PushPin else Icons.Outlined.PushPin,
                     contentDescription = "تثبيت الأداة",
-                    tint = if (isFavorite) Color(0xFFF59E0B) else colors.textMuted,
+                    tint = if (isFavorite) colors.accent else colors.textMuted,
                     modifier = Modifier.size(15.dp)
                 )
             }
@@ -928,11 +907,11 @@ fun PremiumToolCard(
             if (tool.badge != null) {
                 Surface(
                     color = when (tool.badge) {
-                        "NEW" -> Color(0xFF43A047)
-                        "HOT" -> Color(0xFFEF6C00)
-                        "LIVE" -> Color(0xFFD32F2F)
-                        "AI" -> Color(0xFF7E57C2)
-                        "PRO" -> Color(0xFF0077CC)
+                        "NEW" -> Color(0xFF22B573)
+                        "HOT" -> Color(0xFFD4AF37)
+                        "LIVE" -> Color(0xFFE45B5B)
+                        "AI" -> Color(0xFFC084FC)
+                        "PRO" -> Color(0xFF38BDF8)
                         else -> colors.accent
                     },
                     shape = RoundedCornerShape(bottomStart = 10.dp, topEnd = 24.dp),
@@ -942,7 +921,7 @@ fun PremiumToolCard(
                         text = tool.badge,
                         fontSize = 8.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
+                        color = colors.appBg,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                 }

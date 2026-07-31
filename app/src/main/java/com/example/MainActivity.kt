@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
                             if (currentCalcKey == CalcKey.HOME || currentCalcKey == CalcKey.WEATHER || 
                                 currentCalcKey == CalcKey.LIVE_PRICES || currentCalcKey == CalcKey.ECONOMIC_INDICATORS) {
 
-                                // Beautiful modern floating navigation bar
+                                // Beautiful modern floating navigation bar with Royal Gold indicator
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -128,7 +128,7 @@ class MainActivity : ComponentActivity() {
                                             .fillMaxWidth()
                                             .height(72.dp),
                                         shape = RoundedCornerShape(24.dp),
-                                        color = colors.surface.copy(alpha = 0.96f),
+                                        color = colors.surface.copy(alpha = 0.75f), // Soft Frosted Crystal
                                         border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
                                         shadowElevation = 8.dp
                                     ) {
@@ -168,12 +168,12 @@ class MainActivity : ComponentActivity() {
                                                     horizontalAlignment = Alignment.CenterHorizontally,
                                                     verticalArrangement = Arrangement.Center
                                                 ) {
-                                                    // Capsule background for the selected item
+                                                    // Capsule background for the selected item (Royal Gold Active Indicator)
                                                     if (isSelected) {
                                                         Box(
                                                             modifier = Modifier
                                                                 .clip(RoundedCornerShape(16.dp))
-                                                                .background(colors.accent.copy(alpha = 0.15f))
+                                                                .background(colors.accent.copy(alpha = 0.2f))
                                                                 .padding(horizontal = 16.dp, vertical = 6.dp),
                                                             contentAlignment = Alignment.Center
                                                         ) {

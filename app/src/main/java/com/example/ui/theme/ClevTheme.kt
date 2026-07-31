@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 enum class AppThemeKey(val titleAr: String, val icon: String, val previewColorHex: String) {
-    ELEGANT_DARK("داكن ملكي", "🌙", "#0F1717"),
+    ELEGANT_DARK("داكن ملكي", "🌙", "#121417"),
     LIGHT("فاتح ملكي", "☀️", "#FAF8F5"),
     EMERALD_ISLAMIC("زمردي إسلامي", "🕌", "#042F2C"),
     MIDNIGHT_PURPLE("ليل أرجواني", "🔮", "#1E1B2E"),
@@ -33,29 +33,29 @@ data class CustomThemeColors(
 fun getThemeColors(key: AppThemeKey): CustomThemeColors {
     return when (key) {
         AppThemeKey.ELEGANT_DARK -> CustomThemeColors(
-            appBg = Color(0xFF0F1717),
-            headerBg = Color(0xFF1A2E2E),
+            appBg = Color(0xFF121417),
+            headerBg = Color(0xFF1A1E22),
             headerFg = Color(0xFFD4AF37),
-            surface = Color(0xFF172424),
-            surface2 = Color(0xFF233636),
-            border = Color(0x336AD7DE),
-            text = Color(0xFFDFE3E3),
-            textMuted = Color(0xFF90A4AE),
+            surface = Color(0xFF20262B),
+            surface2 = Color(0xFF1A1E22),
+            border = Color(0x26D4AF37), // subtle gold
+            text = Color(0xFFFFFFFF),
+            textMuted = Color(0xFFC7CDD4),
             accent = Color(0xFFD4AF37),
-            accentSecondary = Color(0xFF6AD7DE),
+            accentSecondary = Color(0xFF22B573),
             isDark = true
         )
         AppThemeKey.LIGHT -> CustomThemeColors(
             appBg = Color(0xFFFAF8F5),
-            headerBg = Color(0xFF003739),
+            headerBg = Color(0xFFFAF8F5),
             headerFg = Color(0xFFD4AF37),
             surface = Color(0xFFFFFFFF),
             surface2 = Color(0xFFF1EDE6),
             border = Color(0xFFE2D8C7),
-            text = Color(0xFF0F1C1C),
+            text = Color(0xFF121417),
             textMuted = Color(0xFF5A6B6B),
-            accent = Color(0xFF005A5B),
-            accentSecondary = Color(0xFFD4AF37),
+            accent = Color(0xFFD4AF37),
+            accentSecondary = Color(0xFF22B573),
             isDark = false
         )
         AppThemeKey.EMERALD_ISLAMIC -> CustomThemeColors(
