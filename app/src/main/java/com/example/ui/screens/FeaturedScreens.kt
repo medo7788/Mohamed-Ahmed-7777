@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +36,8 @@ import com.example.ui.theme.AppIcons
 import com.example.ui.theme.Spacing
 import com.example.model.CalcKey
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.draw.alpha
 
 data class ChatMessage(
     val sender: String, // "user" or "ai"
@@ -436,6 +439,8 @@ fun LivePricesScreen(colors: CustomThemeColors) {
     var selectedKarat by remember { mutableIntStateOf(24) }
     val coroutineScope = rememberCoroutineScope()
     
+    // Category state selector
+    var activeCategory by remember { mutableStateOf("العملات") }
 
     fun refreshData() {
         isRefreshing = true
@@ -483,8 +488,9 @@ fun LivePricesScreen(colors: CustomThemeColors) {
     ) {
         // 1. Live Price Status Header
         Surface(
-            color = colors.surface,
+            color = colors.surface.copy(alpha = 0.75f),
             shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.2f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -512,7 +518,7 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                 )
 
                 Surface(
-                    color = Color(0xFF2563EB),
+                    color = colors.accent,
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.clickable(enabled = !isRefreshing) { refreshData() }
                 ) {
@@ -521,12 +527,12 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (isRefreshing) {
-                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Color.White)
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = colors.appBg)
                         } else {
-                            Icon(AppIcons.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                            Icon(AppIcons.Refresh, contentDescription = null, tint = colors.appBg, modifier = Modifier.size(14.dp))
                         }
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("تحديث", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("تحديث", fontSize = 12.sp, color = colors.appBg, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -534,26 +540,65 @@ fun LivePricesScreen(colors: CustomThemeColors) {
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 2. Country / Currency Selector Pill
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start
+        // 3. Premium Hero Market Summary (Obsidian Glass #1E262C, 75% Opacity, 1dp Royal Gold border)
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp)),
+            color = Color(0xFF1E262C).copy(alpha = 0.75f),
+            border = BorderStroke(1.dp, colors.accent),
+            shadowElevation = 8.dp
         ) {
-            Surface(
-                color = colors.surface,
-                shape = RoundedCornerShape(20.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
-                modifier = Modifier.clickable { showCurrencyPicker = true }
-            ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    "ملخص الأسعار والأسواق",
+                    fontSize = 12.sp,
+                    color = colors.accent,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
                 Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(AppIcons.forCalc(CalcKey.WORLD_TIME), null, tint = colors.accent, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(selectedCurrency.nameAr, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(Icons.Filled.ArrowDropDown, null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
+                    Column {
+                        Text("الذهب عيار 24", fontSize = 11.sp, color = colors.textMuted)
+                        Text("$currCode ${LivePricesRepository.formatNumber(goldGramCurr)}", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text("سعر الفضة الصافي", fontSize = 11.sp, color = colors.textMuted)
+                        Text("$currCode ${LivePricesRepository.formatNumber(silverGramCurr)}", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 5. Category Selector Capsule Row
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+        ) {
+            val categories = listOf("العملات", "الذهب", "الفضة", "البرمجة")
+            items(categories) { cat ->
+                val isActive = activeCategory == cat
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { activeCategory = cat },
+                    color = if (isActive) colors.accent else colors.surface.copy(alpha = 0.75f),
+                    border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f))
+                ) {
+                    Text(
+                        text = cat,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isActive) colors.appBg else colors.text,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    )
                 }
             }
         }
@@ -563,7 +608,8 @@ fun LivePricesScreen(colors: CustomThemeColors) {
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth()
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(bottom = 90.dp) // Scroll safety padding
         ) {
             // Section 1: Precious Metals Header
             item {
@@ -577,7 +623,7 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(AppIcons.forCalc(CalcKey.CURRENCY), null, tint = colors.accent, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("المعادن الثمينة", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                        Text("المعادن الثمينة والأسعار", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
                     }
 
                     Surface(
@@ -602,7 +648,7 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("عيار الذهب:", fontSize = 11.sp, color = colors.textMuted)
+                    Text("عيار الذهب المفضل:", fontSize = 11.sp, color = colors.textMuted)
                     listOf(24, 22, 21, 18).forEach { k ->
                         Surface(
                             color = if (selectedKarat == k) colors.accent else colors.surface,
@@ -880,8 +926,9 @@ fun LivePricesScreen(colors: CustomThemeColors) {
             items(LivePricesRepository.commodityPrices) { commodity ->
                 val commPriceCurr = commodity.priceUsd * currRate
                 Surface(
-                    color = colors.surface,
+                    color = colors.surface.copy(alpha = 0.75f),
                     shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.15f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
@@ -934,8 +981,9 @@ fun LivePricesScreen(colors: CustomThemeColors) {
             items(LivePricesRepository.currencies.filter { it.code != currCode }) { c ->
                 val convertedRate = LivePricesRepository.convertCurrency(1.0, c.code, currCode)
                 Surface(
-                    color = colors.surface,
+                    color = colors.surface.copy(alpha = 0.75f),
                     shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.15f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 3.dp)

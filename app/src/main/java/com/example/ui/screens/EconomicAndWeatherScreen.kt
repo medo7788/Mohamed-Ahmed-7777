@@ -14,6 +14,7 @@ import com.example.ui.theme.AppIcons
 import com.example.model.CalcKey
 import com.example.ui.theme.GradientTokens
 import com.example.ui.theme.Spacing
+import com.example.R
 
 import android.Manifest
 import android.content.Context
@@ -42,6 +43,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -57,6 +59,7 @@ import com.example.data.WeatherCity
 import com.example.data.WeatherRepository
 import com.example.data.CurrentWeatherData
 import com.example.ui.theme.CustomThemeColors
+import androidx.compose.foundation.BorderStroke
 
 @Composable
 fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
@@ -681,163 +684,205 @@ fun WeatherScreen(colors: CustomThemeColors) {
         title = CalcKey.WEATHER.title,
         subtitle = "تحليل وتوقعات الطقس المباشرة",
     ) {
-        LocationStatusCard(
-            colors = colors,
-            state = locState,
-            placeName = locName,
-            accuracyMeters = accuracy,
-            onRequestPermission = {
-                locationLauncher.launch(
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-                )
-            },
-            onOpenLocationSettings = {
-                context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-            },
-            onRetry = { fetchLocation() }
-        )
-
-        Spacer(modifier = Modifier.height(Spacing.Medium))
-
-        // City Picker Button
-        OutlinedButton(
-            onClick = { showCityPicker = true },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+        // Smooth LazyColumn wrapper for weather layout with bottom padding 90.dp to ensure no bottom nav clipping
+        LazyColumn(
+            contentPadding = PaddingValues(bottom = 90.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.Medium),
+            modifier = Modifier.fillMaxSize()
         ) {
-            Icon(Icons.Filled.LocationCity, null, tint = colors.accent, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(selectedCity.nameAr, color = colors.text, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.weight(1f))
-            Text("تغيير", color = colors.accent, fontSize = 12.sp)
-        }
-
-        Spacer(modifier = Modifier.height(Spacing.Medium))
-
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colors.accent)
-            }
-        } else if (weatherData != null) {
-            val weather = weatherData!!
-            val (desc, iconId) = WeatherRepository.decodeWmoCode(weather.weatherCode)
-            
-            // Weather Display
-            Surface(
-                color = colors.surface,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.Medium)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(Spacing.Medium),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        AppIcons.forWeather(iconId),
-                        null,
-                        tint = colors.accent,
-                        modifier = Modifier.size(72.dp)
-                    )
-                        Text(
-                            "${weather.tempC.toInt()}°C",
-                            fontSize = 48.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = colors.text
+            item {
+                LocationStatusCard(
+                    colors = colors,
+                    state = locState,
+                    placeName = locName,
+                    accuracyMeters = accuracy,
+                    onRequestPermission = {
+                        locationLauncher.launch(
+                            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
                         )
-                        Text(desc, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = colors.textMuted)
-                        
-                        Spacer(modifier = Modifier.height(Spacing.Medium))
-                        
+                    },
+                    onOpenLocationSettings = {
+                        context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    },
+                    onRetry = { fetchLocation() }
+                )
+            }
+
+            // Location display: semi-transparent frosted glass capsule (#1E262C, 65% opacity, 16dp corners)
+            item {
+                Surface(
+                    color = Color(0xFF1E262C).copy(alpha = 0.65f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
                         ) {
-                            MetricItem("الرطوبة", "${weather.humidityPercent}%", AppIcons.Humidity, colors)
-                            MetricItem("الرياح", "${weather.windSpeedKmh.toInt()} كم/س", AppIcons.Wind, colors)
-                            MetricItem("الأمطار", "${weather.precipitationMm} مم", AppIcons.Rain, colors)
+                            Icon(Icons.Filled.LocationOn, null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = selectedCity.nameAr,
+                                color = colors.text,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        TextButton(
+                            onClick = { showCityPicker = true },
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Text("تغيير", color = colors.accent, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+
+            if (isLoading) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = colors.accent)
+                    }
+                }
+            } else if (weatherData != null) {
+                val weather = weatherData!!
+                val (desc, iconId) = WeatherRepository.decodeWmoCode(weather.weatherCode)
+                
+                // Weather Display: Ice Cyan inner glow (#38BDF8 at 15%)
+                item {
+                    Surface(
+                        color = colors.surface.copy(alpha = 0.75f),
+                        shape = RoundedCornerShape(24.dp),
+                        border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.15f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(Spacing.Medium),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                AppIcons.forWeather(iconId),
+                                null,
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(72.dp)
+                            )
+                            Text(
+                                "${weather.tempC.toInt()}°C",
+                                fontSize = 48.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                            Text(desc, fontSize = 18.sp, fontWeight = FontWeight.Medium, color = colors.textMuted)
+
+                            Spacer(modifier = Modifier.height(Spacing.Medium))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                MetricItem("الرطوبة", "${weather.humidityPercent}%", AppIcons.Humidity, colors)
+                                MetricItem("الرياح", "${weather.windSpeedKmh.toInt()} كم/س", AppIcons.Wind, colors)
+                                MetricItem("الأمطار", "${weather.precipitationMm} مم", AppIcons.Rain, colors)
+                            }
                         }
                     }
                 }
                 
                 // AI Advice
-                Surface(
-                    color = colors.surface,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = Spacing.Medium)
-                ) {
-                    Column(modifier = Modifier.padding(Spacing.Medium)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(AppIcons.EconomicAdvisor, null, tint = colors.accent, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("نصيحة الذكاء الاصطناعي", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
-                            }
-                            if (isGeneratingAdvice) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = colors.accent)
-                            } else {
-                                Button(
-                                    onClick = {
-                                        isGeneratingAdvice = true
-                                        coroutineScope.launch {
-                                            aiAdviceText = WeatherRepository.getAIWeatherAdvice(context, selectedCity.nameAr, weather)
-                                            isGeneratingAdvice = false
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                                    shape = RoundedCornerShape(10.dp),
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text("استشِر", fontSize = 11.sp, color = androidx.compose.ui.graphics.Color.White)
+                item {
+                    Surface(
+                        color = colors.surface.copy(alpha = 0.75f),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(Spacing.Medium)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(AppIcons.EconomicAdvisor, null, tint = colors.accent, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("نصيحة الذكاء الاصطناعي", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
+                                }
+                                if (isGeneratingAdvice) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = colors.accent)
+                                } else {
+                                    Button(
+                                        onClick = {
+                                            isGeneratingAdvice = true
+                                            coroutineScope.launch {
+                                                aiAdviceText = WeatherRepository.getAIWeatherAdvice(context, selectedCity.nameAr, weather)
+                                                isGeneratingAdvice = false
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("استشِر", fontSize = 11.sp, color = androidx.compose.ui.graphics.Color.White)
+                                    }
                                 }
                             }
-                        }
-                        if (aiAdviceText != null) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(aiAdviceText!!, fontSize = 12.sp, color = colors.text, lineHeight = 18.sp)
+                            if (aiAdviceText != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(aiAdviceText!!, fontSize = 12.sp, color = colors.text, lineHeight = 18.sp)
+                            }
                         }
                     }
                 }
-                
-                // Forecast
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp).align(Alignment.Start)) {
-                    Icon(androidx.compose.material.icons.Icons.Default.CalendarMonth, null, tint = colors.text, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("التوقعات", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+
+                // Forecast header
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Icon(androidx.compose.material.icons.Icons.Default.CalendarMonth, null, tint = colors.text, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("التوقعات للأيام القادمة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(Spacing.Small)) {
-                    for (idx in weather.dailyMaxTemp.indices) {
-                        val maxT = weather.dailyMaxTemp[idx]
-                        val minT = weather.dailyMinTemp[idx]
-                        val code = weather.dailyWeatherCodes[idx]
-                        val (_, fIconId) = WeatherRepository.decodeWmoCode(code)
-                        Surface(
-                            color = colors.surface,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
+
+                items(weather.dailyMaxTemp.size) { idx ->
+                    val maxT = weather.dailyMaxTemp[idx]
+                    val minT = weather.dailyMinTemp[idx]
+                    val code = weather.dailyWeatherCodes[idx]
+                    val (_, fIconId) = WeatherRepository.decodeWmoCode(code)
+                    Surface(
+                        color = colors.surface.copy(alpha = 0.75f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.15f)),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(AppIcons.forWeather(fIconId), null, tint = colors.accent, modifier = Modifier.size(20.dp))
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text("اليوم ${idx + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                                }
-                                Text("${maxT.toInt()}° / ${minT.toInt()}° C", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(AppIcons.forWeather(fIconId), null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text("اليوم ${idx + 1}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
                             }
+                            Text("${maxT.toInt()}° / ${minT.toInt()}° C", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.accent)
                         }
                     }
                 }
             } else {
-                Text("تعذر جلب بيانات الطقس", color = colors.text)
+                item {
+                    Text("تعذر جلب بيانات الطقس", color = colors.text)
+                }
             }
         }
+    }
 
     if (showCityPicker) {
         AlertDialog(
@@ -889,4 +934,3 @@ fun MetricItem(title: String, value: String, icon: androidx.compose.ui.graphics.
         Text(title, fontSize = 11.sp, color = colors.textMuted)
     }
 }
-
