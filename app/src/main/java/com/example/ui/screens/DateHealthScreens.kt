@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.Context
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,6 +26,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.border
 
 @Composable
 fun WorldTimeScreen(colors: CustomThemeColors) {
@@ -430,32 +441,61 @@ fun HealthCalcScreen(colors: CustomThemeColors) {
 
 @Composable
 fun OvulationCalcScreen(colors: CustomThemeColors) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    var startDayText by remember { mutableStateOf("1") }
-    var startMonthText by remember { mutableStateOf("7") }
-    var startYearText by remember { mutableStateOf("2026") }
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val healthPrefs = remember { context.getSharedPreferences("clevcalc_health_prefs", Context.MODE_PRIVATE) }
 
-    var cycleLengthText by remember { mutableStateOf("28") }
-    var periodDurationText by remember { mutableStateOf("5") }
+    // User Profile Configuration (Male/Female)
+    var userIsFemale by remember { mutableStateOf(healthPrefs.getBoolean("profile_is_female", true)) }
+
+    // Date calculations
+    var startDayText by remember { mutableStateOf(healthPrefs.getString("start_day", "1") ?: "1") }
+    var startMonthText by remember { mutableStateOf(healthPrefs.getString("start_month", "7") ?: "7") }
+    var startYearText by remember { mutableStateOf(healthPrefs.getString("start_year", "2026") ?: "2026") }
+
+    var cycleLengthText by remember { mutableStateOf(healthPrefs.getString("cycle_length", "28") ?: "28") }
+    var periodDurationText by remember { mutableStateOf(healthPrefs.getString("period_duration", "5") ?: "5") }
+
+    // General health parameters
+    var waterCups by remember { mutableStateOf(healthPrefs.getInt("water_cups", 4)) }
+    var sleepHours by remember { mutableStateOf(healthPrefs.getInt("sleep_hours", 7)) }
+    var currentWeightText by remember { mutableStateOf(healthPrefs.getString("health_weight", "70") ?: "70") }
+
+    // Selected Symptom state
+    var selectedMood by remember { mutableStateOf(healthPrefs.getString("symptom_mood", "هادئ") ?: "هادئ") }
+    var physicalCramp by remember { mutableStateOf(healthPrefs.getBoolean("symptom_cramp", false)) }
+
+    // Helper functions to persist health states
+    val savePreferences = {
+        healthPrefs.edit()
+            .putBoolean("profile_is_female", userIsFemale)
+            .putString("start_day", startDayText)
+            .putString("start_month", startMonthText)
+            .putString("start_year", startYearText)
+            .putString("cycle_length", cycleLengthText)
+            .putString("period_duration", periodDurationText)
+            .putInt("water_cups", waterCups)
+            .putInt("sleep_hours", sleepHours)
+            .putString("health_weight", currentWeightText)
+            .putString("symptom_mood", selectedMood)
+            .putBoolean("symptom_cramp", physicalCramp)
+            .apply()
+    }
 
     val startDay = startDayText.toIntOrNull() ?: 1
     val startMonth = (startMonthText.toIntOrNull() ?: 7) - 1
     val startYear = startYearText.toIntOrNull() ?: 2026
-
     val cycleDays = cycleLengthText.toIntOrNull() ?: 28
 
     val startDateCal = Calendar.getInstance().apply {
         set(startYear, startMonth, startDay)
     }
-
     val nextPeriodCal = (startDateCal.clone() as Calendar).apply {
         add(Calendar.DAY_OF_YEAR, cycleDays)
     }
-
     val ovulationCal = (startDateCal.clone() as Calendar).apply {
         add(Calendar.DAY_OF_YEAR, cycleDays - 14)
     }
-
     val fertileStartCal = (ovulationCal.clone() as Calendar).apply {
         add(Calendar.DAY_OF_YEAR, -5)
     }
@@ -469,78 +509,478 @@ fun OvulationCalcScreen(colors: CustomThemeColors) {
     val fertileStartStr = SimpleDateFormat("yyyy/MM/dd", Locale("ar")).format(fertileStartCal.time)
     val fertileEndStr = SimpleDateFormat("yyyy/MM/dd", Locale("ar")).format(fertileEndCal.time)
 
+    // Calculate current cycle day
+    val currentCal = Calendar.getInstance()
+    val diffMillis = currentCal.timeInMillis - startDateCal.timeInMillis
+    val currentCycleDay = (diffMillis / (1000 * 60 * 60 * 24)).toInt() + 1
+    val cycleProgress = (currentCycleDay.toFloat() / cycleDays.toFloat()).coerceIn(0f, 1f)
+
     ToolScreenScaffold(
         colors = colors,
         icon = AppIcons.forCalc(CalcKey.OVULATION),
-        title = "تتبع الدورة والإباضة",
-        subtitle = "حساب أيام التبويض ونافذة الخصوبة وموعد الدورة القادمة"
+        title = "تتبع الصحة والخصوبة الشامل",
+        subtitle = "متابعة المؤشرات الحيوية اليومية والخصوبة بأسلوب زجاجي متطور"
     ) {
-        // Result Card
+        // Main Progressive Disclosure: Profile selection (Male/Female)
         Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(24.dp),
-            tonalElevation = 2.dp,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = colors.surface.copy(alpha = 0.75f),
+            border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f))
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Text("موعد الإباضة القادم", color = colors.textMuted, fontSize = 12.sp)
-                Text(ovulationStr, fontSize = 18.sp, fontWeight = FontWeight.Black, color = colors.accent)
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("تخصيص الواجهة حسب الجنس:", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.text)
                 
-                Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = colors.border.copy(alpha = 0.5f))
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("نافذة الخصوبة:", fontSize = 13.sp, color = colors.textMuted)
-                        Text("$fertileStartStr - $fertileEndStr", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Male button
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                userIsFemale = false
+                                savePreferences()
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            },
+                        color = if (!userIsFemale) colors.accent else colors.surface2,
+                        border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            "ذكر 👨",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (!userIsFemale) colors.appBg else colors.text,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
                     }
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("الدورة القادمة:", fontSize = 13.sp, color = colors.textMuted)
-                        Text(nextPeriodStr.split(" ")[0], fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+
+                    // Female button
+                    Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable {
+                                userIsFemale = true
+                                savePreferences()
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            },
+                        color = if (userIsFemale) colors.accent else colors.surface2,
+                        border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            "أنثى 👩",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (userIsFemale) colors.appBg else colors.text,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Text("بيانات الدورة الأخيرة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.text, modifier = Modifier.padding(start = 4.dp))
-        
-        Surface(
-            color = colors.surface,
-            shape = RoundedCornerShape(20.dp),
-            tonalElevation = 1.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text("بداية الدورة:", fontSize = 14.sp, color = colors.text)
-                    TextButton(onClick = {
-                        android.app.DatePickerDialog(context, { _, y, m, d ->
-                            startDayText = d.toString(); startMonthText = (m + 1).toString(); startYearText = y.toString()
-                        }, startYear, startMonth, startDay).show()
-                    }) {
-                        Text("${startYear}/${startMonth+1}/${startDay}", color = colors.accent, fontWeight = FontWeight.Bold)
+        // SECTION FOR FEMALE USERS ONLY: Menstrual Cycle & Ovulation Tracker
+        if (userIsFemale) {
+            // 2. Top Cycle Status Hero Card
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp)),
+                color = Color(0xFF1E262C).copy(alpha = 0.75f), // Obsidian Glass
+                border = BorderStroke(1.dp, colors.accent), // Royal Gold border
+                shadowElevation = 8.dp
+            ) {
+                Box(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+                    // Decorative Sparkle
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = colors.accent.copy(alpha = 0.1f),
+                        modifier = Modifier
+                            .size(110.dp)
+                            .align(Alignment.BottomEnd)
+                            .offset(x = 16.dp, y = 16.dp)
+                        )
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "حالة الدورة الحالية",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.accent
+                            )
+
+                            // Countdown Status Badge
+                            Surface(
+                                color = Color(0xFFF472B6).copy(alpha = 0.15f), // Soft Rose background representation
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = "التبويض خلال 5 أيام",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFFF472B6), // Soft Rose text
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Visual Cycle Progress ring simulation
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .border(3.dp, colors.accent, CircleShape)
+                                    .background(colors.accent.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "$currentCycleDay",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = "اليوم الـ $currentCycleDay من الدورة",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "المرحلة الحالية: فترة الخصوبة العالية 🌸",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF38BDF8) // Ice Cyan
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Divider(color = Color.White.copy(alpha = 0.08f))
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("تاريخ الإباضة المتوقع", fontSize = 11.sp, color = colors.textMuted)
+                                Text(ovulationStr.split(" ")[0], fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("موعد الدورة القادمة", fontSize = 11.sp, color = colors.textMuted)
+                                Text(nextPeriodStr.split(" ")[0], fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                            }
+                        }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section A: Menstrual Tracker Inputs & Timeline
+            Text(
+                text = "قسم متتبع الدورة والإباضة",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.text,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+
+            Surface(
+                color = colors.surface.copy(alpha = 0.75f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("تعديل تاريخ بداية آخر طمث:", fontSize = 13.sp, color = colors.text)
+                        TextButton(onClick = {
+                            android.app.DatePickerDialog(context, { _, y, m, d ->
+                                startDayText = d.toString()
+                                startMonthText = (m + 1).toString()
+                                startYearText = y.toString()
+                                savePreferences()
+                            }, startYear, startMonth, startDay).show()
+                        }) {
+                            Text("${startYear}/${startMonth+1}/${startDay}", color = colors.accent, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = cycleLengthText,
+                            onValueChange = {
+                                cycleLengthText = it
+                                savePreferences()
+                            },
+                            label = { Text("طول الدورة (يوم)", fontSize = 12.sp) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colors.accent,
+                                unfocusedBorderColor = colors.accent.copy(alpha = 0.2f),
+                                focusedTextColor = colors.text,
+                                unfocusedTextColor = colors.text
+                            )
+                        )
+                        OutlinedTextField(
+                            value = periodDurationText,
+                            onValueChange = {
+                                periodDurationText = it
+                                savePreferences()
+                            },
+                            label = { Text("مدة الطمث (يوم)", fontSize = 12.sp) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colors.accent,
+                                unfocusedBorderColor = colors.accent.copy(alpha = 0.2f),
+                                focusedTextColor = colors.text,
+                                unfocusedTextColor = colors.text
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Divider(color = colors.border.copy(alpha = 0.1f))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Daily Symptom Quick Log Sheet
+                    Text("سجل الأعراض اليومية والمزاج:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val moods = listOf("هادئ", "مبتهج", "قلق", "متعب", "نشيط")
+                        items(moods) { mood ->
+                            val isSelected = selectedMood == mood
+                            Surface(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        selectedMood = mood
+                                        savePreferences()
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    },
+                                color = if (isSelected) colors.accent else colors.surface2,
+                                border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f))
+                            ) {
+                                Text(
+                                    mood,
+                                    fontSize = 11.sp,
+                                    color = if (isSelected) colors.appBg else colors.text,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("هل تعانين من تقلصات/آلام؟", fontSize = 13.sp, color = colors.text)
+                        Switch(
+                            checked = physicalCramp,
+                            onCheckedChange = {
+                                physicalCramp = it
+                                savePreferences()
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = colors.accent,
+                                checkedTrackColor = colors.accent.copy(alpha = 0.3f)
+                            )
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // SECTION B: General Health & Fitness Metrics (Visible to both Males and Females)
+        Text(
+            text = "قسم المؤشرات الصحية العامة",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = colors.text,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Card 1: Hydration Tracker
+            Surface(
+                color = colors.surface.copy(alpha = 0.75f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LocalActivity, null, tint = colors.accent, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("متابعة شرب الماء", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("الهدف اليومي: 8 أكواب • تم شرب $waterCups", fontSize = 11.sp, color = colors.textMuted)
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (waterCups > 0) waterCups--
+                                savePreferences()
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            },
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(colors.surface2, CircleShape)
+                        ) {
+                            Icon(Icons.Default.Remove, null, tint = colors.text, modifier = Modifier.size(16.dp))
+                        }
+
+                        Text("$waterCups", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.text)
+
+                        IconButton(
+                            onClick = {
+                                waterCups++
+                                savePreferences()
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            },
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(colors.accent, CircleShape)
+                        ) {
+                            Icon(Icons.Default.Add, null, tint = colors.appBg, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+
+            // Card 2: Sleep Quality Tracker
+            Surface(
+                color = colors.surface.copy(alpha = 0.75f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Bedtime, null, tint = colors.accent, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("ساعات ونوعية النوم", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("النوم الموصى به: 7-9 ساعات", fontSize = 11.sp, color = colors.textMuted)
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (sleepHours > 0) sleepHours--
+                                savePreferences()
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            },
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(colors.surface2, CircleShape)
+                        ) {
+                            Icon(Icons.Default.Remove, null, tint = colors.text, modifier = Modifier.size(16.dp))
+                        }
+
+                        Text("$sleepHours س", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
+
+                        IconButton(
+                            onClick = {
+                                sleepHours++
+                                savePreferences()
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            },
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(colors.accent, CircleShape)
+                        ) {
+                            Icon(Icons.Default.Add, null, tint = colors.appBg, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+
+            // Card 3: Weight Tracker Input Fields
+            Surface(
+                color = colors.surface.copy(alpha = 0.75f),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.FitnessCenter, null, tint = colors.accent, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("الوزن والنشاط البدني", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     OutlinedTextField(
-                        value = cycleLengthText,
-                        onValueChange = { cycleLengthText = it },
-                        label = { Text("طول الدورة") },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    OutlinedTextField(
-                        value = periodDurationText,
-                        onValueChange = { periodDurationText = it },
-                        label = { Text("مدة الطمث") },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(16.dp)
+                        value = currentWeightText,
+                        onValueChange = {
+                            currentWeightText = it
+                            savePreferences()
+                        },
+                        label = { Text("الوزن الحالي (كجم)", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = colors.accent,
+                            unfocusedBorderColor = colors.accent.copy(alpha = 0.2f),
+                            focusedTextColor = colors.text,
+                            unfocusedTextColor = colors.text
+                        )
                     )
                 }
             }
