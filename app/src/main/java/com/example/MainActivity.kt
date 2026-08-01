@@ -82,12 +82,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Back handler to navigate back to Home screen if on sub-screen
-            BackHandler(enabled = currentCalcKey != CalcKey.HOME) {
-                navController.navigate(CalcKey.HOME.name) {
-                    popUpTo(CalcKey.HOME.name) { inclusive = true }
-                    launchSingleTop = true
-                }
+            // إصلاح: كان الكود القديم بيجبر أي ضغطة رجوع من أي شاشة إنها تروح للرئيسية
+            // عن طريق navigate(HOME){popUpTo(inclusive=true)} - وده معناه Home بتتهدم
+            // وتتبنى من الصفر في كل مرة (فاقدة أي حالة داخلية زي الباب المفتوح حاليًا)،
+            // وكمان بيمنع الرجوع للشاشة السابقة الحقيقية (زي فهرس القرآن بعد قراءة سورة،
+            // أو قائمة الأدوات بعد فتح الآلة الحاسبة). الصح إننا نستخدم popBackStack()
+            // العادي اللي بيرجع لنفس نسخة الشاشة اللي قبلها بدون تدميرها.
+            BackHandler(enabled = navController.previousBackStackEntry != null) {
+                navController.popBackStack()
             }
 
             val colors = getThemeColors(currentThemeKey)
