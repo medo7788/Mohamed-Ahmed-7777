@@ -125,14 +125,6 @@ fun AppHeader(
                     modifier = Modifier.background(colors.surface)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("اختر المظهر", color = colors.text) },
-                        leadingIcon = { Icon(AppIcons.Theme, contentDescription = null, tint = colors.accent) },
-                        onClick = {
-                            menuOpen = false
-                            onOpenThemes()
-                        }
-                    )
-                    DropdownMenuItem(
                         text = { Text("حول التطبيق", color = colors.text) },
                         leadingIcon = { Icon(AppIcons.Info, contentDescription = null, tint = colors.textMuted) },
                         onClick = {
@@ -144,88 +136,6 @@ fun AppHeader(
             }
         }
     }
-}
-
-@Composable
-fun ThemeSelectorModal(
-    currentTheme: AppThemeKey,
-    colors: CustomThemeColors,
-    onSelectTheme: (AppThemeKey) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Icon(AppIcons.Theme, contentDescription = null, tint = colors.accent)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "اختر مظهر التطبيق",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = colors.text
-                )
-            }
-        },
-        text = {
-            val scrollState = rememberScrollState()
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 360.dp)
-                    .verticalScroll(scrollState)
-            ) {
-                AppThemeKey.values().forEach { key ->
-                    val isSelected = key == currentTheme
-                    val tColors = com.example.ui.theme.getThemeColors(key)
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) colors.surface2 else Color.Transparent)
-                            .border(
-                                width = if (isSelected) 2.dp else 1.dp,
-                                color = if (isSelected) colors.accent else colors.border,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .clickable { onSelectTheme(key) }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(tColors.accent)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = key.titleAr,
-                                fontSize = 14.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = colors.text
-                            )
-                        }
-
-                        if (isSelected) {
-                            Icon(AppIcons.Check, contentDescription = null, tint = colors.accent)
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("إغلاق", color = colors.accent)
-            }
-        },
-        containerColor = colors.surface,
-        shape = RoundedCornerShape(18.dp)
-    )
 }
 
 @Composable
@@ -276,7 +186,7 @@ fun AboutModal(
                         Text("• 30 حاسبة وأداة إسلامية ومالية شاملة", fontSize = 12.sp, color = colors.text)
                         Text("• أسعار حية للعملات والذهب والفضة والنفط", fontSize = 12.sp, color = colors.text)
                         Text("• مواقيت الصلاة والقبلة والقرآن الكريم والأذكار", fontSize = 12.sp, color = colors.text)
-                        Text("• 8 ثيمات جذابة قابلة للتخصيص", fontSize = 12.sp, color = colors.text)
+                        Text("• مظهر نهاري ومظهر ليلي أنيق وعصري", fontSize = 12.sp, color = colors.text)
                         Text("• مساعد ذكي متقدم بالذكاء الاصطناعي (Gemini)", fontSize = 12.sp, color = colors.text)
                     }
                 }

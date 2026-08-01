@@ -9,11 +9,7 @@ import androidx.compose.ui.graphics.Color
 
 enum class AppThemeKey(val titleAr: String, val icon: String, val previewColorHex: String) {
     ELEGANT_DARK("داكن ملكي", "🌙", "#121417"),
-    LIGHT("فاتح ملكي", "☀️", "#FAF8F5"),
-    EMERALD_ISLAMIC("زمردي إسلامي", "🕌", "#042F2C"),
-    MIDNIGHT_PURPLE("ليل أرجواني", "🔮", "#1E1B2E"),
-    OCEAN_BLUE("أزرق ملكي", "🌊", "#0B192C"),
-    GOLDEN_LUXURY("ذهبي كلاسيك", "✨", "#1C1917")
+    LIGHT("فاتح ملكي", "☀️", "#FAF8F5")
 }
 
 data class CustomThemeColors(
@@ -57,58 +53,6 @@ fun getThemeColors(key: AppThemeKey): CustomThemeColors {
             accent = Color(0xFFD4AF37),
             accentSecondary = Color(0xFF22B573),
             isDark = false
-        )
-        AppThemeKey.EMERALD_ISLAMIC -> CustomThemeColors(
-            appBg = Color(0xFF042F2C),
-            headerBg = Color(0xFF0A403C),
-            headerFg = Color(0xFFFFD700),
-            surface = Color(0xFF0C4A45),
-            surface2 = Color(0xFF125C56),
-            border = Color(0x40FFD700),
-            text = Color(0xFFE6F4F1),
-            textMuted = Color(0xFFA3CFCB),
-            accent = Color(0xFFFFD700),
-            accentSecondary = Color(0xFF2DD4BF),
-            isDark = true
-        )
-        AppThemeKey.MIDNIGHT_PURPLE -> CustomThemeColors(
-            appBg = Color(0xFF13111C),
-            headerBg = Color(0xFF231E38),
-            headerFg = Color(0xFFF472B6),
-            surface = Color(0xFF1E1B2E),
-            surface2 = Color(0xFF2D2845),
-            border = Color(0x33C084FC),
-            text = Color(0xFFF3E8FF),
-            textMuted = Color(0xFFA78BFA),
-            accent = Color(0xFFC084FC),
-            accentSecondary = Color(0xFFF472B6),
-            isDark = true
-        )
-        AppThemeKey.OCEAN_BLUE -> CustomThemeColors(
-            appBg = Color(0xFF0B192C),
-            headerBg = Color(0xFF1E3E62),
-            headerFg = Color(0xFF38BDF8),
-            surface = Color(0xFF1E293B),
-            surface2 = Color(0xFF334155),
-            border = Color(0x3338BDF8),
-            text = Color(0xFFF1F5F9),
-            textMuted = Color(0xFF94A3B8),
-            accent = Color(0xFF38BDF8),
-            accentSecondary = Color(0xFF0EA5E9),
-            isDark = true
-        )
-        AppThemeKey.GOLDEN_LUXURY -> CustomThemeColors(
-            appBg = Color(0xFF1C1917),
-            headerBg = Color(0xFF292524),
-            headerFg = Color(0xFFF59E0B),
-            surface = Color(0xFF292524),
-            surface2 = Color(0xFF3B3533),
-            border = Color(0x40F59E0B),
-            text = Color(0xFFFAFAF9),
-            textMuted = Color(0xFFA8A29E),
-            accent = Color(0xFFF59E0B),
-            accentSecondary = Color(0xFFFBBF24),
-            isDark = true
         )
     }
 }

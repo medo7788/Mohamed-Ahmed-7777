@@ -17,7 +17,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CustomThemeColors
-import com.example.ui.theme.GradientTokens
 import com.example.ui.theme.Spacing
 
 @Composable
@@ -33,21 +32,27 @@ fun ToolScreenScaffold(
     resultSubText: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    // Dynamic background with proper colors.appBg
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(GradientTokens.MainBackground)
+            .background(colors.appBg)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // 1. Hero Card Header
+            // 1. Hero Card Header (Dynamic background color)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(colors.headerBg, colors.appBg)
+                        )
+                    )
                     .padding(horizontal = Spacing.Medium, vertical = Spacing.Large),
                 contentAlignment = Alignment.Center
             ) {
@@ -61,29 +66,29 @@ fun ToolScreenScaffold(
                     Spacer(modifier = Modifier.height(Spacing.Small))
                     Text(
                         text = title,
-                        color = Color.White,
-                        fontSize = 24.sp,
+                        color = colors.text, // Dynamic text color
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
                     Text(
                         text = subtitle,
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 14.sp,
+                        color = colors.textMuted, // Dynamic muted color
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp)
                     )
                 }
             }
 
-            // 2. Content Surface
+            // 2. Content Surface (Removed weight to prevent scroll measurement crash!)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = false)
                     .padding(horizontal = Spacing.Medium),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = colors.surface
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                color = colors.surface.copy(alpha = 0.75f) // Frosted style
             ) {
                 Column(
                     modifier = Modifier
@@ -126,36 +131,28 @@ fun ToolScreenScaffold(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(Spacing.ExtraLarge))
-                }
-            }
-        }
+                    // Primary Action Button placed directly inside the Column to prevent overlapping
+                    if (primaryActionText != null && onPrimaryActionClick != null) {
+                        Spacer(modifier = Modifier.height(Spacing.Large))
+                        Button(
+                            onClick = onPrimaryActionClick,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                        ) {
+                            Text(
+                                text = primaryActionText,
+                                color = colors.appBg, // high contrast text matching spec
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
 
-        // 3. Main Action Button (Fixed at bottom if needed, but requested inside scroll or bottom)
-        // User said: "Prominent primary button styled in Gold (#D4AF37) placed at the bottom."
-        // I'll place it inside the column at the end of the content surface for better responsiveness in scroll.
-        if (primaryActionText != null && onPrimaryActionClick != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(Spacing.Medium)
-            ) {
-                Button(
-                    onClick = onPrimaryActionClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                ) {
-                    Text(
-                        text = primaryActionText,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Spacer(modifier = Modifier.height(Spacing.ExtraLarge))
                 }
             }
         }

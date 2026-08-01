@@ -38,6 +38,7 @@ import com.example.model.CalcKey
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.draw.alpha
+import com.example.ui.components.ToolScreenScaffold
 
 data class ChatMessage(
     val sender: String, // "user" or "ai"
@@ -79,200 +80,130 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.AI),
+        title = "المساعد الذكي AI",
+        subtitle = "مساعد مالي وإسلامي متطور يعتمد على الذكاء الاصطناعي لتسهيل يومك"
     ) {
-        // Professional Header
-        Surface(
-            color = colors.surface,
-            shadowElevation = 2.dp,
-            modifier = Modifier.fillMaxWidth()
+        // Chat Settings Button
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.End
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(AppIcons.AI, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text("ClevCalc AI", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.text)
-                        Text("powered by Gemini", fontSize = 11.sp, color = colors.accent)
-                    }
-                }
-                IconButton(onClick = { showSettingsDialog = true }) {
-                    Icon(Icons.Filled.Settings, contentDescription = "الإعدادات", tint = colors.textMuted)
-                }
+            IconButton(onClick = { showSettingsDialog = true }) {
+                Icon(Icons.Filled.Settings, contentDescription = "الإعدادات", tint = colors.accent)
             }
         }
 
-        // Chat Area
-        LazyColumn(
-            state = listState,
+        // Chat Box inside content area
+        Surface(
+            color = colors.surface.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
             modifier = Modifier
-                .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            contentPadding = PaddingValues(vertical = 16.dp)
+                .height(300.dp)
         ) {
-            items(messages.size) { index ->
-                val msg = messages[index]
-                val isAi = msg.sender == "ai"
-                
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    horizontalArrangement = if (isAi) Arrangement.Start else Arrangement.End,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    if (isAi) {
-                        Box(
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clip(CircleShape)
-                                .background(Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(AppIcons.AI, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
+            ) {
+                items(messages.size) { index ->
+                    val msg = messages[index]
+                    val isAi = msg.sender == "ai"
                     
-                    Surface(
-                        color = if (isAi) colors.surface2 else colors.accent,
-                        shape = RoundedCornerShape(
-                            topStart = 20.dp,
-                            topEnd = 20.dp,
-                            bottomStart = if (isAi) 4.dp else 20.dp,
-                            bottomEnd = if (isAi) 20.dp else 4.dp
-                        ),
+                    Row(
                         modifier = Modifier
-                            .widthIn(max = 280.dp)
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onLongPress = {
-                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(msg.text))
-                                        android.widget.Toast.makeText(context, "تم نسخ الرسالة", android.widget.Toast.LENGTH_SHORT).show()
-                                    }
-                                )
-                            }
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = if (isAi) Arrangement.Start else Arrangement.End,
+                        verticalAlignment = Alignment.Bottom
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                        Surface(
+                            color = if (isAi) colors.surface2 else colors.accent,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .widthIn(max = 240.dp)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(msg.text))
+                                            android.widget.Toast.makeText(context, "تم نسخ الرسالة", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                }
+                        ) {
                             Text(
                                 text = msg.text,
-                                fontSize = 15.sp,
-                                lineHeight = 24.sp,
-                                color = if (isAi) colors.text else Color.White
+                                fontSize = 13.sp,
+                                color = if (isAi) colors.text else colors.appBg,
+                                modifier = Modifier.padding(10.dp)
                             )
                         }
                     }
                 }
-            }
-            if (isLoading) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        horizontalArrangement = Arrangement.Start,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        Box(
+                if (isLoading) {
+                    item {
+                        Row(
                             modifier = Modifier
-                                .size(30.dp)
-                                .clip(CircleShape)
-                                .background(Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF6366F1)))),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.Start
                         ) {
-                            Icon(AppIcons.AI, null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            color = colors.surface2,
-                            shape = RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(14.dp),
-                                    color = colors.textMuted,
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("جاري معالجة الرد...", fontSize = 13.sp, color = colors.textMuted)
-                            }
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = colors.accent,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("جاري التفكير...", fontSize = 11.sp, color = colors.textMuted)
                         }
                     }
                 }
             }
         }
 
-        // Modern Input Area
-        Surface(
-            color = colors.surface,
-            shadowElevation = 8.dp,
-            modifier = Modifier.fillMaxWidth()
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Input Field Area
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    placeholder = { Text("اكتب رسالتك هنا...", color = colors.textMuted) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(colors.appBg),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor = colors.text,
-                        unfocusedTextColor = colors.text
-                    ),
-                    maxLines = 4,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences
-                    )
+            OutlinedTextField(
+                value = inputText,
+                onValueChange = { inputText = it },
+                placeholder = { Text("اسأل المساعد الذكي عن أي شيء...", fontSize = 12.sp, color = colors.textMuted) },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                shape = RoundedCornerShape(20.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = colors.accent,
+                    unfocusedBorderColor = colors.accent.copy(alpha = 0.3f),
+                    focusedTextColor = colors.text,
+                    unfocusedTextColor = colors.text
                 )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(CircleShape)
-                        .background(if (inputText.isNotBlank() && !isLoading) colors.accent else colors.surface2)
-                        .clickable(enabled = inputText.isNotBlank() && !isLoading) { sendMessage(inputText) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = colors.textMuted, strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Filled.Send, contentDescription = "إرسال", tint = if (inputText.isNotBlank()) Color.White else colors.textMuted, modifier = Modifier.size(20.dp))
-                    }
-                }
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(if (inputText.isNotBlank() && !isLoading) colors.accent else colors.surface2)
+                    .clickable(enabled = inputText.isNotBlank() && !isLoading) { sendMessage(inputText) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Send,
+                    contentDescription = "إرسال",
+                    tint = if (inputText.isNotBlank() && !isLoading) colors.appBg else colors.textMuted,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
@@ -480,11 +411,11 @@ fun LivePricesScreen(colors: CustomThemeColors) {
     val palladiumGramCurr = palladiumGramUsd * currRate
     val palladiumOunceCurr = palladiumGramUsd * LivePricesRepository.GRAMS_PER_OUNCE * currRate
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.appBg)
-            .padding(12.dp)
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.LIVE_PRICES),
+        title = "الأسعار الحية الفورية",
+        subtitle = "متابعة أسعار صرف العملات والذهب والفضة والمعادن الثمينة والنفط العالمية"
     ) {
         // 1. Live Price Status Header
         Surface(
@@ -534,6 +465,32 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("تحديث", fontSize = 12.sp, color = colors.appBg, fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 2. Country / Currency Selector Pill
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Surface(
+                color = colors.surface.copy(alpha = 0.75f),
+                shape = RoundedCornerShape(20.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
+                modifier = Modifier.clickable { showCurrencyPicker = true }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(AppIcons.forCalc(CalcKey.WORLD_TIME), null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(selectedCurrency.nameAr, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(Icons.Filled.ArrowDropDown, null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -605,414 +562,157 @@ fun LivePricesScreen(colors: CustomThemeColors) {
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        LazyColumn(
+        // Karat Selector for Gold
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(bottom = 90.dp) // Scroll safety padding
+                .fillMaxWidth()
+                .padding(bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Section 1: Precious Metals Header
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(AppIcons.forCalc(CalcKey.CURRENCY), null, tint = colors.accent, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("المعادن الثمينة والأسعار", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    }
-
-                    Surface(
-                        color = Color(0xFF10B981),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            "LIVE",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
-                }
-
-                // Karat Selector for Gold
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("عيار الذهب المفضل:", fontSize = 11.sp, color = colors.textMuted)
-                    listOf(24, 22, 21, 18).forEach { k ->
-                        Surface(
-                            color = if (selectedKarat == k) colors.accent else colors.surface,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.clickable { selectedKarat = k }
-                        ) {
-                            Text(
-                                text = "عيار $k",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (selectedKarat == k) Color.White else colors.text,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 2x2 Grid Row 1 (Gold & Silver)
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Gold Card
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(130.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFFEAB308), Color(0xFFCA8A04))
-                                    )
-                                )
-                                .padding(12.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Column {
-                                        Text("الذهب", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                        Text("XAU", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
-                                    }
-                                    Icon(AppIcons.Gold, null, tint = Color.White, modifier = Modifier.size(24.dp))
-                                }
-
-                                Column {
-                                    Row(verticalAlignment = Alignment.Bottom) {
-                                        Text(
-                                            "$currCode ${LivePricesRepository.formatNumber(goldGramCurr)}",
-                                            fontSize = 17.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                    }
-                                    Text("/ جرام (عيار $selectedKarat)", fontSize = 10.sp, color = Color.White.copy(alpha = 0.9f))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        "$currCode ${LivePricesRepository.formatNumber(goldOunceCurr)} / أونصة",
-                                        fontSize = 10.sp,
-                                        color = Color.White.copy(alpha = 0.85f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Silver Card
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(130.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFF94A3B8), Color(0xFF64748B))
-                                    )
-                                )
-                                .padding(12.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Column {
-                                        Text("الفضة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                        Text("XAG", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
-                                    }
-                                    Icon(Icons.Filled.Circle, null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(24.dp))
-                                }
-
-                                Column {
-                                    Text(
-                                        "$currCode ${LivePricesRepository.formatNumber(silverGramCurr)}",
-                                        fontSize = 17.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                    Text("/ جرام", fontSize = 10.sp, color = Color.White.copy(alpha = 0.9f))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        "$currCode ${LivePricesRepository.formatNumber(silverOunceCurr)} / أونصة",
-                                        fontSize = 10.sp,
-                                        color = Color.White.copy(alpha = 0.85f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 2x2 Grid Row 2 (Platinum & Palladium)
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Platinum Card
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(130.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFF475569), Color(0xFF334155))
-                                    )
-                                )
-                                .padding(12.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Column {
-                                        Text("البلاتين", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                        Text("XPT", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
-                                    }
-                                    Icon(Icons.Filled.Diamond, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(24.dp))
-                                }
-
-                                Column {
-                                    Text(
-                                        "$currCode ${LivePricesRepository.formatNumber(platinumGramCurr)}",
-                                        fontSize = 17.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                    Text("/ جرام", fontSize = 10.sp, color = Color.White.copy(alpha = 0.9f))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        "$currCode ${LivePricesRepository.formatNumber(platinumOunceCurr)} / أونصة",
-                                        fontSize = 10.sp,
-                                        color = Color.White.copy(alpha = 0.85f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Palladium Card
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(130.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(Color(0xFFF87171), Color(0xFFEF4444))
-                                    )
-                                )
-                                .padding(12.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Column {
-                                        Text("البلاديوم", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                        Text("XPD", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
-                                    }
-                                    Icon(Icons.Filled.Circle, null, tint = Color.White.copy(alpha = 0.4f), modifier = Modifier.size(24.dp))
-                                }
-
-                                Column {
-                                    Text(
-                                        "$currCode ${LivePricesRepository.formatNumber(palladiumGramCurr)}",
-                                        fontSize = 17.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                    Text("/ جرام", fontSize = 10.sp, color = Color.White.copy(alpha = 0.9f))
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        "$currCode ${LivePricesRepository.formatNumber(palladiumOunceCurr)} / أونصة",
-                                        fontSize = 10.sp,
-                                        color = Color.White.copy(alpha = 0.85f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Section 2: Commodities (النفط والسلع)
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("النفط والسلع 🛢️", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = colors.text)
-
-                    Surface(
-                        color = Color(0xFFF59E0B),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            "تقديري ⚠️",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
-                }
-            }
-
-            items(LivePricesRepository.commodityPrices) { commodity ->
-                val commPriceCurr = commodity.priceUsd * currRate
+            Text("عيار الذهب المفضل:", fontSize = 11.sp, color = colors.textMuted)
+            listOf(24, 22, 21, 18).forEach { k ->
                 Surface(
-                    color = colors.surface.copy(alpha = 0.75f),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.15f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
+                    color = if (selectedKarat == k) colors.accent else colors.surface,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.clickable { selectedKarat = k }
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(AppIcons.forCommodity(commodity.icon), null, tint = colors.accent, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(commodity.nameAr, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = colors.text)
-                                Text(commodity.symbol, fontSize = 11.sp, color = colors.textMuted)
-                            }
-                        }
-
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                "≈ $currCode ${LivePricesRepository.formatNumber(commPriceCurr, 1)}",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = colors.text
-                            )
-                            Text("/ ${commodity.unit} (تقديري)", fontSize = 11.sp, color = colors.textMuted)
-                        }
-                    }
-                }
-            }
-
-            // Section 3: Currencies vs Selected Currency
-            item {
-                Spacer(modifier = Modifier.height(14.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.CurrencyExchange, null, tint = colors.accent, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "أسعار العملات (مقابل ${selectedCurrency.nameAr})",
-                        fontSize = 15.sp,
+                        text = "عيار $k",
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = colors.text
+                        color = if (selectedKarat == k) Color.White else colors.text,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
+        }
 
-            items(LivePricesRepository.currencies.filter { it.code != currCode }) { c ->
-                val convertedRate = LivePricesRepository.convertCurrency(1.0, c.code, currCode)
-                Surface(
-                    color = colors.surface.copy(alpha = 0.75f),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.15f)),
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Grid details
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Gold Card
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(120.dp)
+            ) {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 3.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Public, null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(c.nameAr, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.text)
-                                Text("1 ${c.code}", fontSize = 11.sp, color = colors.textMuted)
-                            }
-                        }
-
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                "= $currCode ${LivePricesRepository.formatNumber(convertedRate, if (convertedRate < 1) 4 else 2)}",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = colors.accent
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFFEAB308), Color(0xFFCA8A04))
                             )
+                        )
+                        .padding(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("الذهب", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Column {
+                            Text(
+                                "$currCode ${LivePricesRepository.formatNumber(goldGramCurr)}",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text("عيار $selectedKarat", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
                         }
                     }
+                }
+            }
+
+            // Silver Card
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(120.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.linearGradient(
+                                listOf(Color(0xFF94A3B8), Color(0xFF64748B))
+                            )
+                        )
+                        .padding(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("الفضة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Column {
+                            Text(
+                                "$currCode ${LivePricesRepository.formatNumber(silverGramCurr)}",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text("لكل جرام", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Currencies section header
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.CurrencyExchange, null, tint = colors.accent, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "العملات مقابل ${selectedCurrency.nameAr}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.text
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Display currencies directly in Column
+        LivePricesRepository.currencies.filter { it.code != currCode }.take(4).forEach { c ->
+            val convertedRate = LivePricesRepository.convertCurrency(1.0, c.code, currCode)
+            Surface(
+                color = colors.surface.copy(alpha = 0.75f),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.15f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 3.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(c.flag, fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(c.nameAr, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.text)
+                    }
+                    Text(
+                        "= $currCode ${LivePricesRepository.formatNumber(convertedRate, 2)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = colors.accent
+                    )
                 }
             }
         }
