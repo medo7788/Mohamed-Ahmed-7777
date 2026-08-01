@@ -555,7 +555,10 @@ fun LivePricesScreen(colors: CustomThemeColors) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            LivePricesRepository.currencies.filter { it.code != currCode }.take(6).forEach { c ->
+            // إصلاح: كانت القائمة مقصورة على .take(6) فقط رغم إن LivePricesRepository
+            // فيه أكتر من 18 عملة عربية وعالمية فعليًا. الشاشة أصلًا قابلة للسكرول
+            // (عن طريق ToolScreenScaffold) فمفيش داعي للقص.
+            LivePricesRepository.currencies.filter { it.code != currCode }.forEach { c ->
                 val convertedRate = LivePricesRepository.convertCurrency(1.0, c.code, currCode)
                 Box(
                     modifier = Modifier

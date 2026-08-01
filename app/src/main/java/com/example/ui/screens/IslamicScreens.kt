@@ -1675,6 +1675,44 @@ fun SurahDetailReader(
                 }
             }
 
+            // إصلاح: "متابعة القراءة"/"وردك اليومي" كان بيفضل يرجّع نفس السورة اللي
+            // فتحتها آخر مرة للأبد، حتى لو خلّصتها بالكامل - لأن مفيش أي منطق بيكتشف
+            // إن المستخدم وصل لآخر آية ويحرّك المؤشر للسورة اللي بعدها. دلوقتي لما
+            // آخر آية في السورة تظهر على الشاشة (زي سورة الفاتحة القصيرة اللي ممكن
+            // تظهر كاملة من غير سكرول أصلًا) ويستمر وضوحها لثواني (عشان نتأكد إنه
+            // قراها فعلًا مش بس فتح وقفل بسرعة)، بنحفظ رقم السورة التالية كـ"آخر قراءة".
+            val isLastAyahVisible = versesList.isNotEmpty() &&
+                listState.layoutInfo.visibleItemsInfo.any { it.index == versesList.lastIndex }
+
+            LaunchedEffect(isLastAyahVisible, surah.number) {
+                if (isLastAyahVisible) {
+                    kotlinx.coroutines.delay(3000) // تأكيد إن المستخدم فعلًا استقر على آخر آية
+                    val stillVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == versesList.lastIndex }
+                    if (stillVisible) {
+                        val nextSurahNumber = surah.number + 1
+                        if (nextSurahNumber <= 114) {
+                            val nextSurah = IslamicData.surahs.find { it.number == nextSurahNumber }
+                            if (nextSurah != null) {
+                                quranPrefs.edit()
+                                    .putInt("last_surah_num", nextSurahNumber)
+                                    .putString("last_surah_name", nextSurah.nameAr)
+                                    .putInt("last_ayah_num", 1)
+                                    .apply()
+                            }
+                        } else {
+                            // خلّص المصحف كله (سورة الناس) - يرجع الورد يبدأ من الفاتحة
+                            // تاني بدل ما يفضل عالق على آخر سورة
+                            quranPrefs.edit()
+                                .putInt("last_surah_num", 1)
+                                .putString("last_surah_name", "الفاتحة")
+                                .putInt("last_ayah_num", 1)
+                                .putBoolean("khatma_completed_flag", true)
+                                .apply()
+                        }
+                    }
+                }
+            }
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier
