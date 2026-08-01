@@ -64,7 +64,6 @@ class MainActivity : ComponentActivity() {
             val currentThemeKey by viewModel.currentThemeKey.collectAsState()
             val currentCalcKey by viewModel.currentCalcKey.collectAsState()
             val searchQuery by viewModel.searchQuery.collectAsState()
-            val showThemesModal by viewModel.showThemesModal.collectAsState()
             val showAboutModal by viewModel.showAboutModal.collectAsState()
 
             val navController = rememberNavController()
@@ -108,7 +107,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onToggleTheme = { viewModel.toggleTheme(context) },
-                                onOpenThemes = { viewModel.setShowThemesModal(true) },
+                                onOpenThemes = {},
                                 onOpenAbout = { viewModel.setShowAboutModal(true) }
                             )
                         },
@@ -270,18 +269,6 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.HEX.name) { HexConverterScreen(colors) }
                             }
                         }
-                    }
-
-                    if (showThemesModal) {
-                        ThemeSelectorModal(
-                            currentTheme = currentThemeKey,
-                            colors = colors,
-                            onSelectTheme = {
-                                viewModel.setTheme(context, it)
-                                viewModel.setShowThemesModal(false)
-                            },
-                            onDismiss = { viewModel.setShowThemesModal(false) }
-                        )
                     }
 
                     if (showAboutModal) {
