@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CustomThemeColors
+import com.example.ui.theme.DesignTokens
 import com.example.ui.theme.Spacing
 
 @Composable
@@ -32,63 +33,70 @@ fun ToolScreenScaffold(
     resultSubText: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    // Dynamic background with proper colors.appBg
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(colors.appBg)
+            .background(
+                Brush.verticalGradient(
+                    listOf(colors.headerBg, colors.appBg)
+                )
+            )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
         ) {
-            // 1. Hero Card Header (Dynamic background color)
+            // 1. Hero Card Header (Respects active theme colors)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(colors.headerBg, colors.appBg)
-                        )
-                    )
                     .padding(horizontal = Spacing.Medium, vertical = Spacing.Large),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = colors.accent,
-                        modifier = Modifier.size(48.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .background(colors.accent.copy(alpha = 0.12f), RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = colors.accent,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                     Spacer(modifier = Modifier.height(Spacing.Small))
                     Text(
                         text = title,
-                        color = colors.text, // Dynamic text color
+                        color = colors.text,
                         fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.ExtraBold,
                         textAlign = TextAlign.Center
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = subtitle,
-                        color = colors.textMuted, // Dynamic muted color
+                        color = colors.textMuted,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        modifier = Modifier.padding(horizontal = 24.dp)
                     )
                 }
             }
 
-            // 2. Content Surface (Removed weight to prevent scroll measurement crash!)
+            // 2. Content Surface (Clean, consistent z-axis spacing, no illegal weights)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = Spacing.Medium),
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                color = colors.surface.copy(alpha = 0.75f) // Frosted style
+                shape = RoundedCornerShape(topStart = DesignTokens.Radius.Medium, topEnd = DesignTokens.Radius.Medium),
+                color = colors.surface.copy(alpha = 0.85f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.15f))
             ) {
                 Column(
                     modifier = Modifier
@@ -97,12 +105,13 @@ fun ToolScreenScaffold(
                 ) {
                     content()
 
-                    // Result Area
+                    // Result Area (Glassmorphic results container)
                     if (showResult) {
                         Spacer(modifier = Modifier.height(Spacing.Large))
                         Surface(
-                            color = colors.accent.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(16.dp),
+                            color = colors.accent.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(DesignTokens.Radius.Small),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent.copy(alpha = 0.25f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -113,8 +122,8 @@ fun ToolScreenScaffold(
                                     Text(
                                         text = resultMainText,
                                         color = colors.accent,
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 26.sp,
+                                        fontWeight = FontWeight.Black,
                                         textAlign = TextAlign.Center
                                     )
                                 }
@@ -122,8 +131,9 @@ fun ToolScreenScaffold(
                                     Spacer(modifier = Modifier.height(Spacing.ExtraSmall))
                                     Text(
                                         text = resultSubText,
-                                        color = colors.textMuted,
-                                        fontSize = 14.sp,
+                                        color = colors.text,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
                                         textAlign = TextAlign.Center
                                     )
                                 }
@@ -131,30 +141,22 @@ fun ToolScreenScaffold(
                         }
                     }
 
-                    // Primary Action Button placed directly inside the Column to prevent overlapping
+                    // 3. Prominent primary action button placed directly inline after content
                     if (primaryActionText != null && onPrimaryActionClick != null) {
                         Spacer(modifier = Modifier.height(Spacing.Large))
-                        Button(
+                        GoldPrimaryButton(
+                            colors = colors,
+                            text = primaryActionText,
                             onClick = onPrimaryActionClick,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                        ) {
-                            Text(
-                                text = primaryActionText,
-                                color = colors.appBg, // high contrast text matching spec
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(Spacing.ExtraLarge))
                 }
             }
+
+            Spacer(modifier = Modifier.height(90.dp)) // Extra bottom spacing to avoid bottom nav clipping
         }
     }
 }

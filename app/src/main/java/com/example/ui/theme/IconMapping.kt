@@ -21,14 +21,11 @@ import com.example.model.CategoryKey
 object AppIcons {
 
     fun forCategory(category: CategoryKey): ImageVector = when (category) {
-        CategoryKey.FEATURED -> Icons.Filled.AutoAwesome
         CategoryKey.ISLAMIC -> Icons.Filled.Mosque
-        CategoryKey.CALC -> Icons.Filled.Calculate
         CategoryKey.FINANCE -> Icons.Filled.AccountBalance
-        CategoryKey.DATES -> Icons.Filled.CalendarMonth
+        CategoryKey.DATE_TIME -> Icons.Filled.CalendarMonth
         CategoryKey.HEALTH -> Icons.Filled.Favorite
-        CategoryKey.VEHICLE -> Icons.Filled.DirectionsCar
-        CategoryKey.UTILITY -> Icons.Filled.Build
+        CategoryKey.UTILITIES -> Icons.Filled.Build
     }
 
     fun forCalc(calc: CalcKey): ImageVector = when (calc) {

@@ -64,6 +64,7 @@ class MainActivity : ComponentActivity() {
             val currentThemeKey by viewModel.currentThemeKey.collectAsState()
             val currentCalcKey by viewModel.currentCalcKey.collectAsState()
             val searchQuery by viewModel.searchQuery.collectAsState()
+            val showThemesModal by viewModel.showThemesModal.collectAsState()
             val showAboutModal by viewModel.showAboutModal.collectAsState()
 
             val navController = rememberNavController()
@@ -107,7 +108,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onToggleTheme = { viewModel.toggleTheme(context) },
-                                onOpenThemes = {},
+                                onOpenThemes = { viewModel.setShowThemesModal(true) },
                                 onOpenAbout = { viewModel.setShowAboutModal(true) }
                             )
                         },

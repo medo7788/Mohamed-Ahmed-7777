@@ -294,9 +294,9 @@ fun PrayerTimesScreen(colors: CustomThemeColors) {
 fun QiblaDirectionScreen(colors: CustomThemeColors) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
 
     var locState by remember { mutableStateOf(LocationCardState.IDLE) }
+    var locName by remember { mutableStateOf<String?>(null) }
     var lat by remember { mutableStateOf<Double?>(null) }
     var lng by remember { mutableStateOf<Double?>(null) }
     var accuracy by remember { mutableStateOf<Float?>(null) }
@@ -333,7 +333,7 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
         fetchLocation()
     }
 
-    // Compass Logic with fallback to older sensors if Rotation Vector is unavailable
+    // Compass Logic
     var azimuth by remember { mutableStateOf(0f) }
     var qiblaAngle by remember { mutableStateOf(0f) }
     
@@ -358,82 +358,29 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
     var isCompassActive by remember { mutableStateOf(true) }
 
     DisposableEffect(isCompassActive) {
-        val rotationMatrix = FloatArray(9)
-        val orientationValues = FloatArray(3)
-
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent?) {
-                if (event == null) return
-                if (event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
-                    SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
-                    SensorManager.getOrientation(rotationMatrix, orientationValues)
-                    val azimuthRad = orientationValues[0]
-                    var azimuthDeg = Math.toDegrees(azimuthRad.toDouble()).toFloat()
-                    azimuthDeg = (azimuthDeg + 360f) % 360f
-                    azimuth = azimuthDeg
-                } else if (event.sensor.type == Sensor.TYPE_ORIENTATION) {
+                if (event != null && event.sensor.type == Sensor.TYPE_ORIENTATION) {
                     azimuth = event.values[0]
                 }
             }
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
-
         if (isCompassActive) {
-            var sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-            if (sensor == null) {
-                // Fallback to legacy orientation sensor
-                sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION)
-            }
-            if (sensor != null) {
-                sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
-            }
+            val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION)
+            sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
         }
         onDispose { sensorManager.unregisterListener(listener) }
     }
 
-    // Mathematical continuous mapping to prevent 360 -> 0 wrapping jumps
-    val rawRotation = -azimuth + qiblaAngle
-    fun getClosestAngle(target: Float, current: Float): Float {
-        var diff = (target - current) % 360f
-        if (diff < -180f) diff += 360f
-        if (diff > 180f) diff -= 360f
-        return current + diff
-    }
-
-    var targetRotation by remember { mutableStateOf(0f) }
-    LaunchedEffect(rawRotation) {
-        targetRotation = getClosestAngle(rawRotation, targetRotation)
-    }
-
-    val animatedRotation by animateFloatAsState(
-        targetValue = targetRotation,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        )
-    )
-
-    // Alignment Haptic feedback (one-shot trigger when within 3 degrees)
-    val diffFromNorth = ((targetRotation % 360f) + 360f) % 360f
-    val isAligned = diffFromNorth < 3.0f || diffFromNorth > 357.0f
-    var hasHapticallyAligned by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isAligned) {
-        if (isAligned) {
-            if (!hasHapticallyAligned) {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                hasHapticallyAligned = true
-            }
-        } else {
-            hasHapticallyAligned = false
-        }
-    }
+    val rotation = -azimuth + qiblaAngle
+    val animatedRotation by animateFloatAsState(targetValue = rotation, animationSpec = tween(500))
 
     ToolScreenScaffold(
         colors = colors,
         icon = AppIcons.forCalc(CalcKey.QIBLA),
         title = CalcKey.QIBLA.title,
-        subtitle = "تحديد اتجاه الكعبة المشرفة بدقة عالية باستخدام البوصلة وموقعك الحالي",
+        subtitle = "تحديد اتجاه الكعبة المشرفة بدقة عالية باستخدام البوصلة المدمجة وموقعك الحالي",
         onPrimaryActionClick = { isCompassActive = !isCompassActive },
         primaryActionText = if (isCompassActive) "إيقاف البوصلة" else "تشغيل البوصلة"
     ) {
@@ -453,9 +400,9 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
             onRetry = { fetchLocation() }
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(Spacing.Large))
 
-        // Compass View Port
+        // Compass View
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -463,172 +410,90 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
             contentAlignment = Alignment.Center
         ) {
             if (lat != null) {
-                // Soft glowing aura when aligned perfectly with Qibla
-                val glowAlpha = if (isAligned) 0.15f else 0.05f
-                val glowColor = if (isAligned) Color(0xFF10B981) else colors.accent
-
+                // Background Glow
                 Surface(
-                    modifier = Modifier.size(290.dp),
+                    modifier = Modifier.size(280.dp),
                     shape = CircleShape,
-                    color = glowColor.copy(alpha = glowAlpha)
+                    color = colors.accent.copy(alpha = 0.05f)
                 ) {}
 
-                // Soft Frosted Crystal Outer Ring & Dial
-                Surface(
+                Box(
                     modifier = Modifier
-                        .size(265.dp)
-                        .clip(CircleShape),
-                    color = colors.surface.copy(alpha = 0.5f),
-                    border = BorderStroke(
-                        1.5.dp,
-                        Brush.radialGradient(
-                            listOf(
-                                if (isAligned) Color(0xFF10B981) else colors.accent,
-                                colors.border.copy(alpha = 0.3f)
-                            )
-                        )
-                    )
+                        .size(260.dp)
+                        .clip(CircleShape)
+                        .background(colors.surface2.copy(alpha = 0.3f))
+                        .border(1.dp, colors.border.copy(alpha = 0.5f), CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        // Dial Markings & Cardinal Points
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val radius = size.width / 2
-                            // Cardinal texts "N", "S", "E", "W"
-                            for (i in 0 until 360 step 30) {
-                                val angleRad = Math.toRadians(i.toDouble() - 90.0)
-                                val tickLength = if (i % 90 == 0) 14.dp.toPx() else 8.dp.toPx()
-                                val start = Offset(
-                                    center.x + (radius - tickLength) * cos(angleRad).toFloat(),
-                                    center.y + (radius - tickLength) * sin(angleRad).toFloat()
-                                )
-                                val end = Offset(
-                                    center.x + radius * cos(angleRad).toFloat(),
-                                    center.y + radius * sin(angleRad).toFloat()
-                                )
-                                drawLine(
-                                    color = if (i == 0) Color(0xFFEF4444) else colors.textMuted.copy(alpha = 0.4f),
-                                    start = start,
-                                    end = end,
-                                    strokeWidth = if (i % 90 == 0) 2.5.dp.toPx() else 1.5.dp.toPx()
-                                )
-                            }
-                        }
-
-                        // Cardinal Labels overlays (fixed relative to device, or rotated? Dial rotates, pointer rotates)
-                        // In traditional compasses, the compass dial rotates, and the North marker always points North.
-                        // Here the needle rotates to Qibla relative to North.
-                        // Let's add North, South, East, West labels
-                        Box(modifier = Modifier.fillMaxSize().rotate(-azimuth)) {
-                            Text("ش", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp))
-                            Text("ج", color = colors.textMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp))
-                            Text("ق", color = colors.textMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp))
-                            Text("غ", color = colors.textMuted, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp))
-                        }
-
-                        // Beautiful animated Glowing Needle / Pointer
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .rotate(animatedRotation)
-                        ) {
-                            Spacer(modifier = Modifier.height(48.dp))
-                            Icon(
-                                imageVector = AppIcons.forCalc(CalcKey.QIBLA),
-                                contentDescription = null,
-                                tint = if (isAligned) Color(0xFF10B981) else colors.accent,
-                                modifier = Modifier
-                                    .size(54.dp)
-                                    .padding(bottom = 4.dp)
+                    // Compass Dial marks
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val radius = size.width / 2
+                        for (i in 0 until 360 step 30) {
+                            val angleRad = Math.toRadians(i.toDouble() - 90.0)
+                            val start = Offset(
+                                center.x + (radius - 10.dp.toPx()) * cos(angleRad).toFloat(),
+                                center.y + (radius - 10.dp.toPx()) * sin(angleRad).toFloat()
                             )
-                            // Elegant tapered Needle shaft
-                            Box(
-                                modifier = Modifier
-                                    .width(4.dp)
-                                    .height(65.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(
-                                        Brush.verticalGradient(
-                                            listOf(
-                                                if (isAligned) Color(0xFF10B981) else colors.accent,
-                                                Color.Transparent
-                                            )
-                                        )
-                                    )
+                            val end = Offset(
+                                center.x + radius * cos(angleRad).toFloat(),
+                                center.y + radius * sin(angleRad).toFloat()
                             )
+                            drawLine(colors.textMuted.copy(alpha = 0.3f), start, end, strokeWidth = 2.dp.toPx())
                         }
-
-                        // Premium Center Jewel Pivot Point
-                        Surface(
-                            modifier = Modifier.size(16.dp),
-                            shape = CircleShape,
-                            color = if (isAligned) Color(0xFF10B981) else colors.accent,
-                            border = BorderStroke(2.5.dp, Color.White),
-                            shadowElevation = 4.dp
-                        ) {}
                     }
+
+                    // Rotating Qibla Indicator
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.rotate(animatedRotation)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.forCalc(CalcKey.PRAYER),
+                            contentDescription = null,
+                            tint = colors.accent,
+                            modifier = Modifier.size(64.dp).padding(bottom = 12.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .height(60.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(colors.accent, Color.Transparent)
+                                    )
+                                )
+                        )
+                    }
+
+                    // Center Point
+                    Surface(
+                        modifier = Modifier.size(12.dp),
+                        shape = CircleShape,
+                        color = colors.accent,
+                        border = BorderStroke(2.dp, Color.White)
+                    ) {}
                 }
 
-                // Glassmorphic Bearing Badge
+                // Bearing Info
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .offset(y = 15.dp),
-                    shape = RoundedCornerShape(20.dp),
+                        .offset(y = 20.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = colors.surface,
-                    tonalElevation = 6.dp,
-                    border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.15f))
+                    tonalElevation = 4.dp
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            if (isAligned) "القبلة باتجاه دقيق ومباشر" else "${qiblaAngle.toInt()}° درجة باتجاه الكعبة",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (isAligned) Color(0xFF10B981) else colors.accent
-                        )
-                    }
+                    Text(
+                        "${qiblaAngle.toInt()}° درجة باتجاه الكعبة",
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.accent
+                    )
                 }
             } else {
-                // Beautiful Location Required Glass Overlay
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth(0.9f)
-                        .padding(16.dp),
-                    color = colors.surface.copy(alpha = 0.8f),
-                    shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.2f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = AppIcons.forCalc(CalcKey.QIBLA),
-                            contentDescription = null,
-                            tint = colors.accent.copy(alpha = 0.6f),
-                            modifier = Modifier.size(56.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "مطلوب تفعيل الموقع الفعلي",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.text,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "يرجى تمكين أذونات الموقع الجغرافي وحسابات الـ GPS لكي نتمكن من حساب زاوية انحراف القبلة الحقيقية بدقة من مكانك الحالي.",
-                            fontSize = 12.sp,
-                            color = colors.textMuted,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 18.sp
-                        )
-                    }
-                }
+                Text("يرجى تفعيل الموقع أولاً لتحديد القبلة", color = colors.textMuted, textAlign = TextAlign.Center)
             }
         }
     }

@@ -186,7 +186,7 @@ fun AboutModal(
                         Text("• 30 حاسبة وأداة إسلامية ومالية شاملة", fontSize = 12.sp, color = colors.text)
                         Text("• أسعار حية للعملات والذهب والفضة والنفط", fontSize = 12.sp, color = colors.text)
                         Text("• مواقيت الصلاة والقبلة والقرآن الكريم والأذكار", fontSize = 12.sp, color = colors.text)
-                        Text("• مظهر نهاري ومظهر ليلي أنيق وعصري", fontSize = 12.sp, color = colors.text)
+                        Text("• 8 ثيمات جذابة قابلة للتخصيص", fontSize = 12.sp, color = colors.text)
                         Text("• مساعد ذكي متقدم بالذكاء الاصطناعي (Gemini)", fontSize = 12.sp, color = colors.text)
                     }
                 }
