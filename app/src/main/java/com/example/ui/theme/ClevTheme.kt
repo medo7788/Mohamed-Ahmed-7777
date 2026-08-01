@@ -23,7 +23,12 @@ data class CustomThemeColors(
     val textMuted: Color,
     val accent: Color,
     val accentSecondary: Color,
-    val isDark: Boolean
+    val isDark: Boolean,
+
+    // Semantic purpose-specific colors as requested in Phase 2.1
+    val positive: Color = Color(0xFF10B981),
+    val negative: Color = Color(0xFFEF4444),
+    val warning: Color = Color(0xFFF59E0B)
 )
 
 fun getThemeColors(key: AppThemeKey): CustomThemeColors {
