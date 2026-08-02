@@ -35,6 +35,7 @@ fun ToolScreenScaffold(
     showResult: Boolean = false,
     resultMainText: String? = null,
     resultSubText: String? = null,
+    isScrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     // حالة الزجاج الخاصة بالشاشة دي - أي FrostedGlassCard جوه content() هيلاقيها
@@ -55,8 +56,7 @@ fun ToolScreenScaffold(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .statusBarsPadding()
+                .then(if (isScrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
         ) {
             // 1. Hero Card Header (Respects active theme colors)
             Box(

@@ -35,7 +35,7 @@ enum class CalcKey(
     TASBIH("tasbih", "المسبحة الرقمية", "🕊️", CategoryKey.ISLAMIC, null, listOf("تسبيح", "مسبحة", "سبحان")),
     QURAN("quran", "القرآن الكريم", "📖", CategoryKey.ISLAMIC, null, listOf("قرآن", "سورة", "آية", "مصحف")),
     ZAKAT("zakat", "حاسبة الزكاة", "💎", CategoryKey.ISLAMIC, null, listOf("زكاة", "نصاب", "مال", "ذهب")),
-    ADHAN_SETTINGS("adhan-settings", "إعدادات الأذان", "🔔", CategoryKey.ISLAMIC, null, listOf("أذان", "إشعارات", "صوت", "اهتزاز", "تنبيه")),
+    ADHAN_SETTINGS("adhan-settings", "إعدادات التطبيق", "⚙️", CategoryKey.ISLAMIC, null, listOf("أذان", "إشعارات", "صوت", "اهتزاز", "تنبيه")),
 
     // 💰 Calculators, Money & Currencies
     BASIC("basic", "الآلة الحاسبة", "🧮", CategoryKey.FINANCE, null, listOf("حساب", "رياضيات", "علمية")),

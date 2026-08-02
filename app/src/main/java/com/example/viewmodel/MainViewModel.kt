@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.UserPreferencesRepository
 import com.example.model.CalcKey
+import com.example.model.CategoryKey
 import com.example.ui.theme.AppThemeKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,14 @@ class MainViewModel : ViewModel() {
 
     private val _showAboutModal = MutableStateFlow(false)
     val showAboutModal: StateFlow<Boolean> = _showAboutModal.asStateFlow()
+
+    // Active Category Hub
+    private val _activeHubCategory = MutableStateFlow<CategoryKey?>(null)
+    val activeHubCategory: StateFlow<CategoryKey?> = _activeHubCategory.asStateFlow()
+
+    fun setActiveHubCategory(category: CategoryKey?) {
+        _activeHubCategory.value = category
+    }
 
     // Persistent favorites & recents
     private val _favoriteTools = MutableStateFlow<Set<String>>(emptySet())

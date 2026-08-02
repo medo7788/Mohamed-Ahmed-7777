@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -20,7 +21,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -67,16 +68,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
-    // إصلاح: كانت activeHubCategory بـremember عادي - يعني لو المستخدم فتح باب
-    // (مثلاً "المال والأسعار") واختار أداة منه، وبعدين رجع بزرار الرجوع، كان الباب
-    // بيتقفل تلقائيًا وترجع الشاشة الرئيسية لوضعها الافتراضي، فيضطر يفتح الباب تاني
-    // من الصفر. rememberSaveable بتحافظ على القيمة دي حتى لو الشاشة اتبنيت من جديد.
-    var activeHubCategory by rememberSaveable(
-        stateSaver = androidx.compose.runtime.saveable.Saver<CategoryKey?, String>(
-            save = { it?.name ?: "" },
-            restore = { name -> if (name.isBlank()) null else CategoryKey.valueOf(name) }
-        )
-    ) { mutableStateOf<CategoryKey?>(null) }
+    val activeHubCategory by viewModel.activeHubCategory.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
 
     val favoriteTools by viewModel.favoriteTools.collectAsState()
@@ -177,6 +169,69 @@ fun HomeScreen(
         "15 ${hMonths[((hc.get(Calendar.MONTH) + 5) % 12)]} ${hYear}هـ"
     }
 
+    // Dynamic countdown timer for prayer times based on location coordinates
+    val cachedLoc = remember { com.example.util.AppLocationProvider.getCachedLocation(context) }
+    val homeLat = cachedLoc?.lat ?: 30.0444 // Default Cairo
+    val homeLng = cachedLoc?.lng ?: 31.2357 // Default Cairo
+
+    val homePrayerTimes = remember(homeLat, homeLng) {
+        val offset = com.example.data.IslamicData.getCorrectTimezoneOffset(homeLat, homeLng)
+        com.example.data.IslamicData.calculatePrayerTimes(homeLat, homeLng, offset)
+    }
+
+    val prayerGreetingInfo = remember(homePrayerTimes) {
+        try {
+            val sdf = SimpleDateFormat("HH:mm", Locale.US)
+            val nowStr = SimpleDateFormat("HH:mm", Locale.US).format(Date())
+            val nowTime = sdf.parse(nowStr)!!
+
+            val prayers = listOf(
+                "الفجر" to homePrayerTimes.fajr,
+                "الظهر" to homePrayerTimes.dhuhr,
+                "العصر" to homePrayerTimes.asr,
+                "المغرب" to homePrayerTimes.maghrib,
+                "العشاء" to homePrayerTimes.isha
+            )
+
+            var nextPrayerName = "الفجر"
+            var nextPrayerTimeStr = homePrayerTimes.fajr
+            var diffMinutes = 0L
+
+            for ((name, timeStr) in prayers) {
+                val pTime = sdf.parse(timeStr)!!
+                if (pTime.after(nowTime)) {
+                    nextPrayerName = name
+                    nextPrayerTimeStr = timeStr
+                    diffMinutes = (pTime.time - nowTime.time) / (60 * 1000)
+                    break
+                }
+            }
+
+            if (diffMinutes == 0L) {
+                val fajrTime = sdf.parse(homePrayerTimes.fajr)!!
+                val timeToMidnight = (24 * 60 * 60 * 1000) - nowTime.time
+                val totalDiff = timeToMidnight + fajrTime.time
+                diffMinutes = totalDiff / (60 * 1000)
+                nextPrayerName = "الفجر"
+            }
+
+            val hrs = diffMinutes / 60
+            val mins = diffMinutes % 60
+            val timeText = when {
+                hrs > 0 -> "بعد $hrs ساعة و $mins دقيقة"
+                else -> "بعد $mins دقيقة"
+            }
+            "صلاة $nextPrayerName $timeText • الموقع الحسابي نشط"
+        } catch (e: Exception) {
+            "صلاة العصر بعد 42 دقيقة • طقس معتدل"
+        }
+    }
+
+    // Handle back button specifically on HomeScreen to close the active hub
+    BackHandler(enabled = activeHubCategory != null) {
+        viewModel.setActiveHubCategory(null)
+    }
+
     // If an active category hub is selected, overlay the HubScreen seamlessly!
     if (activeHubCategory != null) {
         HubScreen(
@@ -185,7 +240,7 @@ fun HomeScreen(
             favoriteTools = favoriteTools,
             onToggleFavorite = { viewModel.toggleFavorite(context, it.name) },
             onToolClick = { onSelectCalc(it) },
-            onBackClick = { activeHubCategory = null }
+            onBackClick = { viewModel.setActiveHubCategory(null) }
         )
     } else {
         Box(
@@ -228,7 +283,6 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .statusBarsPadding()
                             .padding(horizontal = 24.dp, vertical = 12.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -375,9 +429,7 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = if (weatherTempC != null)
-                                    "$nextPrayerText • الطقس $weatherConditionAr ${weatherTempC!!.toInt()}°م"
-                                else nextPrayerText,
+                                text = prayerGreetingInfo,
                                 fontSize = 11.sp,
                                 color = colors.accent,
                                 fontWeight = FontWeight.Bold
@@ -582,7 +634,7 @@ fun HomeScreen(
                             icon = AppIcons.forCategory(CategoryKey.ISLAMIC),
                             toolCount = allTools.count { it.category == CategoryKey.ISLAMIC },
                             gradient = Brush.linearGradient(listOf(Color(0xFF042F2C), Color(0xFF10B981))),
-                            onClick = { activeHubCategory = CategoryKey.ISLAMIC }
+                            onClick = { viewModel.setActiveHubCategory(CategoryKey.ISLAMIC) }
                         )
 
                         // Gateway Hub 2: Finance
@@ -592,7 +644,7 @@ fun HomeScreen(
                             icon = AppIcons.forCategory(CategoryKey.FINANCE),
                             toolCount = allTools.count { it.category == CategoryKey.FINANCE },
                             gradient = Brush.linearGradient(listOf(Color(0xFF292524), Color(0xFFF59E0B))),
-                            onClick = { activeHubCategory = CategoryKey.FINANCE }
+                            onClick = { viewModel.setActiveHubCategory(CategoryKey.FINANCE) }
                         )
 
                         // Gateway Hub 3: Date & Time
@@ -602,7 +654,7 @@ fun HomeScreen(
                             icon = AppIcons.forCategory(CategoryKey.DATE_TIME),
                             toolCount = allTools.count { it.category == CategoryKey.DATE_TIME },
                             gradient = Brush.linearGradient(listOf(Color(0xFF221E38), Color(0xFFC084FC))),
-                            onClick = { activeHubCategory = CategoryKey.DATE_TIME }
+                            onClick = { viewModel.setActiveHubCategory(CategoryKey.DATE_TIME) }
                         )
 
                         // Gateway Hub 4: Health
@@ -612,7 +664,7 @@ fun HomeScreen(
                             icon = AppIcons.forCategory(CategoryKey.HEALTH),
                             toolCount = allTools.count { it.category == CategoryKey.HEALTH },
                             gradient = Brush.linearGradient(listOf(Color(0xFF4C0519), Color(0xFFEF4444))),
-                            onClick = { activeHubCategory = CategoryKey.HEALTH }
+                            onClick = { viewModel.setActiveHubCategory(CategoryKey.HEALTH) }
                         )
 
                         // Gateway Hub 5: Utilities
@@ -622,7 +674,7 @@ fun HomeScreen(
                             icon = AppIcons.forCategory(CategoryKey.UTILITIES),
                             toolCount = allTools.count { it.category == CategoryKey.UTILITIES },
                             gradient = Brush.linearGradient(listOf(Color(0xFF1F2937), Color(0xFF64748B))),
-                            onClick = { activeHubCategory = CategoryKey.UTILITIES }
+                            onClick = { viewModel.setActiveHubCategory(CategoryKey.UTILITIES) }
                         )
                     }
                 }

@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -41,6 +42,8 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.TrendingUp
@@ -53,8 +56,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-
         setContent {
             val context = LocalContext.current
             LaunchedEffect(Unit) {
@@ -62,6 +63,24 @@ class MainActivity : ComponentActivity() {
             }
 
             val currentThemeKey by viewModel.currentThemeKey.collectAsState()
+
+            // Dynamic World-Class Edge-To-Edge Integration: Ensures Status Bar & Navigation Bar
+            // icons are fully readable (dark icons on light theme, light icons on dark theme)
+            LaunchedEffect(currentThemeKey) {
+                val isDark = currentThemeKey == AppThemeKey.ELEGANT_DARK
+                enableEdgeToEdge(
+                    statusBarStyle = if (isDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    },
+                    navigationBarStyle = if (isDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    }
+                )
+            }
             val currentCalcKey by viewModel.currentCalcKey.collectAsState()
             val searchQuery by viewModel.searchQuery.collectAsState()
             val showThemesModal by viewModel.showThemesModal.collectAsState()
@@ -82,14 +101,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // إصلاح: كان الكود القديم بيجبر أي ضغطة رجوع من أي شاشة إنها تروح للرئيسية
-            // عن طريق navigate(HOME){popUpTo(inclusive=true)} - وده معناه Home بتتهدم
-            // وتتبنى من الصفر في كل مرة (فاقدة أي حالة داخلية زي الباب المفتوح حاليًا)،
-            // وكمان بيمنع الرجوع للشاشة السابقة الحقيقية (زي فهرس القرآن بعد قراءة سورة،
-            // أو قائمة الأدوات بعد فتح الآلة الحاسبة). الصح إننا نستخدم popBackStack()
-            // العادي اللي بيرجع لنفس نسخة الشاشة اللي قبلها بدون تدميرها.
-            BackHandler(enabled = navController.previousBackStackEntry != null) {
-                navController.popBackStack()
+            // Back handler to navigate back to Home screen if on sub-screen or pop gracefully
+            BackHandler(enabled = currentCalcKey != CalcKey.HOME) {
+                val isTab = currentCalcKey == CalcKey.WEATHER || currentCalcKey == CalcKey.AI || currentCalcKey == CalcKey.ADHAN_SETTINGS
+                if (isTab) {
+                    navController.navigate(CalcKey.HOME.name) {
+                        popUpTo(CalcKey.HOME.name) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                } else {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(CalcKey.HOME.name) {
+                            popUpTo(CalcKey.HOME.name) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                }
             }
 
             val colors = getThemeColors(currentThemeKey)
@@ -116,7 +143,7 @@ class MainActivity : ComponentActivity() {
                         },
                         bottomBar = {
                             if (currentCalcKey == CalcKey.HOME || currentCalcKey == CalcKey.WEATHER || 
-                                currentCalcKey == CalcKey.LIVE_PRICES || currentCalcKey == CalcKey.ECONOMIC_INDICATORS) {
+                                currentCalcKey == CalcKey.AI || currentCalcKey == CalcKey.ADHAN_SETTINGS) {
 
                                 // Beautiful modern floating navigation bar with Royal Gold indicator
                                 Box(
@@ -144,13 +171,12 @@ class MainActivity : ComponentActivity() {
                                             val items = listOf(
                                                 Triple("الرئيسية", CalcKey.HOME, Icons.Default.Home),
                                                 Triple("الطقس", CalcKey.WEATHER, Icons.Default.Cloud),
-                                                Triple("الاقتصاد", CalcKey.LIVE_PRICES, Icons.Default.TrendingUp),
-                                                Triple("الأدوات", CalcKey.BASIC, Icons.Default.Build),
-                                                Triple("المزيد", CalcKey.ADHAN_SETTINGS, Icons.Default.MoreHoriz)
+                                                Triple("المستشار", CalcKey.AI, Icons.Default.AutoAwesome),
+                                                Triple("الإعدادات", CalcKey.ADHAN_SETTINGS, Icons.Default.Settings)
                                             )
 
                                             items.forEach { (label, key, icon) ->
-                                                val isSelected = currentCalcKey == key || (key == CalcKey.BASIC && currentCalcKey != CalcKey.HOME && currentCalcKey != CalcKey.WEATHER && currentCalcKey != CalcKey.LIVE_PRICES)
+                                                val isSelected = currentCalcKey == key
 
                                                 Column(
                                                     modifier = Modifier
@@ -247,7 +273,7 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.TASBIH.name) { TasbihScreen(colors) }
                                 composable(CalcKey.QURAN.name) { QuranScreen(colors) }
                                 composable(CalcKey.ZAKAT.name) { ZakatCalcScreen(colors) }
-                                composable(CalcKey.ADHAN_SETTINGS.name) { AdhanSettingsScreen(colors) }
+                                composable(CalcKey.ADHAN_SETTINGS.name) { AdhanSettingsScreen(colors, viewModel) }
                                 composable(CalcKey.BASIC.name) { BasicCalculatorScreen(colors) }
                                 composable(CalcKey.CURRENCY.name) { CurrencyConverterScreen(colors) }
                                 composable(CalcKey.GOLD.name) { GoldCalcScreen(colors) }

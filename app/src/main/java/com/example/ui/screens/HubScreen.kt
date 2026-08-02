@@ -67,7 +67,6 @@ fun HubScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
         ) {
             // Header bar
             Row(
