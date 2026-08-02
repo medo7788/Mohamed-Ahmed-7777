@@ -23,6 +23,7 @@ enum class CalcKey(
     val keywords: List<String>
 ) {
     HOME("home", "الرئيسية", "🏠", CategoryKey.UTILITIES, null, listOf("رئيسية", "home", "لوحة", "شاشة")),
+    SETTINGS("settings", "إعدادات التطبيق", "⚙️", CategoryKey.UTILITIES, null, listOf("إعدادات", "settings", "مظهر", "ثيم", "لغة", "حول")),
 
     // AI & Weather (integrated directly on home but kept in enum)
     AI("ai", "المساعد الذكي", "✨", CategoryKey.UTILITIES, "AI", listOf("ذكاء", "ai", "chat", "دردشة", "مساعد")),
@@ -35,7 +36,7 @@ enum class CalcKey(
     TASBIH("tasbih", "المسبحة الرقمية", "🕊️", CategoryKey.ISLAMIC, null, listOf("تسبيح", "مسبحة", "سبحان")),
     QURAN("quran", "القرآن الكريم", "📖", CategoryKey.ISLAMIC, null, listOf("قرآن", "سورة", "آية", "مصحف")),
     ZAKAT("zakat", "حاسبة الزكاة", "💎", CategoryKey.ISLAMIC, null, listOf("زكاة", "نصاب", "مال", "ذهب")),
-    ADHAN_SETTINGS("adhan-settings", "إعدادات التطبيق", "⚙️", CategoryKey.ISLAMIC, null, listOf("أذان", "إشعارات", "صوت", "اهتزاز", "تنبيه")),
+    ADHAN_SETTINGS("adhan-settings", "إعدادات الأذان", "🔔", CategoryKey.ISLAMIC, null, listOf("أذان", "إشعارات", "صوت", "اهتزاز", "تنبيه")),
 
     // 💰 Calculators, Money & Currencies
     BASIC("basic", "الآلة الحاسبة", "🧮", CategoryKey.FINANCE, null, listOf("حساب", "رياضيات", "علمية")),
