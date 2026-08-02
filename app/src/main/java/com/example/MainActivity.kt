@@ -41,6 +41,8 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.TrendingUp
@@ -82,11 +84,21 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Back handler to navigate back to Home screen if on sub-screen
+            // Back handler to navigate back to Home screen if on sub-screen or pop gracefully
             BackHandler(enabled = currentCalcKey != CalcKey.HOME) {
-                navController.navigate(CalcKey.HOME.name) {
-                    popUpTo(CalcKey.HOME.name) { inclusive = true }
-                    launchSingleTop = true
+                val isTab = currentCalcKey == CalcKey.WEATHER || currentCalcKey == CalcKey.AI || currentCalcKey == CalcKey.ADHAN_SETTINGS
+                if (isTab) {
+                    navController.navigate(CalcKey.HOME.name) {
+                        popUpTo(CalcKey.HOME.name) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                } else {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(CalcKey.HOME.name) {
+                            popUpTo(CalcKey.HOME.name) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
                 }
             }
 
@@ -114,7 +126,7 @@ class MainActivity : ComponentActivity() {
                         },
                         bottomBar = {
                             if (currentCalcKey == CalcKey.HOME || currentCalcKey == CalcKey.WEATHER || 
-                                currentCalcKey == CalcKey.LIVE_PRICES || currentCalcKey == CalcKey.ECONOMIC_INDICATORS) {
+                                currentCalcKey == CalcKey.AI || currentCalcKey == CalcKey.ADHAN_SETTINGS) {
 
                                 // Beautiful modern floating navigation bar with Royal Gold indicator
                                 Box(
@@ -142,13 +154,12 @@ class MainActivity : ComponentActivity() {
                                             val items = listOf(
                                                 Triple("الرئيسية", CalcKey.HOME, Icons.Default.Home),
                                                 Triple("الطقس", CalcKey.WEATHER, Icons.Default.Cloud),
-                                                Triple("الاقتصاد", CalcKey.LIVE_PRICES, Icons.Default.TrendingUp),
-                                                Triple("الأدوات", CalcKey.BASIC, Icons.Default.Build),
-                                                Triple("المزيد", CalcKey.ADHAN_SETTINGS, Icons.Default.MoreHoriz)
+                                                Triple("المستشار", CalcKey.AI, Icons.Default.AutoAwesome),
+                                                Triple("الإعدادات", CalcKey.ADHAN_SETTINGS, Icons.Default.Settings)
                                             )
 
                                             items.forEach { (label, key, icon) ->
-                                                val isSelected = currentCalcKey == key || (key == CalcKey.BASIC && currentCalcKey != CalcKey.HOME && currentCalcKey != CalcKey.WEATHER && currentCalcKey != CalcKey.LIVE_PRICES)
+                                                val isSelected = currentCalcKey == key
 
                                                 Column(
                                                     modifier = Modifier
@@ -245,7 +256,7 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.TASBIH.name) { TasbihScreen(colors) }
                                 composable(CalcKey.QURAN.name) { QuranScreen(colors) }
                                 composable(CalcKey.ZAKAT.name) { ZakatCalcScreen(colors) }
-                                composable(CalcKey.ADHAN_SETTINGS.name) { AdhanSettingsScreen(colors) }
+                                composable(CalcKey.ADHAN_SETTINGS.name) { AdhanSettingsScreen(colors, viewModel) }
                                 composable(CalcKey.BASIC.name) { BasicCalculatorScreen(colors) }
                                 composable(CalcKey.CURRENCY.name) { CurrencyConverterScreen(colors) }
                                 composable(CalcKey.GOLD.name) { GoldCalcScreen(colors) }

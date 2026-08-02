@@ -45,6 +45,8 @@ import com.example.ui.components.GlassChip
 import com.example.ui.components.SectionHeader
 import com.example.ui.components.PremiumInfoRow
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.automirrored.outlined.Assignment
 
 data class ChatMessage(
     val sender: String, // "user" or "ai"
@@ -75,84 +77,124 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
         messages.add(ChatMessage("user", userMsg))
         isLoading = true
         coroutineScope.launch {
-            listState.animateScrollToItem(messages.size - 1)
+            listState.animateScrollToItem(0)
             val history = messages.drop(1).chunked(2).mapNotNull {
                 if (it.size == 2) Pair(it[0].text, it[1].text) else null
             }
             val response = GeminiRepository.queryAi(context, userMsg, history)
             messages.add(ChatMessage("ai", response))
             isLoading = false
-            listState.animateScrollToItem(messages.size - 1)
+            listState.animateScrollToItem(0)
         }
     }
 
-    ToolScreenScaffold(
-        colors = colors,
-        icon = AppIcons.forCalc(CalcKey.AI),
-        title = "المساعد الذكي AI",
-        subtitle = "مستشارك الخاص المطور بنماذج الذكاء الاصطناعي لحسابات الزكاة وتوقعات الأسواق والذهب"
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colors.appBg)
     ) {
-        // Chat Settings Banner
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("إعدادات محادثة Gemini AI", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.textMuted)
-            IconButton(onClick = { showSettingsDialog = true }) {
-                Icon(Icons.Filled.Settings, contentDescription = "إعدادات", tint = colors.accent)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Chat Box inside Frosted Glass Card
-        FrostedGlassCard(
-            colors = colors,
-            variant = FrostedGlassCardVariant.Standard,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(320.dp)
-        ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(messages.size) { index ->
-                    val msg = messages[index]
-                    val isAi = msg.sender == "ai"
-                    
+        Scaffold(
+            topBar = {
+                Surface(
+                    color = colors.surface.copy(alpha = 0.85f),
+                    border = BorderStroke(1.dp, colors.border.copy(alpha = 0.15f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = if (isAi) Arrangement.Start else Arrangement.End,
-                        verticalAlignment = Alignment.Bottom
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Surface(
-                            color = if (isAi) colors.surface2 else colors.accent,
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, colors.border.copy(alpha = 0.2f)),
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(colors.accent.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(AppIcons.forCalc(CalcKey.AI), null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("المساعد الذكي AI", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = colors.text)
+                                Text("مستشارك المالي والشرعي الفوري", fontSize = 11.sp, color = colors.textMuted)
+                            }
+                        }
+
+                        IconButton(onClick = { showSettingsDialog = true }) {
+                            Icon(Icons.Filled.Settings, contentDescription = "إعدادات", tint = colors.accent)
+                        }
+                    }
+                }
+            },
+            bottomBar = {
+                Surface(
+                    color = colors.surface.copy(alpha = 0.9f),
+                    border = BorderStroke(1.dp, colors.border.copy(alpha = 0.15f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .imePadding()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            placeholder = { Text("اسأل المستشار الذكي عن أي شيء...", fontSize = 13.sp, color = colors.textMuted) },
+                            modifier = Modifier.weight(1f),
+                            maxLines = 4,
+                            shape = RoundedCornerShape(24.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = colors.surface2,
+                                unfocusedContainerColor = colors.surface2,
+                                focusedBorderColor = colors.accent,
+                                unfocusedBorderColor = colors.border.copy(alpha = 0.5f),
+                                focusedTextColor = colors.text,
+                                unfocusedTextColor = colors.text
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Box(
                             modifier = Modifier
-                                .widthIn(max = 240.dp)
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onLongPress = {
-                                            clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(msg.text))
-                                            android.widget.Toast.makeText(context, "تم نسخ الرسالة", android.widget.Toast.LENGTH_SHORT).show()
-                                        }
-                                    )
-                                }
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(if (inputText.isNotBlank() && !isLoading) colors.accent else colors.surface2)
+                                .clickable(enabled = inputText.isNotBlank() && !isLoading) { sendMessage(inputText) },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = msg.text,
-                                fontSize = 13.sp,
-                                color = if (isAi) colors.text else colors.appBg,
-                                modifier = Modifier.padding(10.dp)
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "إرسال",
+                                tint = if (inputText.isNotBlank() && !isLoading) colors.appBg else colors.textMuted,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                 }
+            },
+            containerColor = Color.Transparent
+        ) { paddingValues ->
+            val reversedMessages = remember(messages.size) { messages.toList().reversed() }
 
+            LazyColumn(
+                state = listState,
+                reverseLayout = true,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 if (isLoading) {
                     item {
                         Row(
@@ -168,51 +210,81 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("جاري التفكير وصياغة الرد...", fontSize = 11.sp, color = colors.textMuted)
+                            Text("جاري البحث والاستنباط وصياغة الرد الحصري لعام 2026...", fontSize = 11.sp, color = colors.textMuted)
                         }
                     }
                 }
-            }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+                items(reversedMessages.size) { index ->
+                    val msg = reversedMessages[index]
+                    val isAi = msg.sender == "ai"
 
-        // Input Field and Submit Button
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                placeholder = { Text("اسأل المستشار الذكي عن أي شيء...", fontSize = 12.sp, color = colors.textMuted) },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                shape = RoundedCornerShape(20.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = colors.accent,
-                    unfocusedBorderColor = colors.accent.copy(alpha = 0.3f),
-                    focusedTextColor = colors.text,
-                    unfocusedTextColor = colors.text
-                )
-            )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = if (isAi) Arrangement.Start else Arrangement.End,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        if (isAi) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 8.dp, top = 4.dp)
+                                    .size(28.dp)
+                                    .background(colors.accent.copy(alpha = 0.15f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Filled.AutoAwesome, null, tint = colors.accent, modifier = Modifier.size(14.dp))
+                            }
+                        }
 
-            Spacer(modifier = Modifier.width(10.dp))
+                        Column(horizontalAlignment = if (isAi) Alignment.Start else Alignment.End) {
+                            Surface(
+                                color = if (isAi) colors.surface else colors.accent,
+                                shape = RoundedCornerShape(
+                                    topStart = 16.dp,
+                                    topEnd = 16.dp,
+                                    bottomStart = if (isAi) 4.dp else 16.dp,
+                                    bottomEnd = if (isAi) 16.dp else 4.dp
+                                ),
+                                border = BorderStroke(1.dp, colors.border.copy(alpha = 0.2f)),
+                                modifier = Modifier.widthIn(max = 280.dp)
+                            ) {
+                                SelectionContainer {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            text = msg.text,
+                                            fontSize = 13.sp,
+                                            color = if (isAi) colors.text else colors.appBg,
+                                            lineHeight = 20.sp
+                                        )
 
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(if (inputText.isNotBlank() && !isLoading) colors.accent else colors.surface2)
-                    .clickable(enabled = inputText.isNotBlank() && !isLoading) { sendMessage(inputText) },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "إرسال",
-                    tint = if (inputText.isNotBlank() && !isLoading) colors.appBg else colors.textMuted,
-                    modifier = Modifier.size(20.dp)
-                )
+                                        if (isAi) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.End
+                                            ) {
+                                                IconButton(
+                                                    onClick = {
+                                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(msg.text))
+                                                        android.widget.Toast.makeText(context, "تم نسخ الرد بالكامل", android.widget.Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.AutoMirrored.Outlined.Assignment,
+                                                        contentDescription = "نسخ",
+                                                        tint = colors.accent,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -547,15 +619,44 @@ fun LivePricesScreen(colors: CustomThemeColors) {
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // 4. Live Currencies Grid
+        // 4. Live Currencies Grid with Search filter
+        var currencySearchQuery by remember { mutableStateOf("") }
         SectionHeader(colors = colors, title = "صرف العملات الأجنبية مقابل $currCode")
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = currencySearchQuery,
+            onValueChange = { currencySearchQuery = it },
+            placeholder = { Text("ابحث عن عملة أو دولة معينة...", fontSize = 12.sp, color = colors.textMuted) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = colors.accent,
+                unfocusedBorderColor = colors.border.copy(alpha = 0.3f),
+                focusedTextColor = colors.text,
+                unfocusedTextColor = colors.text
+            )
+        )
+
         Spacer(modifier = Modifier.height(10.dp))
+
+        val filteredCurrencies = remember(currencySearchQuery, currCode) {
+            LivePricesRepository.currencies.filter { c ->
+                c.code != currCode && (
+                    currencySearchQuery.isBlank() ||
+                    c.nameAr.contains(currencySearchQuery, ignoreCase = true) ||
+                    c.code.contains(currencySearchQuery, ignoreCase = true) ||
+                    c.countryAr.contains(currencySearchQuery, ignoreCase = true)
+                )
+            }
+        }
 
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            LivePricesRepository.currencies.filter { it.code != currCode }.take(6).forEach { c ->
+            filteredCurrencies.forEach { c ->
                 val convertedRate = LivePricesRepository.convertCurrency(1.0, c.code, currCode)
                 Box(
                     modifier = Modifier
@@ -571,11 +672,11 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(c.flag, fontSize = 20.sp)
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(c.flag, fontSize = 24.sp)
+                            Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(c.nameAr, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.text)
-                                Text(c.code, fontSize = 10.sp, color = colors.textMuted)
+                                Text("${c.countryAr} (${c.code})", fontSize = 10.sp, color = colors.textMuted)
                             }
                         }
                         Text(

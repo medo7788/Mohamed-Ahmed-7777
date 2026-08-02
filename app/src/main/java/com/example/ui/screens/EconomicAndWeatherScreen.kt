@@ -628,16 +628,6 @@ fun WeatherScreen(colors: CustomThemeColors) {
     var lng by remember { mutableStateOf<Double?>(null) }
     var accuracy by remember { mutableStateOf<Float?>(null) }
 
-    val locationLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
-            locState = LocationCardState.LOADING
-        } else {
-            locState = LocationCardState.PERMISSION_DENIED
-        }
-    }
-
     fun fetchLocation() {
         locState = LocationCardState.LOADING
         coroutineScope.launch {
@@ -665,6 +655,16 @@ fun WeatherScreen(colors: CustomThemeColors) {
                 is AppLocationProvider.Result.LocationDisabled -> locState = LocationCardState.DISABLED
                 is AppLocationProvider.Result.Timeout, is AppLocationProvider.Result.Error -> locState = LocationCardState.ERROR
             }
+        }
+    }
+
+    val locationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true || permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            fetchLocation()
+        } else {
+            locState = LocationCardState.PERMISSION_DENIED
         }
     }
 

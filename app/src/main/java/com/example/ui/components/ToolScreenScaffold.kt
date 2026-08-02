@@ -31,6 +31,7 @@ fun ToolScreenScaffold(
     showResult: Boolean = false,
     resultMainText: String? = null,
     resultSubText: String? = null,
+    isScrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Box(
@@ -45,7 +46,7 @@ fun ToolScreenScaffold(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .then(if (isScrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .statusBarsPadding()
         ) {
             // 1. Hero Card Header (Respects active theme colors)

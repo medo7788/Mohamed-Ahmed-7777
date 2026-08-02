@@ -75,6 +75,11 @@ object GeminiRepository {
                     put("parts", JSONArray().apply { put(JSONObject().put("text", prompt)) })
                 })
             })
+            put("tools", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("googleSearch", JSONObject())
+                })
+            })
         }
 
         val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
@@ -119,6 +124,11 @@ object GeminiRepository {
                 put(JSONObject().apply {
                     put("role", "user")
                     put("parts", JSONArray().apply { put(JSONObject().put("text", prompt)) })
+                })
+            })
+            put("tools", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("googleSearch", JSONObject())
                 })
             })
         }
@@ -216,6 +226,11 @@ object GeminiRepository {
         val jsonBody = JSONObject().apply {
             put("contents", contentsArray)
             put("systemInstruction", systemInstruction)
+            put("tools", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("googleSearch", JSONObject())
+                })
+            })
         }
 
         val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())

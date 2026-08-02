@@ -98,16 +98,22 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
         icon = AppIcons.forCalc(CalcKey.BASIC),
         title = "الآلة الحاسبة المتطورة",
         subtitle = "إجراء العمليات الحسابية البسيطة والعلمية بدقة",
+        isScrollable = false
     ) {
-        // Display Box: Obsidian Glass #1E262C, 75% Opacity, 24dp Radius, 1dp Royal Gold border
-        Surface(
-            color = Color(0xFF1E262C).copy(alpha = 0.75f),
-            shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, colors.accent),
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .height(520.dp) // Perfect fixed height to fit on all device dimensions beautifully without overflow
         ) {
+            // Display Box: Obsidian Glass #1E262C, 75% Opacity, 24dp Radius, 1dp Royal Gold border
+            Surface(
+                color = Color(0xFF1E262C).copy(alpha = 0.75f),
+                shape = RoundedCornerShape(24.dp),
+                border = BorderStroke(1.dp, colors.accent),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp)
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -180,57 +186,68 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
             }
         }
 
-        // Keypad Grid: 5 rows fully responsive
-        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.heightIn(max = 500.dp)
-            ) {
-                items(basicBtns) { btn ->
-                    val isOp = btn in listOf("÷", "×", "-", "+", "=")
-                    val isAction = btn in listOf("C", "⌫", "%", "±")
-
-                    val btnBg = when {
-                        isOp -> colors.surface2.copy(alpha = 0.75f)
-                        isAction -> colors.surface2.copy(alpha = 0.6f)
-                        else -> colors.surface.copy(alpha = 0.75f)
-                    }
-
-                    val btnFg = when {
-                        btn == "=" -> colors.appBg
-                        isOp -> colors.accent
-                        isAction -> Color(0xFF38BDF8) // Ice Cyan Functions
-                        else -> Color.White
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(18.dp),
-                        border = BorderStroke(
-                            1.dp,
-                            if (btn == "=") colors.accent else colors.accent.copy(alpha = 0.2f)
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(1.1f)
-                            .clip(RoundedCornerShape(18.dp))
-                            .clickable { onBtnClick(btn) }
-                            .then(
-                                if (btn == "=") {
-                                    Modifier.background(Brush.linearGradient(listOf(colors.accent, Color(0xFFCA8A04))))
-                                } else {
-                                    Modifier.background(btnBg)
-                                }
-                            ),
-                        color = Color.Transparent,
-                        shadowElevation = 2.dp
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.fillMaxSize()
+            // Keypad Grid: 5 rows fully responsive using nested weights
+            androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val rows = basicBtns.chunked(4)
+                    rows.forEach { rowBtns ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(btn, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = btnFg)
+                            rowBtns.forEach { btn ->
+                                val isOp = btn in listOf("÷", "×", "-", "+", "=")
+                                val isAction = btn in listOf("C", "⌫", "%", "±")
+
+                                val btnBg = when {
+                                    isOp -> colors.surface2.copy(alpha = 0.75f)
+                                    isAction -> colors.surface2.copy(alpha = 0.6f)
+                                    else -> colors.surface.copy(alpha = 0.75f)
+                                }
+
+                                val btnFg = when {
+                                    btn == "=" -> colors.appBg
+                                    isOp -> colors.accent
+                                    isAction -> Color(0xFF38BDF8) // Ice Cyan Functions
+                                    else -> Color.White
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(18.dp),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (btn == "=") colors.accent else colors.accent.copy(alpha = 0.2f)
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .clickable { onBtnClick(btn) }
+                                        .then(
+                                            if (btn == "=") {
+                                                Modifier.background(Brush.linearGradient(listOf(colors.accent, Color(0xFFCA8A04))))
+                                            } else {
+                                                Modifier.background(btnBg)
+                                            }
+                                        ),
+                                    color = Color.Transparent,
+                                    shadowElevation = 2.dp
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        Text(btn, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = btnFg)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
