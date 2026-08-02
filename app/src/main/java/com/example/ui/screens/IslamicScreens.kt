@@ -886,135 +886,133 @@ fun TasbihScreen(colors: CustomThemeColors) {
     }
 
     if (showDhikrSelector) {
-        var addDhikrInput by remember { mutableStateOf("") }
-
         AlertDialog(
             onDismissRequest = { showDhikrSelector = false },
             containerColor = colors.surface,
-            title = { Text("قائمة الأذكار والمسبحة", color = colors.text, fontWeight = FontWeight.Bold) },
+            title = { Text("اختر الذكر", color = colors.text, fontWeight = FontWeight.Bold) },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    // Add Custom Dhikr Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = addDhikrInput,
-                            onValueChange = { addDhikrInput = it },
-                            placeholder = { Text("اكتب ذكراً مخصصاً...", fontSize = 12.sp) },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = {
-                                if (addDhikrInput.isNotBlank()) {
-                                    val updated = customDhikrs.toMutableList()
-                                    if (!updated.contains(addDhikrInput.trim())) {
-                                        updated.add(addDhikrInput.trim())
-                                        val arr = org.json.JSONArray()
-                                        updated.forEach { arr.put(it) }
-                                        prefs.edit().putString("custom_dhikrs", arr.toString()).apply()
-                                        customDhikrs = updated
-                                    }
-                                    dhikrName = addDhikrInput.trim()
-                                    count = 0
-                                    addDhikrInput = ""
-                                    showDhikrSelector = false
-                                }
-                            },
+                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp)) {
+                    items(defaultDhikrs) { dhikr ->
+                        Surface(
+                            color = if (dhikrName == dhikr) colors.accent.copy(alpha = 0.1f) else Color.Transparent,
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = colors.accent)
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                dhikrName = dhikr
+                                count = 0
+                                showDhikrSelector = false
+                            }
                         ) {
-                            Text("إضافة", color = colors.appBg)
+                            Text(dhikr, modifier = Modifier.padding(16.dp), color = colors.text, fontSize = 18.sp)
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 240.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        // Default Dhikrs
+                    // إصلاح: كانت متغيرات الأذكار المخصصة (customDhikrs/showAddDialog)
+                    // معرّفة ومحمّلة من التفضيلات، لكن مفيش أي واجهة فعلية بتعرضها أو
+                    // بتسمح بإضافة/حذف ذكر جديد - القائمة دي كانت "ميتة" في الكود.
+                    if (customDhikrs.isNotEmpty()) {
                         item {
-                            Text("أذكار أساسية", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.textMuted)
+                            Text(
+                                "أذكارك المخصصة",
+                                color = colors.textMuted,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp, start = 12.dp)
+                            )
                         }
-                        items(defaultDhikrs.size) { idx ->
-                            val dhikr = defaultDhikrs[idx]
-                            Surface(
-                                color = if (dhikrName == dhikr) colors.accent.copy(alpha = 0.12f) else colors.surface2.copy(alpha = 0.5f),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
+                        items(customDhikrs) { dhikr ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Surface(
+                                    color = if (dhikrName == dhikr) colors.accent.copy(alpha = 0.1f) else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f).clickable {
                                         dhikrName = dhikr
                                         count = 0
                                         showDhikrSelector = false
                                     }
-                            ) {
-                                Text(dhikr, modifier = Modifier.padding(12.dp), color = colors.text, fontSize = 14.sp)
+                                ) {
+                                    Text(dhikr, modifier = Modifier.padding(16.dp), color = colors.text, fontSize = 18.sp)
+                                }
+                                IconButton(onClick = {
+                                    val updated = customDhikrs.toMutableList().apply { remove(dhikr) }
+                                    customDhikrs = updated
+                                    prefs.edit().putString(
+                                        "custom_dhikrs",
+                                        org.json.JSONArray(updated).toString()
+                                    ).apply()
+                                    if (dhikrName == dhikr) dhikrName = defaultDhikrs.first()
+                                }) {
+                                    Icon(Icons.Default.Delete, contentDescription = "حذف الذكر", tint = colors.textMuted)
+                                }
                             }
                         }
+                    }
 
-                        // Custom Dhikrs
-                        if (customDhikrs.isNotEmpty()) {
-                            item {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text("أذكارك المخصصة", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.textMuted)
+                    item {
+                        Surface(
+                            color = Color.Transparent,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                showDhikrSelector = false
+                                showAddDialog = true
                             }
-                            items(customDhikrs.size) { idx ->
-                                val dhikr = customDhikrs[idx]
-                                Surface(
-                                    color = if (dhikrName == dhikr) colors.accent.copy(alpha = 0.12f) else colors.surface2.copy(alpha = 0.5f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().clickable {
-                                            dhikrName = dhikr
-                                            count = 0
-                                            showDhikrSelector = false
-                                        }.padding(horizontal = 12.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(dhikr, color = colors.text, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                                        IconButton(
-                                            onClick = {
-                                                val updated = customDhikrs.toMutableList()
-                                                updated.remove(dhikr)
-                                                val arr = org.json.JSONArray()
-                                                updated.forEach { arr.put(it) }
-                                                prefs.edit().putString("custom_dhikrs", arr.toString()).apply()
-                                                customDhikrs = updated
-                                                if (dhikrName == dhikr) {
-                                                    dhikrName = defaultDhikrs[0]
-                                                    count = 0
-                                                }
-                                            },
-                                            modifier = Modifier.size(24.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Delete,
-                                                contentDescription = "حذف",
-                                                tint = colors.accent,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, tint = colors.accent)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("إضافة ذكر مخصص", color = colors.accent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showDhikrSelector = false }) { Text("إغلاق", color = colors.accent) }
+                TextButton(onClick = { showDhikrSelector = false }) { Text("إغلاق") }
+            }
+        )
+    }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false; newDhikrText = "" },
+            containerColor = colors.surface,
+            title = { Text("إضافة ذكر مخصص", color = colors.text, fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = newDhikrText,
+                    onValueChange = { newDhikrText = it },
+                    placeholder = { Text("اكتب الذكر هنا...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.accent,
+                        focusedTextColor = colors.text,
+                        unfocusedTextColor = colors.text
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val trimmed = newDhikrText.trim()
+                    if (trimmed.isNotBlank() && !customDhikrs.contains(trimmed) && !defaultDhikrs.contains(trimmed)) {
+                        val updated = customDhikrs.toMutableList().apply { add(trimmed) }
+                        customDhikrs = updated
+                        prefs.edit().putString(
+                            "custom_dhikrs",
+                            org.json.JSONArray(updated).toString()
+                        ).apply()
+                    }
+                    newDhikrText = ""
+                    showAddDialog = false
+                }) { Text("إضافة", color = colors.accent, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false; newDhikrText = "" }) { Text("إلغاء") }
             }
         )
     }

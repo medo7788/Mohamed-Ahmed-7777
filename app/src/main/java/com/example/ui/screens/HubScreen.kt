@@ -52,7 +52,7 @@ fun HubScreen(
 
     // Get all tools belonging to this specific hub category
     val categoryTools = remember(category) {
-        CalcKey.values().filter { it.category == category && it != CalcKey.HOME }
+        CalcKey.values().filter { it.category == category && it != CalcKey.HOME && it != CalcKey.SETTINGS }
     }
 
     Box(
@@ -67,6 +67,7 @@ fun HubScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
         ) {
             // Header bar
             Row(
