@@ -79,6 +79,9 @@ object AppIcons {
         CalcKey.NUM_WORDS -> Icons.Filled.EditNote
         CalcKey.GPA -> Icons.Filled.School
         CalcKey.HEX -> Icons.Filled.Tag
+
+        // Settings (make when exhaustive)
+        CalcKey.SETTINGS -> Icons.Filled.Settings
     }
 
     // Small set of general-purpose icons reused by shared components
