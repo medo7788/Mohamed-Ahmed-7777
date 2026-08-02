@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -55,8 +56,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-
         setContent {
             val context = LocalContext.current
             LaunchedEffect(Unit) {
@@ -64,6 +63,24 @@ class MainActivity : ComponentActivity() {
             }
 
             val currentThemeKey by viewModel.currentThemeKey.collectAsState()
+
+            // Dynamic World-Class Edge-To-Edge Integration: Ensures Status Bar & Navigation Bar
+            // icons are fully readable (dark icons on light theme, light icons on dark theme)
+            LaunchedEffect(currentThemeKey) {
+                val isDark = currentThemeKey == AppThemeKey.ELEGANT_DARK
+                enableEdgeToEdge(
+                    statusBarStyle = if (isDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    },
+                    navigationBarStyle = if (isDark) {
+                        SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+                    }
+                )
+            }
             val currentCalcKey by viewModel.currentCalcKey.collectAsState()
             val searchQuery by viewModel.searchQuery.collectAsState()
             val showThemesModal by viewModel.showThemesModal.collectAsState()

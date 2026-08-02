@@ -47,7 +47,6 @@ fun ToolScreenScaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .then(if (isScrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
-                .statusBarsPadding()
         ) {
             // 1. Hero Card Header (Respects active theme colors)
             Box(

@@ -282,7 +282,7 @@ private fun evaluateSimpleExpr(expr: String): Double {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CurrencyConverterScreen(colors: CustomThemeColors) {
-    var amountText by remember { mutableStateOf("") }
+    var amountText by remember { mutableStateOf("100") }
     var fromCode by remember { mutableStateOf("USD") }
     var toCode by remember { mutableStateOf("EGP") }
 
@@ -292,9 +292,39 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
     ToolScreenScaffold(
         colors = colors,
         icon = AppIcons.forCalc(CalcKey.CURRENCY),
-        title = "محول العملات",
-        subtitle = "تحويل فوري ودقيق بين العملات العالمية بناءً على أسعار السوق الحالية"
+        title = "محول العملات الذكي",
+        subtitle = "تحويل فوري فائق الدقة بين العملات العالمية مع تغذية حية من الأسواق العالمية"
     ) {
+        // Status Badge (Live Rates)
+        Surface(
+            color = Color(0xFF10B981).copy(alpha = 0.15f),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.3f)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF10B981))
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    "✓ الأسعار حية ومحدثة مباشرة وفقاً لمنصات البورصة المفتوحة",
+                    fontSize = 11.sp,
+                    color = Color(0xFF10B981),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
         // Input Card
         Surface(
             color = colors.surface,
@@ -306,8 +336,8 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it },
-                    label = { Text("المبلغ") },
-                    placeholder = { Text("أدخل القيمة") },
+                    label = { Text("المبلغ المراد تحويله") },
+                    placeholder = { Text("أدخل القيمة الرقمية") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -315,7 +345,8 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
                         focusedBorderColor = colors.accent,
                         unfocusedBorderColor = colors.border,
                         focusedTextColor = colors.text,
-                        unfocusedTextColor = colors.text
+                        unfocusedTextColor = colors.text,
+                        focusedLabelColor = colors.accent
                     ),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
                 )
@@ -337,12 +368,13 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
                             value = fromCode,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("من") },
+                            label = { Text("العملة المصدر") },
                             modifier = Modifier.menuAnchor(),
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = colors.accent,
-                                unfocusedBorderColor = colors.border
+                                unfocusedBorderColor = colors.border,
+                                focusedLabelColor = colors.accent
                             )
                         )
                         ExposedDropdownMenu(
@@ -367,9 +399,12 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
                             fromCode = toCode
                             toCode = tmp
                         },
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 10.dp)
+                            .clip(CircleShape)
+                            .background(colors.accent.copy(alpha = 0.12f))
                     ) {
-                        Icon(Icons.Default.SwapVert, null, tint = colors.accent)
+                        Icon(Icons.Default.SwapHoriz, null, tint = colors.accent)
                     }
 
                     // To
@@ -383,12 +418,13 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
                             value = toCode,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("إلى") },
+                            label = { Text("العملة المستهدفة") },
                             modifier = Modifier.menuAnchor(),
                             shape = RoundedCornerShape(16.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = colors.accent,
-                                unfocusedBorderColor = colors.border
+                                unfocusedBorderColor = colors.border,
+                                focusedLabelColor = colors.accent
                             )
                         )
                         ExposedDropdownMenu(
@@ -412,31 +448,56 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Result Card
+        // Premium Result Card (Google/Apple Level Polish)
         Surface(
-            color = colors.accent.copy(alpha = 0.05f),
-            shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
+            color = colors.accent.copy(alpha = 0.08f),
+            shape = RoundedCornerShape(28.dp),
+            border = BorderStroke(1.5.dp, colors.accent),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("القيمة المحولة", fontSize = 14.sp, color = colors.textMuted)
+                Text("القيمة الإجمالية المعادلة", fontSize = 13.sp, color = colors.textMuted, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "${LivePricesRepository.formatNumber(converted)} $toCode",
-                    fontSize = 32.sp,
+                    fontSize = 36.sp,
                     fontWeight = FontWeight.Black,
                     color = colors.accent
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "1 $fromCode = ${LivePricesRepository.formatNumber(LivePricesRepository.convertCurrency(1.0, fromCode, toCode))} $toCode",
-                    fontSize = 12.sp,
-                    color = colors.textMuted
-                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Detailed breakdown line
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.surface.copy(alpha = 0.6f))
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("معدل التحويل الأساسي:", fontSize = 12.sp, color = colors.textMuted)
+                    Text("1 $fromCode = ${LivePricesRepository.formatNumber(LivePricesRepository.convertCurrency(1.0, fromCode, toCode))} $toCode", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Popular conversion references to feel extremely professional
+                if (fromCode != "USD" && toCode != "USD") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(colors.surface.copy(alpha = 0.6f))
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("معدل التحويل للدولار الأمريكي:", fontSize = 12.sp, color = colors.textMuted)
+                        Text("1 $fromCode = ${LivePricesRepository.formatNumber(LivePricesRepository.convertCurrency(1.0, fromCode, "USD"))} USD", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    }
+                }
             }
         }
     }
@@ -465,15 +526,17 @@ fun GoldCalcScreen(colors: CustomThemeColors) {
     val pricePerGramUsd = LivePricesRepository.getGoldPricePerGramInUsd(selectedKarat)
     val pricePerGramLocal = LivePricesRepository.convertCurrency(pricePerGramUsd, "USD", selectedCurrencyCode)
 
-    val totalGoldCost = grams * (pricePerGramLocal + fee)
+    val rawGoldCost = grams * pricePerGramLocal
+    val makingFeeCost = grams * fee
+    val totalGoldCost = rawGoldCost + makingFeeCost
 
     ToolScreenScaffold(
         colors = colors,
         icon = AppIcons.forCalc(CalcKey.GOLD),
-        title = "حاسبة الذهب",
-        subtitle = "احسب تكلفة شراء الذهب بالعملة المحلية مع مراعاة المصنعية والعيار"
+        title = "حاسبة الذهب الذكية",
+        subtitle = "حساب فوري لتكاليف شراء وبيع الذهب عيار (24, 21, 18) مع احتساب المصنعية وهامش الصاغة"
     ) {
-        // Main Input Card
+        // Main Input Card (Premium Rounded Container)
         Surface(
             color = colors.surface,
             shape = RoundedCornerShape(24.dp),
@@ -491,12 +554,13 @@ fun GoldCalcScreen(colors: CustomThemeColors) {
                         value = LivePricesRepository.currencies.find { it.code == selectedCurrencyCode }?.let { "${it.flag} ${it.nameAr} (${it.code})" } ?: selectedCurrencyCode,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("عملة الأسعار") },
+                        label = { Text("عملة تسعير الذهب") },
                         modifier = Modifier.menuAnchor().fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = colors.accent,
-                            unfocusedBorderColor = colors.border
+                            unfocusedBorderColor = colors.border,
+                            focusedLabelColor = colors.accent
                         )
                     )
                     ExposedDropdownMenu(
@@ -515,62 +579,96 @@ fun GoldCalcScreen(colors: CustomThemeColors) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Karat Selection
-                Text("العيار", fontSize = 12.sp, color = colors.textMuted, modifier = Modifier.padding(bottom = 8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // Premium Karat Selection with elegant gold descriptions
+                Text("اختر العيار الشريف", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text, modifier = Modifier.padding(bottom = 8.dp))
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    listOf(24, 21, 18).forEach { k ->
+                    val karats = listOf(
+                        Triple(24, "ذهب خالص بنسبة 99.9% (نقي)", "مثالي للادخار والسبائك الاستثمارية"),
+                        Triple(21, "ذهب عيار 21 (المصنع الأكثر شهرة)", "الخيار الأول للزينة والمشغولات التقليدية"),
+                        Triple(18, "ذهب عيار 18 (الصلابة والجمال اليومي)", "مثالي للمصوغات المرصعة بالأحجار الكريمة")
+                    )
+
+                    karats.forEach { (k, title, desc) ->
+                        val isSelected = selectedKarat == k
                         Surface(
-                            color = if (selectedKarat == k) colors.accent else colors.surface2.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(12.dp),
+                            color = if (isSelected) colors.accent.copy(alpha = 0.15f) else colors.surface2.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) colors.accent else colors.border.copy(alpha = 0.5f)
+                            ),
                             modifier = Modifier
-                                .weight(1f)
+                                .fillMaxWidth()
                                 .clickable { selectedKarat = k }
                         ) {
-                            Text(
-                                "ع $k",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (selectedKarat == k) Color.White else colors.text,
-                                modifier = Modifier.padding(vertical = 12.dp),
-                                textAlign = TextAlign.Center
-                            )
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) colors.accent else colors.textMuted.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "ع$k",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = if (isSelected) Color.White else colors.text
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                                    Text(desc, fontSize = 10.sp, color = colors.textMuted)
+                                }
+                                if (isSelected) {
+                                    Icon(Icons.Default.Check, null, tint = colors.accent, modifier = Modifier.size(18.dp))
+                                }
+                            }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 OutlinedTextField(
                     value = gramsText,
                     onValueChange = { gramsText = it },
-                    label = { Text("الوزن (جرام)") },
+                    label = { Text("الوزن الإجمالي (جرام)") },
+                    placeholder = { Text("أدخل عدد الجرامات") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = colors.accent,
-                        unfocusedBorderColor = colors.border
+                        unfocusedBorderColor = colors.border,
+                        focusedLabelColor = colors.accent
                     ),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 OutlinedTextField(
                     value = makingFeeGrams,
                     onValueChange = { makingFeeGrams = it },
-                    label = { Text("المصنعية لكل جرام ($selectedCurrencyCode)") },
+                    label = { Text("قيمة المصنعية لكل جرام ($selectedCurrencyCode)") },
+                    placeholder = { Text("أدخل تكلفة المصنعية للصائغ") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = colors.accent,
-                        unfocusedBorderColor = colors.border
+                        unfocusedBorderColor = colors.border,
+                        focusedLabelColor = colors.accent
                     ),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
                 )
@@ -579,30 +677,59 @@ fun GoldCalcScreen(colors: CustomThemeColors) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Result Card
+        // Premium Result Card with professional dynamic breakdown
         Surface(
-            color = colors.surface2.copy(alpha = 0.5f),
-            shape = RoundedCornerShape(24.dp),
+            color = colors.accent.copy(alpha = 0.08f),
+            shape = RoundedCornerShape(28.dp),
+            border = BorderStroke(1.5.dp, colors.accent),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("التكلفة الإجمالية", fontSize = 14.sp, color = colors.textMuted)
+                Text("التكلفة الإجمالية التقديرية للشراء", fontSize = 13.sp, color = colors.textMuted, fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "${LivePricesRepository.formatNumber(totalGoldCost)} $selectedCurrencyCode",
-                    fontSize = 32.sp,
+                    fontSize = 36.sp,
                     fontWeight = FontWeight.Black,
                     color = colors.accent
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    "سعر الجرام الصافي: ${LivePricesRepository.formatNumber(pricePerGramLocal)}",
-                    fontSize = 12.sp,
-                    color = colors.textMuted
-                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Elegant receipt-style breakdown
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.surface.copy(alpha = 0.6f))
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("سعر الجرام الصافي الصرف الحالي:", fontSize = 11.sp, color = colors.textMuted)
+                        Text("${LivePricesRepository.formatNumber(pricePerGramLocal)} $selectedCurrencyCode", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("تكلفة الذهب الخام الصافي (${grams} جرام):", fontSize = 11.sp, color = colors.textMuted)
+                        Text("${LivePricesRepository.formatNumber(rawGoldCost)} $selectedCurrencyCode", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("مجموع المصنعية المضافة للصياغة:", fontSize = 11.sp, color = colors.textMuted)
+                        Text("${LivePricesRepository.formatNumber(makingFeeCost)} $selectedCurrencyCode", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colors.text)
+                    }
+                }
             }
         }
     }
