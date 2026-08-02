@@ -356,25 +356,61 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
 
     val sensorManager = remember { context.getSystemService(Context.SENSOR_SERVICE) as SensorManager }
     var isCompassActive by remember { mutableStateOf(true) }
+    var sensorAccuracy by remember { mutableStateOf(SensorManager.SENSOR_STATUS_ACCURACY_HIGH) }
 
+    // إصلاح: Sensor.TYPE_ORIENTATION حساس مهجور (deprecated) وغير دقيق/غير مدعوم
+    // بشكل موثوق على الأجهزة الحديثة. الطريقة الصحيحة الحالية هي قراءة
+    // TYPE_ROTATION_VECTOR وتحويله لمصفوفة دوران ثم لزوايا اتجاه (azimuth) عن طريق
+    // SensorManager.getRotationMatrix() + getOrientation().
     DisposableEffect(isCompassActive) {
         val listener = object : SensorEventListener {
+            private val rotationMatrix = FloatArray(9)
+            private val orientationAngles = FloatArray(3)
+
             override fun onSensorChanged(event: SensorEvent?) {
-                if (event != null && event.sensor.type == Sensor.TYPE_ORIENTATION) {
-                    azimuth = event.values[0]
+                if (event != null && event.sensor.type == Sensor.TYPE_ROTATION_VECTOR) {
+                    SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
+                    SensorManager.getOrientation(rotationMatrix, orientationAngles)
+                    // azimuth راديان → درجات، وتطبيع للمدى 0..360
+                    val azimuthDegrees = Math.toDegrees(orientationAngles[0].toDouble()).toFloat()
+                    azimuth = (azimuthDegrees + 360) % 360
                 }
             }
-            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+                sensorAccuracy = accuracy
+            }
         }
         if (isCompassActive) {
-            val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION)
+            val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
             sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
         }
         onDispose { sensorManager.unregisterListener(listener) }
     }
 
     val rotation = -azimuth + qiblaAngle
-    val animatedRotation by animateFloatAsState(targetValue = rotation, animationSpec = tween(500))
+    // حركة أنعم بدل tween الخطي القديم - قريبة من إحساس إبرة بوصلة حقيقية
+    val animatedRotation by animateFloatAsState(
+        targetValue = rotation,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        )
+    )
+
+    // المحاذاة الدقيقة مع اتجاه القبلة (±2 درجة)، مع حساب الفرق الدائري الصحيح
+    // (عشان مثلاً 359° و1° يبقوا فرق 2 درجة مش 358)
+    val angleDiff = remember(azimuth, qiblaAngle) {
+        val diff = kotlin.math.abs(azimuth - qiblaAngle) % 360f
+        if (diff > 180f) 360f - diff else diff
+    }
+    val isAligned = angleDiff <= 2f
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    LaunchedEffect(isAligned) {
+        if (isAligned) {
+            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+        }
+    }
 
     ToolScreenScaffold(
         colors = colors,
@@ -422,7 +458,12 @@ fun QiblaDirectionScreen(colors: CustomThemeColors) {
                         .size(260.dp)
                         .clip(CircleShape)
                         .background(colors.surface2.copy(alpha = 0.3f))
-                        .border(1.dp, colors.border.copy(alpha = 0.5f), CircleShape),
+                        .border(
+                            width = if (isAligned) 2.dp else 1.dp,
+                            // توهج ذهبي عند المحاذاة الدقيقة (±2 درجة) مع اتجاه القبلة
+                            color = if (isAligned) colors.accent else colors.border.copy(alpha = 0.5f),
+                            shape = CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     // Compass Dial marks
@@ -1737,6 +1778,44 @@ fun SurahDetailReader(
                 if (versesList.isNotEmpty()) {
                     val currentAyah = listState.firstVisibleItemIndex + 1
                     quranPrefs.edit().putInt("last_ayah_num", currentAyah).apply()
+                }
+            }
+
+            // إصلاح: "متابعة القراءة"/"وردك اليومي" كان بيفضل يرجّع نفس السورة اللي
+            // فتحتها آخر مرة للأبد، حتى لو خلّصتها بالكامل - لأن مفيش أي منطق بيكتشف
+            // إن المستخدم وصل لآخر آية ويحرّك المؤشر للسورة اللي بعدها. دلوقتي لما
+            // آخر آية في السورة تظهر على الشاشة (زي سورة الفاتحة القصيرة اللي ممكن
+            // تظهر كاملة من غير سكرول أصلًا) ويستمر وضوحها لثواني (عشان نتأكد إنه
+            // قراها فعلًا مش بس فتح وقفل بسرعة)، بنحفظ رقم السورة التالية كـ"آخر قراءة".
+            val isLastAyahVisible = versesList.isNotEmpty() &&
+                listState.layoutInfo.visibleItemsInfo.any { it.index == versesList.lastIndex }
+
+            LaunchedEffect(isLastAyahVisible, surah.number) {
+                if (isLastAyahVisible) {
+                    kotlinx.coroutines.delay(3000) // تأكيد إن المستخدم فعلًا استقر على آخر آية
+                    val stillVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == versesList.lastIndex }
+                    if (stillVisible) {
+                        val nextSurahNumber = surah.number + 1
+                        if (nextSurahNumber <= 114) {
+                            val nextSurah = IslamicData.surahs.find { it.number == nextSurahNumber }
+                            if (nextSurah != null) {
+                                quranPrefs.edit()
+                                    .putInt("last_surah_num", nextSurahNumber)
+                                    .putString("last_surah_name", nextSurah.nameAr)
+                                    .putInt("last_ayah_num", 1)
+                                    .apply()
+                            }
+                        } else {
+                            // خلّص المصحف كله (سورة الناس) - يرجع الورد يبدأ من الفاتحة
+                            // تاني بدل ما يفضل عالق على آخر سورة
+                            quranPrefs.edit()
+                                .putInt("last_surah_num", 1)
+                                .putString("last_surah_name", "الفاتحة")
+                                .putInt("last_ayah_num", 1)
+                                .putBoolean("khatma_completed_flag", true)
+                                .apply()
+                        }
+                    }
                 }
             }
 
