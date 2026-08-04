@@ -31,21 +31,6 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CustomThemeColors
 import com.example.ui.theme.DesignTokens
 import com.example.ui.theme.Spacing
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.haze
-import dev.chrisbanes.haze.hazeChild
-
-/**
- * حالة الزجاج المشتركة للشاشة الحالية. تُنشأ مرة واحدة في ToolScaffold/HubScaffold
- * وتُمرَّر ضمنيًا لكل FrostedGlassCard جوه نفس الشاشة عن طريق CompositionLocal، بدل
- * ما نضطر نعدّل توقيع كل استدعاء لـFrostedGlassCard في كل الشاشات.
- *
- * لو null (شاشة لسه ملهاش خلفية موصولة بـHaze، زي HomeScreen حاليًا) - الكارت
- * بيرجع تلقائيًا لنفس سلوك الشفافية+الحدود القديم بدون أي كسر.
- */
-val LocalHazeState = compositionLocalOf<HazeState?> { null }
 
 enum class FrostedGlassCardVariant {
     Hero, Standard, Compact
@@ -76,11 +61,11 @@ fun FrostedGlassCard(
         else -> DesignTokens.Elevation.Card
     }
 
-    // إصلاح: كان في السابق Color(0xFF1E262C) ثابت للثيم الغامق، مختلف فعليًا عن
-    // colors.surface الحقيقي (0xFF20262B) في ClevTheme.kt - يعني أي تعديل على لون
-    // السطح في الثيم كان مش هينعكس هنا. دلوقتي بنستخدم colors.surface دايمًا في
-    // الحالتين، وهو أصلًا معرّف بقيمة مختلفة لكل ثيم في ClevTheme.kt.
-    val cardBgColor = colors.surface.copy(alpha = alpha)
+    val cardBgColor = if (colors.isDark) {
+        Color(0xFF1E262C).copy(alpha = alpha)
+    } else {
+        colors.surface.copy(alpha = alpha)
+    }
 
     val borderBrush = Brush.linearGradient(
         colors = listOf(
@@ -88,8 +73,6 @@ fun FrostedGlassCard(
             colors.border.copy(alpha = 0.15f)
         )
     )
-
-    val hazeState = LocalHazeState.current
 
     Surface(
         modifier = modifier
@@ -100,32 +83,13 @@ fun FrostedGlassCard(
             )
             .clip(RoundedCornerShape(radius))
             .then(
-                // لو الشاشة عندها HazeState مربوط بخلفيتها (عبر .haze() على الكونتينر
-                // الرئيسي) → بلور حقيقي. غير كده → يفضل نفس سلوك الشفافية القديم
-                // (fallback آمن للأجهزة القديمة أو الشاشات اللي لسه ماتوصلتش).
-                if (hazeState != null) {
-                    Modifier.hazeChild(
-                        state = hazeState,
-                        style = HazeStyle(
-                            tint = HazeTint(cardBgColor),
-                            blurRadius = 20.dp,
-                            noiseFactor = 0.05f
-                        )
-                    )
-                } else {
-                    Modifier
-                }
-            )
-            .then(
                 if (onClick != null) {
                     Modifier.clickable(onClick = onClick)
                 } else {
                     Modifier
                 }
             ),
-        // لو فيه Haze شغال، خلي الـSurface نفسها شفافة تمامًا عشان الـhazeChild فوق
-        // هو اللي يرسم الخلفية المبلورة؛ غير كده استخدم اللون الشبه-شفاف القديم.
-        color = if (hazeState != null) Color.Transparent else cardBgColor,
+        color = cardBgColor,
         border = BorderStroke(1.2.dp, borderBrush)
     ) {
         Column(

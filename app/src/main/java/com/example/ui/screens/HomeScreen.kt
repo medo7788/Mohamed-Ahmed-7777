@@ -52,10 +52,6 @@ import com.example.ui.components.FrostedGlassCard
 import com.example.ui.components.FrostedGlassCardVariant
 import com.example.ui.components.SectionHeader
 import com.example.ui.components.HubCategoryCard
-import com.example.util.AppLocationProvider
-import com.example.data.WeatherRepository
-import com.example.data.IslamicData
-import kotlinx.coroutines.launch
 import com.example.ui.components.GlassSearchBar
 import java.text.SimpleDateFormat
 import java.util.*
@@ -73,71 +69,6 @@ fun HomeScreen(
 
     val favoriteTools by viewModel.favoriteTools.collectAsState()
     val recentTools by viewModel.recentTools.collectAsState()
-
-    // إصلاح: كانت مدينة القاهرة/الطقس/العد التنازلي للصلاة نصوص ثابتة (Placeholder)
-    // غير مرتبطة بموقع أو مواقيت المستخدم الفعلية، رغم إن نفس منطق الحساب الحقيقي
-    // مستخدم بالفعل وبيشتغل صح في شاشتي الصلاة والقبلة. هنا بنجيب نفس البيانات
-    // الحقيقية ونعرضها في الـHero بدل النص الثابت.
-    var cityLabel by remember { mutableStateOf("جارِ تحديد الموقع...") }
-    var weatherTempC by remember { mutableStateOf<Double?>(null) }
-    var weatherConditionAr by remember { mutableStateOf("") }
-    var nextPrayerText by remember { mutableStateOf("جارِ حساب مواقيت الصلاة...") }
-
-    LaunchedEffect(Unit) {
-        val locResult = AppLocationProvider.getLastKnownLocation(context)
-        val (lat, lng) = when (locResult) {
-            is AppLocationProvider.Result.Success -> locResult.latitude to locResult.longitude
-            else -> {
-                val cached = AppLocationProvider.getCachedLocation(context)
-                if (cached != null) {
-                    cityLabel = cached.placeName ?: cityLabel
-                    cached.lat to cached.lng
-                } else {
-                    // لا يوجد إذن/موقع محفوظ - نسيب النص الافتراضي ونوقف هنا
-                    nextPrayerText = "فعّل الموقع لعرض مواقيت الصلاة"
-                    return@LaunchedEffect
-                }
-            }
-        }
-
-        // الطقس الحقيقي لنفس الإحداثيات
-        launch {
-            try {
-                val weather = WeatherRepository.fetchRealWeather(context, lat, lng)
-                weatherTempC = weather.tempC
-                weatherConditionAr = weather.conditionAr
-            } catch (_: Exception) { /* يفضل النص الافتراضي لو فشل الطلب */ }
-        }
-
-        // العد التنازلي الحقيقي للصلاة القادمة بنفس منطق شاشة الصلاة
-        try {
-            val tzOffset = IslamicData.getCorrectTimezoneOffset(lat, lng)
-            val times = IslamicData.calculatePrayerTimes(lat, lng, tzOffset)
-            val now = java.util.Calendar.getInstance()
-            val nowMinutes = now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
-
-            fun toMinutes(hhmm: String): Int {
-                val parts = hhmm.split(":")
-                return parts[0].toInt() * 60 + parts[1].toInt()
-            }
-
-            val prayers = listOf(
-                "الفجر" to toMinutes(times.fajr),
-                "الظهر" to toMinutes(times.dhuhr),
-                "العصر" to toMinutes(times.asr),
-                "المغرب" to toMinutes(times.maghrib),
-                "العشاء" to toMinutes(times.isha)
-            )
-            // أول صلاة قادمة لسه ماجاش وقتها، أو الفجر بكرة لو الكل فات
-            val next = prayers.firstOrNull { it.second > nowMinutes } ?: prayers.first()
-            val minutesUntil = if (next.second > nowMinutes) next.second - nowMinutes else (1440 - nowMinutes + next.second)
-            nextPrayerText = if (minutesUntil < 60) {
-                "صلاة ${next.first} بعد $minutesUntil دقيقة"
-            } else {
-                "صلاة ${next.first} بعد ${minutesUntil / 60} س ${minutesUntil % 60} د"
-            }
-        } catch (_: Exception) { }
-    }
 
     val allTools = remember { CalcKey.values().filter { it != CalcKey.HOME } }
 
@@ -335,13 +266,13 @@ fun HomeScreen(
                             ) {
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
-                                        text = cityLabel,
+                                        text = "القاهرة، مصر",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = colors.text
                                     )
                                     Text(
-                                        text = if (weatherTempC != null) "${weatherTempC!!.toInt()}° م • $weatherConditionAr" else "جارِ التحميل...",
+                                        text = "28° م • مشمس",
                                         fontSize = 10.sp,
                                         color = colors.textMuted
                                     )

@@ -28,7 +28,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -413,31 +412,7 @@ fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
 
                         if (aiReportText != null) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            // إصلاح: كان التقرير Text عادي جوه Column غير قابل للسكرول
-                            // وبدون إمكانية نسخ - يعني تقرير طويل كان بيتقطع ومفيش
-                            // طريقة تقرأ باقيه أو تنسخه.
-                            val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 320.dp)
-                                    .verticalScroll(androidx.compose.foundation.rememberScrollState())
-                            ) {
-                                androidx.compose.foundation.text.selection.SelectionContainer {
-                                    Text(aiReportText!!, fontSize = 12.sp, color = colors.text, lineHeight = 19.sp)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            TextButton(
-                                onClick = {
-                                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(aiReportText!!))
-                                },
-                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
-                            ) {
-                                Icon(androidx.compose.material.icons.Icons.Default.ContentCopy, null, tint = colors.accent, modifier = Modifier.size(14.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("نسخ التقرير كامل", fontSize = 11.sp, color = colors.accent)
-                            }
+                            Text(aiReportText!!, fontSize = 12.sp, color = colors.text, lineHeight = 19.sp)
                         } else if (!isGeneratingReport) {
                             Spacer(modifier = Modifier.height(6.dp))
                             Text("اضغط على الزر أعلاه للحصول على تقرير شامل عن فرص الاستثمار والتضخم والأسواق في ${country.nameAr}، أو اسأل الخبير المالي أي سؤال مباشرة.", fontSize = 12.sp, color = colors.textMuted)

@@ -72,8 +72,6 @@ googleServices { missingGoogleServicesStrategy = MissingGoogleServicesStrategy.W
 // This makes it easy to add them back in the future if needed.
 dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
-  implementation(libs.haze)
-  implementation(libs.haze.materials)
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
   // implementation(libs.accompanist.permissions)

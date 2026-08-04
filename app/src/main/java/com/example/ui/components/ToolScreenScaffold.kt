@@ -7,8 +7,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -21,8 +19,6 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CustomThemeColors
 import com.example.ui.theme.DesignTokens
 import com.example.ui.theme.Spacing
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.haze
 
 @Composable
 fun ToolScreenScaffold(
@@ -38,10 +34,6 @@ fun ToolScreenScaffold(
     isScrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    // حالة الزجاج الخاصة بالشاشة دي - أي FrostedGlassCard جوه content() هيلاقيها
-    // تلقائيًا عن طريق LocalHazeState من غير ما نعدّل توقيعه.
-    val hazeState = remember { HazeState() }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -50,8 +42,6 @@ fun ToolScreenScaffold(
                     listOf(colors.headerBg, colors.appBg)
                 )
             )
-            // الخلفية دي هي اللي هتتبلور خلف أي كارت زجاجي فوقها
-            .haze(hazeState)
     ) {
         Column(
             modifier = Modifier
@@ -113,9 +103,7 @@ fun ToolScreenScaffold(
                         .padding(Spacing.Medium)
                         .fillMaxWidth()
                 ) {
-                    CompositionLocalProvider(LocalHazeState provides hazeState) {
-                        content()
-                    }
+                    content()
 
                     // Result Area (Glassmorphic results container)
                     if (showResult) {
