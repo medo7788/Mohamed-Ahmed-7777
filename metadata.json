@@ -1,5 +1,5 @@
 {
-  "name": "Clev App",
+  "name": "ClevCalc Pro",
   "description": "الحاسبة الاحترافية الشاملة - أدوات حسابية وإسلامية ومالية ومساعد ذكي",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

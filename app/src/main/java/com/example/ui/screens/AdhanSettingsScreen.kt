@@ -23,6 +23,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.example.ui.theme.AppIcons
 import com.example.ui.theme.CustomThemeColors
 import com.example.ui.components.ToolScreenScaffold
@@ -55,6 +57,7 @@ private val PRAYER_TOGGLES = listOf(
 @Composable
 fun AdhanSettingsScreen(colors: CustomThemeColors, viewModel: MainViewModel) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val prefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
     val currentThemeKey by viewModel.currentThemeKey.collectAsState()
 
@@ -118,11 +121,11 @@ fun AdhanSettingsScreen(colors: CustomThemeColors, viewModel: MainViewModel) {
             soundUri
         } else {
             val voiceUrl = when (selectedAdhanVoice) {
-                "makkah" -> "https://www.islamcan.com/audio/adhan/adhan-makkah.mp3"
-                "madinah" -> "https://www.islamcan.com/audio/adhan/adhan-madinah.mp3"
-                "alafasy" -> "https://www.islamcan.com/audio/adhan/adhan-alafasy.mp3"
-                "abdulbasit" -> "https://www.islamcan.com/audio/adhan/adhan-abdulbasit.mp3"
-                else -> "https://www.islamcan.com/audio/adhan/adhan-makkah.mp3"
+                "makkah" -> "https://cdn.aladhan.com/audio/adhan/Makkah.mp3"
+                "madinah" -> "https://cdn.aladhan.com/audio/adhan/Madinah.mp3"
+                "alafasy" -> "https://cdn.aladhan.com/audio/adhan/Alafasy.mp3"
+                "abdulbasit" -> "https://cdn.aladhan.com/audio/adhan/Abdulbasit.mp3"
+                else -> "https://cdn.aladhan.com/audio/adhan/Makkah.mp3"
             }
             Uri.parse(voiceUrl)
         } ?: return
@@ -236,6 +239,11 @@ fun AdhanSettingsScreen(colors: CustomThemeColors, viewModel: MainViewModel) {
                                 onClick = {
                                     selectedAdhanVoice = voice.first
                                     prefs.edit().putString(KEY_ADHAN_VOICE, voice.first).apply()
+                                    if (voice.first != "system") {
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            com.example.util.FileDownloader.downloadAdhanVoice(context, voice.first)
+                                        }
+                                    }
                                     showAdhanVoiceDropdown = false
                                 }
                             )

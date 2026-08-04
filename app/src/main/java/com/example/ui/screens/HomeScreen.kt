@@ -575,14 +575,14 @@ fun HomeScreen(
                             title = "أبواب المنصة والأقسام الشاملة"
                         )
 
-                        // Gateway Hub 1: Islamic
+                        // Gateway Hub 1: Islamic & Worship Hub (Direct Route to Prayer Times & Worship Screen)
                         HubCategoryCard(
                             colors = colors,
-                            title = CategoryKey.ISLAMIC.label,
+                            title = "مواقيت الصلاة والعبادات",
                             icon = AppIcons.forCategory(CategoryKey.ISLAMIC),
                             toolCount = allTools.count { it.category == CategoryKey.ISLAMIC },
                             gradient = Brush.linearGradient(listOf(Color(0xFF042F2C), Color(0xFF10B981))),
-                            onClick = { activeHubCategory = CategoryKey.ISLAMIC }
+                            onClick = { onSelectCalc(CalcKey.PRAYER) }
                         )
 
                         // Gateway Hub 2: Finance

@@ -101,22 +101,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Back handler to navigate back to Home screen if on sub-screen or pop gracefully
+            // إصلاح: النسخة دي رجّعت نفس الباگ القديم لكن جزئيًا - شاشات "الطقس/المساعد
+            // الذكي/إعدادات الأذان" كانت بتُعامل كـ"تابات" وبتستخدم popUpTo(inclusive=true)
+            // اللي بتهدم الشاشة الرئيسية وتبنيها من جديد (فاقدة أي باب مفتوح كان قبلها).
+            // الصح إننا نستخدم popBackStack() دايمًا بدون استثناءات - أبسط وأصح ومحافظ
+            // على حالة الشاشة الرئيسية بدل ما يبنيها من الصفر.
             BackHandler(enabled = currentCalcKey != CalcKey.HOME) {
-                val isTab = currentCalcKey == CalcKey.WEATHER || currentCalcKey == CalcKey.AI || currentCalcKey == CalcKey.ADHAN_SETTINGS
-                if (isTab) {
-                    navController.navigate(CalcKey.HOME.name) {
-                        popUpTo(CalcKey.HOME.name) { inclusive = true }
-                        launchSingleTop = true
-                    }
-                } else {
-                    if (!navController.popBackStack()) {
-                        navController.navigate(CalcKey.HOME.name) {
-                            popUpTo(CalcKey.HOME.name) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    }
-                }
+                navController.popBackStack()
             }
 
             val colors = getThemeColors(currentThemeKey)
@@ -267,7 +258,19 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.LIVE_PRICES.name) { LivePricesScreen(colors) }
                                  composable(CalcKey.ECONOMIC_INDICATORS.name) { EconomicIndicatorsScreen(colors) }
                                 composable(CalcKey.WEATHER.name) { WeatherScreen(colors) }
-                                composable(CalcKey.PRAYER.name) { PrayerTimesScreen(colors) }
+                                composable(CalcKey.PRAYER.name) {
+                                     PrayerTimesScreen(
+                                         colors = colors,
+                                         onNavigate = { key ->
+                                             viewModel.recordToolOpened(context, key.name)
+                                             navController.navigate(key.name) {
+                                                 popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                 launchSingleTop = true
+                                                 restoreState = true
+                                             }
+                                         }
+                                     )
+                                 }
                                 composable(CalcKey.QIBLA.name) { QiblaDirectionScreen(colors) }
                                 composable(CalcKey.ADHKAR.name) { AdhkarScreen(colors) }
                                 composable(CalcKey.TASBIH.name) { TasbihScreen(colors) }

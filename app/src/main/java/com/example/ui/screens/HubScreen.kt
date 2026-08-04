@@ -42,6 +42,62 @@ fun HubScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    if (category == CategoryKey.ISLAMIC) {
+        LaunchedEffect(Unit) {
+            onToolClick(CalcKey.PRAYER)
+            onBackClick()
+        }
+        return
+    }
+
+    if (category == CategoryKey.FINANCE) {
+        FinanceHubScreen(
+            colors = colors,
+            favoriteTools = favoriteTools,
+            onToggleFavorite = onToggleFavorite,
+            onToolClick = onToolClick,
+            onBackClick = onBackClick,
+            modifier = modifier
+        )
+        return
+    }
+
+    if (category == CategoryKey.DATE_TIME) {
+        TimeDatesHubScreen(
+            colors = colors,
+            favoriteTools = favoriteTools,
+            onToggleFavorite = onToggleFavorite,
+            onToolClick = onToolClick,
+            onBackClick = onBackClick,
+            modifier = modifier
+        )
+        return
+    }
+
+    if (category == CategoryKey.HEALTH) {
+        HealthHubScreen(
+            colors = colors,
+            favoriteTools = favoriteTools,
+            onToggleFavorite = onToggleFavorite,
+            onToolClick = onToolClick,
+            onBackClick = onBackClick,
+            modifier = modifier
+        )
+        return
+    }
+
+    if (category == CategoryKey.UTILITIES) {
+        PracticalToolsHubScreen(
+            colors = colors,
+            favoriteTools = favoriteTools,
+            onToggleFavorite = onToggleFavorite,
+            onToolClick = onToolClick,
+            onBackClick = onBackClick,
+            modifier = modifier
+        )
+        return
+    }
+
     val categoryColor = when (category) {
         CategoryKey.ISLAMIC -> Color(0xFF10B981)
         CategoryKey.FINANCE -> Color(0xFFF59E0B)

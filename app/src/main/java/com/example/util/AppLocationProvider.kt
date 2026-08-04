@@ -63,11 +63,19 @@ object AppLocationProvider {
         return lm.isProviderEnabled(LocationManager.GPS_PROVIDER) || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
     }
 
+    private fun getAttributionContext(context: Context): Context {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            context.createAttributionContext("default")
+        } else {
+            context
+        }
+    }
+
     @SuppressLint("MissingPermission")
     suspend fun getLastKnownLocation(context: Context): Result {
         if (!hasLocationPermission(context)) return Result.PermissionDenied
         return try {
-            val client = LocationServices.getFusedLocationProviderClient(context)
+            val client = LocationServices.getFusedLocationProviderClient(getAttributionContext(context))
             val loc = client.lastLocation.await()
             if (loc != null) {
                 Result.Success(loc.latitude, loc.longitude, loc.accuracy)
@@ -85,7 +93,7 @@ object AppLocationProvider {
 
         return suspendCancellableCoroutine { cont ->
             try {
-                val client = LocationServices.getFusedLocationProviderClient(context)
+                val client = LocationServices.getFusedLocationProviderClient(getAttributionContext(context))
                 val request = CurrentLocationRequest.Builder()
                     .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
                     .setDurationMillis(15_000)

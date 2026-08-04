@@ -131,8 +131,10 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
             },
             bottomBar = {
                 Surface(
-                    color = colors.surface.copy(alpha = 0.9f),
-                    border = BorderStroke(1.dp, colors.border.copy(alpha = 0.15f)),
+                    color = colors.surface,
+                    tonalElevation = 8.dp,
+                    shadowElevation = 12.dp,
+                    border = BorderStroke(1.dp, colors.border.copy(alpha = 0.2f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
@@ -141,7 +143,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedTextField(
@@ -155,13 +157,13 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                                 focusedContainerColor = colors.surface2,
                                 unfocusedContainerColor = colors.surface2,
                                 focusedBorderColor = colors.accent,
-                                unfocusedBorderColor = colors.border.copy(alpha = 0.5f),
+                                unfocusedBorderColor = colors.border.copy(alpha = 0.3f),
                                 focusedTextColor = colors.text,
                                 unfocusedTextColor = colors.text
                             )
                         )
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
 
                         Box(
                             modifier = Modifier
@@ -209,7 +211,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("جاري البحث والاستنباط وصياغة الرد الحصري لعام 2026...", fontSize = 11.sp, color = colors.textMuted)
+                            Text("جاري استخلاص الإجابة الحسابية والمالية المحدثة...", fontSize = 11.sp, color = colors.textMuted)
                         }
                     }
                 }
@@ -245,7 +247,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                                     bottomEnd = if (isAi) 16.dp else 4.dp
                                 ),
                                 border = BorderStroke(1.dp, colors.border.copy(alpha = 0.2f)),
-                                modifier = Modifier.widthIn(max = 280.dp)
+                                modifier = Modifier.widthIn(max = 300.dp)
                             ) {
                                 SelectionContainer {
                                     Column(modifier = Modifier.padding(12.dp)) {
@@ -265,7 +267,7 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                                                 IconButton(
                                                     onClick = {
                                                         clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(msg.text))
-                                                        android.widget.Toast.makeText(context, "تم نسخ الرد بالكامل", android.widget.Toast.LENGTH_SHORT).show()
+                                                        android.widget.Toast.makeText(context, "تم نسخ النص إلى الحافظة", android.widget.Toast.LENGTH_SHORT).show()
                                                     },
                                                     modifier = Modifier.size(24.dp)
                                                 ) {
@@ -279,6 +281,49 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Quick Prompt Chips (appears at bottom of list since reverseLayout = true)
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "💡 اقتراحات سريعة للبدء:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.accent,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        val quickPrompts = listOf(
+                            "احسب لي زكاة مال بقيمة 100,000 ريال",
+                            "ما هو سعر الذهب اليوم مع تحليل اتجاه السوق؟",
+                            "كيف أصمم ميزانية شهرياً للادخار والاستثمار؟",
+                            "طريقة حساب المواريث والتركات الشرعية"
+                        )
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(quickPrompts.size) { qIdx ->
+                                val pText = quickPrompts[qIdx]
+                                Surface(
+                                    color = colors.surface,
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
+                                    modifier = Modifier.clickable { sendMessage(pText) }
+                                ) {
+                                    Text(
+                                        text = pText,
+                                        fontSize = 11.sp,
+                                        color = colors.text,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
                                 }
                             }
                         }

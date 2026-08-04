@@ -27,14 +27,17 @@ object GeminiRepository {
     data class AIModel(val id: String, val displayName: String)
 
     val AVAILABLE_MODELS = listOf(
-        AIModel("gemini-3.1-flash-lite-preview", "Gemini 3.1 Flash Lite")
+        AIModel("gemini-2.5-flash", "Gemini 2.5 Flash (موصى به - سريع ومستقر)"),
+        AIModel("gemini-2.0-flash", "Gemini 2.0 Flash"),
+        AIModel("gemini-1.5-flash", "Gemini 1.5 Flash"),
+        AIModel("gemini-3.1-flash-lite-preview", "Gemini 3.1 Flash Lite (معاينة)")
     )
 
     private const val KEY_SELECTED_MODEL = "selected_gemini_model"
 
     fun getSelectedModel(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_SELECTED_MODEL, "gemini-3.1-flash-lite-preview") ?: "gemini-3.1-flash-lite-preview"
+        return prefs.getString(KEY_SELECTED_MODEL, "gemini-2.5-flash") ?: "gemini-2.5-flash"
     }
 
     fun saveSelectedModel(context: Context, model: String) {
@@ -49,7 +52,7 @@ object GeminiRepository {
         if (custom.isNotBlank()) return custom.trim()
         val buildKey = BuildConfig.GEMINI_API_KEY
         if (buildKey.isNotBlank() && buildKey != "MY_GEMINI_API_KEY") return buildKey.trim()
-        return "AIzaSyD3pTDbGJlv9yTn40lkDvtAl12W6pdkXJc"
+        return ""
     }
 
     fun saveApiKey(context: Context, key: String) {
@@ -108,57 +111,8 @@ object GeminiRepository {
     }
 
     suspend fun generateContent(context: Context?, prompt: String): String = withContext(Dispatchers.IO) {
-        val apiKey = context?.let { getStoredApiKey(it) }
-            ?: BuildConfig.GEMINI_API_KEY.takeIf { it.isNotBlank() && it != "MY_GEMINI_API_KEY" }
-            ?: ""
-
-        if (apiKey.isBlank()) {
-            return@withContext "🔑 تتطلب هذه الميزة إضافة مفتاح Gemini API. يرجى إدخال مفتاحك الخاص في شاشة إعدادات المساعد الذكي."
-        }
-
-        val primaryModel = getSelectedModel(context!!)
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/$primaryModel:generateContent?key=$apiKey"
-
-        val jsonBody = JSONObject().apply {
-            put("contents", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("role", "user")
-                    put("parts", JSONArray().apply { put(JSONObject().put("text", prompt)) })
-                })
-            })
-            put("tools", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("googleSearch", JSONObject())
-                })
-            })
-        }
-
-        val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-        val request = Request.Builder().url(url).post(requestBody).build()
-
-        try {
-            val response = client.newCall(request).execute()
-            val responseText = response.body?.string() ?: ""
-            if (response.isSuccessful && responseText.isNotBlank()) {
-                val jsonResponse = JSONObject(responseText)
-                val candidates = jsonResponse.optJSONArray("candidates")
-                if (candidates != null && candidates.length() > 0) {
-                    val firstCand = candidates.getJSONObject(0)
-                    val content = firstCand.optJSONObject("content")
-                    val parts = content?.optJSONArray("parts")
-                    if (parts != null && parts.length() > 0) {
-                        val text = parts.getJSONObject(0).optString("text")
-                        if (text.isNotBlank()) return@withContext text
-                    }
-                }
-            } else {
-                return@withContext parseGoogleError(response.code, responseText)
-            }
-        } catch (e: Exception) {
-            return@withContext "عذراً، حدث خطأ في الاتصال بالشبكة: ${e.localizedMessage}"
-        }
-
-        return@withContext "تعذر الحصول على الاستجابة الحية من الذكاء الاصطناعي."
+        if (context == null) return@withContext "خطأ: السياق غير متوفر."
+        return@withContext queryAi(context, prompt)
     }
 
     suspend fun queryAi(
@@ -171,7 +125,8 @@ object GeminiRepository {
             return@withContext "🔑 لم يتم ضبط مفتاح API للذكاء الاصطناعي.\n\nاضغط على أيقونة الإعدادات (⚙️) بالأعلى لإدخال مفتاح Gemini الخاص بك مجاناً من Google AI Studio."
         }
 
-        val models = listOf(getSelectedModel(context))
+        val selectedModel = getSelectedModel(context)
+        val models = listOf(selectedModel, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash").distinct()
         var lastErrorMsg = ""
 
         // Build live market context string to inject into AI prompt
@@ -271,7 +226,7 @@ object GeminiRepository {
 
     suspend fun testApiKey(apiKey: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         val testPrompt = "قل 'مرحباً بك' فقط."
-        val primaryModel = "gemini-3.1-flash-lite-preview"
+        val primaryModel = "gemini-2.5-flash"
         val url = "https://generativelanguage.googleapis.com/v1beta/models/$primaryModel:generateContent?key=${apiKey.trim()}"
 
         val jsonBody = JSONObject().apply {
@@ -313,7 +268,7 @@ object GeminiRepository {
                 2. صياغة واضحة ومباشرة باللغة العربية.
             """.trimIndent()
 
-            val response = generateContent(context, fullPrompt)
+            val response = queryAi(context, fullPrompt)
             
             if (response.contains("حدث خطأ") || response.contains("تعذر الحصول")) {
                 throw Exception(response)
@@ -336,10 +291,12 @@ object GeminiRepository {
         return when {
             code == 400 && msg.contains("key", ignoreCase = true) ->
                 "❌ مفتاح API غير صحيح. يرجى التأكد من نسخه بشكل صحيح من Google AI Studio."
+            code == 404 || (code == 400 && msg.contains("model", ignoreCase = true)) ->
+                "⚠️ نموذج الذكاء الاصطناعي المحدد غير متاح لقناتك الحالية. تم التبديل إلى النموذج التلقائي."
             code == 429 ->
-                "⏱️ تجاوزت الحصة اليومية المتاحة لمفتاح Gemini المجاني. يرجى الانتظار قليلاً أو إدخال مفتاح آخر."
+                "⏱️ استنفدت الحصة المؤقتة لطلبات Gemini المترادفة. يرجى الانتظار بضع ثوانٍ والإعادة."
             code == 403 ->
-                "🚫 تم رفض الإذن بطلب هذا النموذج على مفتاحك الحسابي."
+                "🚫 تم رفض الإذن بطلب هذا النموذج على مفتاحك الحسابي (تأكد من تفعيل Generative Language API)."
             else ->
                 "⚠️ خطأ من خادم Google ($code): $msg"
         }

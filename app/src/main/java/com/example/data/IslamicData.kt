@@ -95,21 +95,40 @@ object IslamicData {
         CityPrayerInfo("مكة المكرمة", "Makkah", "السعودية", 21.4225, 39.8262, "Asia/Riyadh", "04:38", "05:58", "12:22", "15:42", "18:46", "20:16"),
         CityPrayerInfo("المدينة المنورة", "Madinah", "السعودية", 24.4672, 39.6111, "Asia/Riyadh", "04:34", "05:56", "12:23", "15:46", "18:49", "20:19"),
         CityPrayerInfo("الرياض", "Riyadh", "السعودية", 24.7136, 46.6753, "Asia/Riyadh", "04:05", "05:28", "11:58", "15:23", "18:27", "19:57"),
+        CityPrayerInfo("جدة", "Jeddah", "السعودية", 21.5433, 39.1728, "Asia/Riyadh", "04:40", "06:00", "12:24", "15:44", "18:48", "20:18"),
         CityPrayerInfo("القاهرة", "Cairo", "مصر", 30.0444, 31.2357, "Africa/Cairo", "04:32", "06:02", "12:58", "16:32", "19:53", "21:23"),
         CityPrayerInfo("الإسكندرية", "Alexandria", "مصر", 31.2001, 29.9187, "Africa/Cairo", "04:34", "06:06", "13:03", "16:39", "19:59", "21:30"),
+        CityPrayerInfo("المنصورة", "Mansoura", "مصر", 31.0409, 31.3785, "Africa/Cairo", "04:30", "06:01", "12:58", "16:33", "19:54", "21:25"),
+        CityPrayerInfo("أسيوط", "Asyut", "مصر", 27.1810, 31.1837, "Africa/Cairo", "04:37", "06:04", "12:58", "16:28", "19:51", "21:18"),
+        CityPrayerInfo("أسوان", "Aswan", "مصر", 24.0889, 32.8998, "Africa/Cairo", "04:36", "06:00", "12:51", "16:17", "19:42", "21:07"),
         CityPrayerInfo("دبي", "Dubai", "الإمارات", 25.2048, 55.2708, "Asia/Dubai", "04:12", "05:35", "12:22", "15:46", "19:08", "20:38"),
         CityPrayerInfo("أبوظبي", "Abu Dhabi", "الإمارات", 24.4539, 54.3773, "Asia/Dubai", "04:17", "05:39", "12:26", "15:49", "19:12", "20:42"),
+        CityPrayerInfo("الشارقة", "Sharjah", "الإمارات", 25.3463, 55.4209, "Asia/Dubai", "04:11", "05:34", "12:21", "15:45", "19:07", "20:37"),
         CityPrayerInfo("عمان", "Amman", "الأردن", 31.9454, 35.9284, "Asia/Amman", "04:22", "05:54", "12:43", "16:21", "19:32", "21:02"),
         CityPrayerInfo("القدس الشريف", "Jerusalem", "فلسطين", 31.7683, 35.2137, "Asia/Jerusalem", "04:24", "05:56", "12:45", "16:23", "19:34", "21:04"),
+        CityPrayerInfo("غزة", "Gaza", "فلسطين", 31.5017, 34.4668, "Asia/Gaza", "04:26", "05:58", "12:48", "16:26", "19:37", "21:07"),
         CityPrayerInfo("الكويت", "Kuwait City", "الكويت", 29.3759, 47.9774, "Asia/Kuwait", "03:48", "05:14", "11:54", "15:28", "18:34", "20:04"),
         CityPrayerInfo("بغداد", "Baghdad", "العراق", 33.3152, 44.3661, "Asia/Baghdad", "03:52", "05:24", "12:08", "15:48", "18:52", "20:24"),
         CityPrayerInfo("الدوحة", "Doha", "قطر", 25.2854, 51.5310, "Asia/Qatar", "03:42", "05:07", "11:47", "15:10", "18:27", "19:57"),
         CityPrayerInfo("مسقط", "Muscat", "عمان", 23.5880, 58.3829, "Asia/Muscat", "04:06", "05:27", "12:12", "15:33", "18:57", "20:17"),
+        CityPrayerInfo("المنامة", "Manama", "البحرين", 26.2285, 50.5860, "Asia/Bahrain", "03:46", "05:11", "11:51", "15:15", "18:31", "20:01"),
+        CityPrayerInfo("صنعاء", "Sanaa", "اليمن", 15.3694, 44.1910, "Asia/Aden", "04:28", "05:46", "12:15", "15:31", "18:43", "20:01"),
+        CityPrayerInfo("دمشق", "Damascus", "سوريا", 33.5138, 36.2765, "Asia/Damascus", "04:12", "05:45", "12:38", "16:18", "19:30", "21:02"),
+        CityPrayerInfo("بيروت", "Beirut", "لبنان", 33.8938, 35.5018, "Asia/Beirut", "04:15", "05:48", "12:41", "16:21", "19:33", "21:05"),
+        CityPrayerInfo("الخرطوم", "Khartoum", "السودان", 15.5007, 32.5599, "Africa/Khartoum", "04:42", "06:01", "12:28", "15:46", "18:54", "20:12"),
+        CityPrayerInfo("طرابلس", "Tripoli", "ليبيا", 32.8872, 13.1913, "Africa/Tripoli", "04:38", "06:10", "13:12", "16:50", "20:12", "21:44"),
+        CityPrayerInfo("تونس", "Tunis", "تونس", 36.8065, 10.1815, "Africa/Tunis", "03:58", "05:32", "12:30", "16:15", "19:28", "21:02"),
         CityPrayerInfo("الجزائر", "Algiers", "الجزائر", 36.7538, 3.0588, "Africa/Algiers", "04:12", "05:48", "12:52", "16:38", "19:55", "21:31"),
         CityPrayerInfo("الرباط", "Rabat", "المغرب", 34.0209, -6.8416, "Africa/Casablanca", "04:38", "06:12", "13:30", "17:10", "20:47", "22:18"),
-        CityPrayerInfo("تونس", "Tunis", "تونس", 36.8065, 10.1815, "Africa/Tunis", "03:58", "05:32", "12:30", "16:15", "19:28", "21:02"),
+        CityPrayerInfo("نواكشوط", "Nouakchott", "موريتانيا", 18.0735, -15.9582, "Africa/Nouakchott", "05:12", "06:34", "13:10", "16:28", "19:45", "21:05"),
         CityPrayerInfo("إسطنبول", "Istanbul", "تركيا", 41.0082, 28.9784, "Europe/Istanbul", "03:56", "05:42", "13:12", "17:08", "20:32", "22:12"),
-        CityPrayerInfo("لندن", "London", "بريطانيا", 51.5074, -0.1278, "Europe/London", "03:12", "05:14", "13:08", "17:22", "21:02", "22:52")
+        CityPrayerInfo("لندن", "London", "بريطانيا", 51.5074, -0.1278, "Europe/London", "03:12", "05:14", "13:08", "17:22", "21:02", "22:52"),
+        CityPrayerInfo("باريس", "Paris", "فرنسا", 48.8566, 2.3522, "Europe/Paris", "03:45", "05:48", "13:42", "17:50", "21:35", "23:25"),
+        CityPrayerInfo("برلين", "Berlin", "ألمانيا", 52.5200, 13.4050, "Europe/Berlin", "03:10", "05:12", "13:15", "17:30", "21:18", "23:12"),
+        CityPrayerInfo("نيويورك", "New York", "أمريكا", 40.7128, -74.0060, "America/New_York", "04:12", "05:52", "13:02", "16:54", "20:12", "21:52"),
+        CityPrayerInfo("تورونتو", "Toronto", "كندا", 43.6532, -79.3832, "America/Toronto", "04:08", "05:50", "13:15", "17:10", "20:38", "22:18"),
+        CityPrayerInfo("جاكرتا", "Jakarta", "إندونيسيا", -6.2088, 106.8456, "Asia/Jakarta", "04:35", "05:52", "11:54", "15:16", "17:55", "19:08"),
+        CityPrayerInfo("كوالالمبور", "Kuala Lumpur", "ماليزيا", 3.1390, 101.6869, "Asia/Kuala_Lumpur", "05:48", "07:05", "13:15", "16:40", "19:24", "20:36")
     )
 
     fun calculateQiblaAngle(lat: Double, lng: Double): Double {
@@ -208,31 +227,45 @@ object IslamicData {
     }
 
     fun getCorrectTimezoneOffset(lat: Double, lng: Double, calendar: java.util.Calendar = java.util.Calendar.getInstance()): Double {
-        // Check if location is in Egypt (lat 22 to 32, lng 25 to 37)
+        val timeMillis = calendar.timeInMillis
+
+        // 1. Try to match nearest city from our comprehensive cities database
+        val matchedCity = cities.minByOrNull { city ->
+            val dLat = city.lat - lat
+            val dLng = city.lng - lng
+            dLat * dLat + dLng * dLng
+        }
+
+        if (matchedCity != null) {
+            val distSq = (matchedCity.lat - lat) * (matchedCity.lat - lat) + (matchedCity.lng - lng) * (matchedCity.lng - lng)
+            if (distSq < 16.0) { // Within ~400km of a known city
+                try {
+                    val tz = java.util.TimeZone.getTimeZone(matchedCity.timezone)
+                    return tz.getOffset(timeMillis) / 3600000.0
+                } catch (_: Exception) {}
+            }
+        }
+
+        // 2. Check if location is in Egypt (lat 22 to 32, lng 25 to 37)
         val isEgypt = (lat in 22.0..32.0 && lng in 25.0..37.0)
         if (isEgypt) {
             return try {
                 val tzEgypt = java.util.TimeZone.getTimeZone("Africa/Cairo")
-                tzEgypt.getOffset(calendar.timeInMillis) / 3600000.0
+                tzEgypt.getOffset(timeMillis) / 3600000.0
             } catch (_: Exception) {
-                // Manual fallback logic
                 val year = calendar.get(java.util.Calendar.YEAR)
                 val dstStart = getLastFridayOf(year, java.util.Calendar.APRIL)
                 val dstEnd = getLastThursdayOf(year, java.util.Calendar.OCTOBER)
-                val timeMillis = calendar.timeInMillis
                 if (timeMillis >= dstStart.timeInMillis && timeMillis <= dstEnd.timeInMillis) {
-                    3.0 // UTC+3 Summer Time in Egypt (التوقيت الصيفي)
+                    3.0 // UTC+3 Summer Time in Egypt
                 } else {
-                    2.0 // UTC+2 Winter Time in Egypt (التوقيت الشتوي)
+                    2.0 // UTC+2 Winter Time in Egypt
                 }
             }
         }
-        return try {
-            val tz = java.util.TimeZone.getDefault()
-            tz.getOffset(calendar.timeInMillis) / 3600000.0
-        } catch (_: Exception) {
-            3.0
-        }
+
+        // 3. Fallback: Estimate standard offset from longitude meridian (15 degrees per hour)
+        return Math.round(lng / 15.0).toDouble()
     }
 
     private fun getLastFridayOf(year: Int, month: Int): java.util.Calendar {

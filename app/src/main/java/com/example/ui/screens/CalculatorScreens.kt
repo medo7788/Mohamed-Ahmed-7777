@@ -98,12 +98,16 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
         icon = AppIcons.forCalc(CalcKey.BASIC),
         title = "الآلة الحاسبة المتطورة",
         subtitle = "إجراء العمليات الحسابية البسيطة والعلمية بدقة",
-        isScrollable = false
+        // إصلاح: كان هنا isScrollable = false مع Column بارتفاع ثابت 520.dp (التعليق
+        // في الكود القديم كان بيقول غلط "Perfect fixed height to fit on all device
+        // dimensions" - رقم ثابت هو بالظبط عكس التأقلم مع كل الشاشات). على شاشة
+        // صغيرة أو لما اللوحة العلمية تتفعّل، الأزرار السفلية كانت بتتقطع بدون أي
+        // إمكانية سكرول للوصول لها. رجّعنا isScrollable = true كشبكة أمان.
+        isScrollable = true
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(520.dp) // Perfect fixed height to fit on all device dimensions beautifully without overflow
         ) {
             // Display Box: Obsidian Glass #1E262C, 75% Opacity, 24dp Radius, 1dp Royal Gold border
             Surface(
@@ -186,12 +190,14 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
             }
         }
 
-            // Keypad Grid: 5 rows fully responsive using nested weights
+            // Keypad Grid: صفوف بارتفاع ثابت معقول (64dp) بدل weight العمودي - لأن
+            // isScrollable=true بيخلي المحتوى جوه حاوية قابلة للسكرول، واستخدام
+            // weight على المحور الرأسي جوه حاوية بترتفاع غير محدود (scrollable) غير
+            // مسموح به في Compose ومسبب مشاكل قبل كده. weight الأفقي (عرض الأزرار
+            // جوه كل صف) آمن تمامًا لأن عرض الصف محدود بعرض الشاشة.
             androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val rows = basicBtns.chunked(4)
@@ -199,7 +205,7 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f),
+                                .height(64.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             rowBtns.forEach { btn ->

@@ -17,6 +17,7 @@ import android.os.Vibrator
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
+import com.example.util.FileDownloader
 
 class AdhanPlaybackService : Service() {
 
@@ -102,10 +103,27 @@ class AdhanPlaybackService : Service() {
         // Play the sound the user picked in Adhan Settings (falls back to the
         // system's default alarm tone the first time, before any choice is made).
         try {
-            val chosenUri: Uri = prefs.getString(KEY_SOUND_URI, null)?.let { Uri.parse(it) }
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)!!
+            val voiceKey = prefs.getString("adhan_voice_key", "system") ?: "system"
+            val chosenUri: Uri = if (voiceKey != "system") {
+                val localFile = FileDownloader.getLocalFile(this, "$voiceKey.mp3")
+                if (localFile != null) {
+                    Uri.fromFile(localFile)
+                } else {
+                    val voiceUrl = when (voiceKey) {
+                        "makkah" -> "https://cdn.aladhan.com/audio/adhan/Makkah.mp3"
+                        "madinah" -> "https://cdn.aladhan.com/audio/adhan/Madinah.mp3"
+                        "alafasy" -> "https://cdn.aladhan.com/audio/adhan/Alafasy.mp3"
+                        "abdulbasit" -> "https://cdn.aladhan.com/audio/adhan/Abdulbasit.mp3"
+                        else -> "https://cdn.aladhan.com/audio/adhan/Makkah.mp3"
+                    }
+                    Uri.parse(voiceUrl)
+                }
+            } else {
+                prefs.getString(KEY_SOUND_URI, null)?.let { Uri.parse(it) }
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)!!
+            }
 
             mediaPlayer?.release()
             mediaPlayer = MediaPlayer().apply {
@@ -117,8 +135,8 @@ class AdhanPlaybackService : Service() {
                         .build()
                 )
                 isLooping = true
-                prepare()
-                start()
+                setOnPreparedListener { start() }
+                prepareAsync()
             }
             Log.d(TAG, "MediaPlayer started playing successfully")
         } catch (e: Exception) {

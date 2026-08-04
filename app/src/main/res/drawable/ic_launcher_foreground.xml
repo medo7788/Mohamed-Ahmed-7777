@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/clev_app_logo"
+        android:drawable="@drawable/adhan_icon_1785722159516"
         android:gravity="center" />
 </layer-list>
