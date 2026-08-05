@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: MainViewModel by viewModels()
 
+    @OptIn(ExperimentalLayoutApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -64,8 +65,6 @@ class MainActivity : ComponentActivity() {
 
             val currentThemeKey by viewModel.currentThemeKey.collectAsState()
 
-            // Dynamic World-Class Edge-To-Edge Integration: Ensures Status Bar & Navigation Bar
-            // icons are fully readable (dark icons on light theme, light icons on dark theme)
             LaunchedEffect(currentThemeKey) {
                 val isDark = currentThemeKey == AppThemeKey.ELEGANT_DARK
                 enableEdgeToEdge(
@@ -88,7 +87,6 @@ class MainActivity : ComponentActivity() {
 
             val navController = rememberNavController()
 
-            // Keep viewModel currentCalcKey in sync with NavController backstack changes
             LaunchedEffect(navController) {
                 navController.currentBackStackEntryFlow.collect { backStackEntry ->
                     val route = backStackEntry.destination.route
@@ -101,11 +99,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // إصلاح: النسخة دي رجّعت نفس الباگ القديم لكن جزئيًا - شاشات "الطقس/المساعد
-            // الذكي/إعدادات الأذان" كانت بتُعامل كـ"تابات" وبتستخدم popUpTo(inclusive=true)
-            // اللي بتهدم الشاشة الرئيسية وتبنيها من جديد (فاقدة أي باب مفتوح كان قبلها).
-            // الصح إننا نستخدم popBackStack() دايمًا بدون استثناءات - أبسط وأصح ومحافظ
-            // على حالة الشاشة الرئيسية بدل ما يبنيها من الصفر.
             BackHandler(enabled = currentCalcKey != CalcKey.HOME) {
                 navController.popBackStack()
             }
@@ -115,6 +108,7 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                 ClevCalcTheme(themeKey = currentThemeKey) {
                     Scaffold(
+                        contentWindowInsets = WindowInsets(0, 0, 0, 0),
                         topBar = {
                             AppHeader(
                                 currentCalc = currentCalcKey,
@@ -133,10 +127,10 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         bottomBar = {
-                            if (currentCalcKey == CalcKey.HOME || currentCalcKey == CalcKey.WEATHER || 
-                                currentCalcKey == CalcKey.AI || currentCalcKey == CalcKey.ADHAN_SETTINGS) {
+                            val isImeVisible = WindowInsets.isImeVisible
+                            if (!isImeVisible && (currentCalcKey == CalcKey.HOME || currentCalcKey == CalcKey.WEATHER || 
+                                currentCalcKey == CalcKey.AI || currentCalcKey == CalcKey.ADHAN_SETTINGS)) {
 
-                                // Beautiful modern floating navigation bar with Royal Gold indicator
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -148,7 +142,7 @@ class MainActivity : ComponentActivity() {
                                             .fillMaxWidth()
                                             .height(72.dp),
                                         shape = RoundedCornerShape(24.dp),
-                                        color = colors.surface.copy(alpha = 0.75f), // Soft Frosted Crystal
+                                        color = colors.surface.copy(alpha = 0.75f),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
                                         shadowElevation = 8.dp
                                     ) {
@@ -187,7 +181,6 @@ class MainActivity : ComponentActivity() {
                                                     horizontalAlignment = Alignment.CenterHorizontally,
                                                     verticalArrangement = Arrangement.Center
                                                 ) {
-                                                    // Capsule background for the selected item (Royal Gold Active Indicator)
                                                     if (isSelected) {
                                                         Box(
                                                             modifier = Modifier
@@ -256,22 +249,27 @@ class MainActivity : ComponentActivity() {
                                 }
                                 composable(CalcKey.AI.name) { AIAssistantScreen(colors) }
                                 composable(CalcKey.LIVE_PRICES.name) { LivePricesScreen(colors) }
-                                 composable(CalcKey.ECONOMIC_INDICATORS.name) { EconomicIndicatorsScreen(colors) }
+                                composable(CalcKey.ECONOMIC_INDICATORS.name) { EconomicIndicatorsScreen(colors) }
                                 composable(CalcKey.WEATHER.name) { WeatherScreen(colors) }
                                 composable(CalcKey.PRAYER.name) {
-                                     PrayerTimesScreen(
-                                         colors = colors,
-                                         onNavigate = { key ->
-                                             viewModel.recordToolOpened(context, key.name)
-                                             navController.navigate(key.name) {
-                                                 popUpTo(CalcKey.HOME.name) { saveState = true }
-                                                 launchSingleTop = true
-                                                 restoreState = true
-                                             }
-                                         }
-                                     )
-                                 }
-                                composable(CalcKey.QIBLA.name) { QiblaDirectionScreen(colors) }
+                                    PrayerTimesScreen(
+                                        colors = colors,
+                                        onNavigate = { key ->
+                                            viewModel.recordToolOpened(context, key.name)
+                                            navController.navigate(key.name) {
+                                                popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        }
+                                    )
+                                }
+                                composable(CalcKey.QIBLA.name) {
+                                    QiblaCompassScreen(
+                                        colors = colors,
+                                        onBack = { navController.popBackStack() }
+                                    )
+                                }
                                 composable(CalcKey.ADHKAR.name) { AdhkarScreen(colors) }
                                 composable(CalcKey.TASBIH.name) { TasbihScreen(colors) }
                                 composable(CalcKey.QURAN.name) { QuranScreen(colors) }

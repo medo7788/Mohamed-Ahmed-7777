@@ -25,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
@@ -33,9 +34,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,8 +55,18 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 // ==========================================
-// 1. TIME & DATES DATA MODELS & PALETTE
+// 1. ROYAL GOLD & OBSIDIAN COLOR PALETTE
 // ==========================================
+
+private val RoyalGold = Color(0xFFD4AF37)
+private val AmberGlow = Color(0xFFF59E0B)
+private val MintGlow = Color(0xFF4EECD5)
+private val DeepObsidianStart = Color(0xFF080A0F)
+private val DeepObsidianEnd = Color(0xFF121620)
+private val GlassSurfaceDark = Color(0xFF141926)
+private val CardHighlightDark = Color(0xFF1A1D2E)
+private val MutedSlateText = Color(0xFF94A3B8)
+private val SecondaryText = Color(0xFFBFC8D2)
 
 data class TimeDateToolItem(
     val calcKey: CalcKey,
@@ -89,17 +102,6 @@ val TIME_DATES_TOOLS_LIST = listOf(
     )
 )
 
-// Palette: Dark Obsidian & Neon Violet Edition
-private val ElectricViolet = Color(0xFF9D7CFF)
-private val NeonIndigo = Color(0xFF6366F1)
-private val MintGlow = Color(0xFF63F4DD)
-private val DarkObsidianStart = Color(0xFF07080D)
-private val DarkObsidianEnd = Color(0xFF11131F)
-private val GlassSurfaceDark = Color(0xFF131522)
-private val CardHighlightDark = Color(0xFF1A1D2E)
-private val PinActiveGold = Color(0xFFFFB800)
-private val MutedSlateText = Color(0xFF94A3B8)
-
 // ==========================================
 // 2. MAIN TIME & DATES HUB SCREEN COMPOSABLE
 // ==========================================
@@ -114,6 +116,7 @@ fun TimeDatesHubScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
 
     // Real-time ticking system clock state (updates every second)
@@ -149,13 +152,14 @@ fun TimeDatesHubScreen(
             val capabilities = connectivityManager?.getNetworkCapabilities(activeNetwork)
             isOffline = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) != true
 
-            delay(350) // Smooth entrance
+            delay(350) // Smooth entrance delay
             isLoading = false
         }
     }
 
     fun syncNtpTime() {
         coroutineScope.launch {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             isSyncingTime = true
             delay(600)
             currentTimeMillis = System.currentTimeMillis()
@@ -193,14 +197,14 @@ fun TimeDatesHubScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(DarkObsidianStart, DarkObsidianEnd)
+                    colors = listOf(DeepObsidianStart, DeepObsidianEnd)
                 )
             )
     ) {
         // --- A. Procedural Canvas Cosmic Time Rings Backdrop ---
-        ProceduralCosmicTimeCanvas()
+        ProceduralRoyalGoldClockCanvas()
 
-        // --- B. Main Scrollable Layout ---
+        // --- B. Main Content Layout ---
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -213,9 +217,18 @@ fun TimeDatesHubScreen(
                 isSearchExpanded = isSearchExpanded,
                 isCompactGrid = isCompactGrid,
                 isSyncing = isSyncingTime,
-                onBackClick = onBackClick,
-                onToggleSearch = { isSearchExpanded = !isSearchExpanded },
-                onToggleViewMode = { isCompactGrid = !isCompactGrid },
+                onBackClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onBackClick()
+                },
+                onToggleSearch = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    isSearchExpanded = !isSearchExpanded
+                },
+                onToggleViewMode = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    isCompactGrid = !isCompactGrid
+                },
                 onSyncClick = { syncNtpTime() }
             )
 
@@ -250,7 +263,7 @@ fun TimeDatesHubScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 5. Section Header & Dynamic Counter Bar
+            // 5. Category Header & Dynamic Tools Counter
             TimeDatesSectionHeaderCounter(
                 title = "أدوات التصنيف المتاحة (${processedTools.size})"
             )
@@ -264,7 +277,7 @@ fun TimeDatesHubScreen(
                     .weight(1f)
             ) {
                 when {
-                    // Loading State: Shimmer Skeleton Grid
+                    // Loading State: Royal Gold Skeleton Grid
                     isLoading -> {
                         TimeDatesSkeletonLoadingGrid(columnsCount = columnsCount)
                     }
@@ -285,7 +298,7 @@ fun TimeDatesHubScreen(
                         )
                     }
 
-                    // Success State: Interactive 2-Column Grid
+                    // Success State: Interactive Royal Gold 2-Column Grid
                     else -> {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(columnsCount),
@@ -301,8 +314,14 @@ fun TimeDatesHubScreen(
                                     toolItem = toolItem,
                                     isPinned = isPinned,
                                     isCompactList = isCompactGrid,
-                                    onTogglePin = { onToggleFavorite(toolItem.calcKey) },
-                                    onClick = { onToolClick(toolItem.calcKey) },
+                                    onTogglePin = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onToggleFavorite(toolItem.calcKey)
+                                    },
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        onToolClick(toolItem.calcKey)
+                                    },
                                     modifier = Modifier.animateItem()
                                 )
                             }
@@ -315,12 +334,12 @@ fun TimeDatesHubScreen(
 }
 
 // ==========================================
-// 3. PROCEDURAL COSMIC TIME CANVAS
+// 3. PROCEDURAL ROYAL GOLD TIME CANVAS
 // ==========================================
 
 @Composable
-fun ProceduralCosmicTimeCanvas() {
-    val infiniteTransition = rememberInfiniteTransition(label = "rotationTransition")
+fun ProceduralRoyalGoldClockCanvas() {
+    val infiniteTransition = rememberInfiniteTransition(label = "gearRotation")
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -334,40 +353,37 @@ fun ProceduralCosmicTimeCanvas() {
     Canvas(
         modifier = Modifier
             .fillMaxSize()
-            .graphicsLayer {
-                // Optimized hardware layer rendering for canvas graphics
-                alpha = 0.99f
-            }
+            .graphicsLayer { alpha = 0.99f }
     ) {
         val width = size.width
         val height = size.height
 
-        // Top-Right Electric Violet Radial Glow
+        // Top-Right Royal Gold Radial Glow
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(ElectricViolet.copy(alpha = 0.08f), Color.Transparent),
+                colors = listOf(RoyalGold.copy(alpha = 0.08f), Color.Transparent),
                 center = Offset(width * 0.85f, height * 0.15f),
                 radius = width * 0.65f
             )
         )
 
-        // Bottom-Left Neon Indigo Radial Glow
+        // Bottom-Left Amber Radial Glow
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(NeonIndigo.copy(alpha = 0.06f), Color.Transparent),
+                colors = listOf(AmberGlow.copy(alpha = 0.06f), Color.Transparent),
                 center = Offset(width * 0.15f, height * 0.85f),
                 radius = width * 0.7f
             )
         )
 
-        // Procedural Celestial Clock Rings & Ticks Center Top
+        // Procedural Celestial Clock Rings & Ticks
         val centerX = width * 0.85f
         val centerY = height * 0.18f
         val pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 10f), 0f)
 
         // Outer dashed temporal orbit ring
         drawCircle(
-            color = ElectricViolet.copy(alpha = 0.06f),
+            color = RoyalGold.copy(alpha = 0.08f),
             center = Offset(centerX, centerY),
             radius = 160.dp.toPx(),
             style = Stroke(width = 1.5f, pathEffect = pathEffect)
@@ -375,7 +391,7 @@ fun ProceduralCosmicTimeCanvas() {
 
         // Inner dashed temporal orbit ring
         drawCircle(
-            color = NeonIndigo.copy(alpha = 0.08f),
+            color = AmberGlow.copy(alpha = 0.09f),
             center = Offset(centerX, centerY),
             radius = 100.dp.toPx(),
             style = Stroke(width = 1f)
@@ -394,7 +410,7 @@ fun ProceduralCosmicTimeCanvas() {
             val endY = centerY + sin(angleRad) * (tickRadius - tickLength)
 
             drawLine(
-                color = ElectricViolet.copy(alpha = 0.07f),
+                color = RoyalGold.copy(alpha = 0.1f),
                 start = Offset(startX, startY),
                 end = Offset(endX, endY),
                 strokeWidth = 2f
@@ -419,6 +435,12 @@ fun TimeDatesHubTopBar(
     onToggleViewMode: () -> Unit,
     onSyncClick: () -> Unit
 ) {
+    val syncRotation by animateFloatAsState(
+        targetValue = if (isSyncing) 360f else 0f,
+        animationSpec = tween(600, easing = LinearOutSlowInEasing),
+        label = "syncRotation"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -433,13 +455,13 @@ fun TimeDatesHubTopBar(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(GlassSurfaceDark.copy(alpha = 0.7f))
-                    .border(1.dp, ElectricViolet.copy(alpha = 0.3f), CircleShape)
+                    .background(GlassSurfaceDark.copy(alpha = 0.85f))
+                    .border(1.dp, RoyalGold.copy(alpha = 0.35f), CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "رجوع",
-                    tint = ElectricViolet,
+                    tint = RoyalGold,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -470,18 +492,16 @@ fun TimeDatesHubTopBar(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(GlassSurfaceDark.copy(alpha = 0.7f))
-                    .border(1.dp, ElectricViolet.copy(alpha = 0.2f), CircleShape)
+                    .background(GlassSurfaceDark.copy(alpha = 0.85f))
+                    .border(1.dp, RoyalGold.copy(alpha = 0.3f), CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.Sync,
                     contentDescription = "مزامنة الوقت",
-                    tint = ElectricViolet,
+                    tint = RoyalGold,
                     modifier = Modifier
                         .size(18.dp)
-                        .graphicsLayer {
-                            if (isSyncing) rotationZ += 180f
-                        }
+                        .graphicsLayer { rotationZ = syncRotation }
                 )
             }
 
@@ -491,13 +511,13 @@ fun TimeDatesHubTopBar(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(GlassSurfaceDark.copy(alpha = 0.7f))
-                    .border(1.dp, ElectricViolet.copy(alpha = 0.2f), CircleShape)
+                    .background(GlassSurfaceDark.copy(alpha = 0.85f))
+                    .border(1.dp, RoyalGold.copy(alpha = 0.3f), CircleShape)
             ) {
                 Icon(
                     imageVector = if (isCompactGrid) Icons.Default.GridView else Icons.Default.ViewList,
                     contentDescription = "تغيير العرض",
-                    tint = ElectricViolet,
+                    tint = RoyalGold,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -508,13 +528,13 @@ fun TimeDatesHubTopBar(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(if (isSearchExpanded) ElectricViolet.copy(alpha = 0.2f) else GlassSurfaceDark.copy(alpha = 0.7f))
-                    .border(1.dp, ElectricViolet.copy(alpha = if (isSearchExpanded) 0.6f else 0.2f), CircleShape)
+                    .background(if (isSearchExpanded) RoyalGold.copy(alpha = 0.25f) else GlassSurfaceDark.copy(alpha = 0.85f))
+                    .border(1.dp, RoyalGold.copy(alpha = if (isSearchExpanded) 0.7f else 0.3f), CircleShape)
             ) {
                 Icon(
                     imageVector = if (isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
                     contentDescription = "بحث",
-                    tint = ElectricViolet,
+                    tint = RoyalGold,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -533,7 +553,7 @@ fun TimeDatesGlassSearchBar(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         color = GlassSurfaceDark.copy(alpha = 0.85f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.35f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, RoyalGold.copy(alpha = 0.35f))
     ) {
         Row(
             modifier = Modifier
@@ -544,7 +564,7 @@ fun TimeDatesGlassSearchBar(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = null,
-                tint = ElectricViolet,
+                tint = RoyalGold,
                 modifier = Modifier.size(20.dp)
             )
 
@@ -591,8 +611,8 @@ fun TimeDatesOfflineNoticeBanner() {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(12.dp),
-        color = NeonIndigo.copy(alpha = 0.15f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, NeonIndigo.copy(alpha = 0.4f))
+        color = AmberGlow.copy(alpha = 0.15f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AmberGlow.copy(alpha = 0.4f))
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -639,8 +659,8 @@ fun TimeDatesHeroBanner(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
         shape = RoundedCornerShape(24.dp),
-        color = GlassSurfaceDark.copy(alpha = 0.8f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.35f))
+        color = GlassSurfaceDark.copy(alpha = 0.85f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, RoyalGold.copy(alpha = 0.35f))
     ) {
         Box(
             modifier = Modifier
@@ -648,8 +668,8 @@ fun TimeDatesHeroBanner(
                 .background(
                     Brush.horizontalGradient(
                         colors = listOf(
-                            ElectricViolet.copy(alpha = 0.15f),
-                            GlassSurfaceDark.copy(alpha = 0.8f),
+                            RoyalGold.copy(alpha = 0.15f),
+                            GlassSurfaceDark.copy(alpha = 0.85f),
                             CardHighlightDark.copy(alpha = 0.5f)
                         )
                     )
@@ -660,19 +680,23 @@ fun TimeDatesHeroBanner(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Calendar/Clock Icon with radial glow halo
+                // Calendar/Clock Icon Container with radial gold glow halo
                 Box(
                     modifier = Modifier
                         .size(58.dp)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(ElectricViolet.copy(alpha = 0.15f))
-                        .border(1.dp, ElectricViolet.copy(alpha = 0.4f), RoundedCornerShape(18.dp)),
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(RoyalGold.copy(alpha = 0.25f), AmberGlow.copy(alpha = 0.12f))
+                            )
+                        )
+                        .border(1.dp, RoyalGold.copy(alpha = 0.5f), RoundedCornerShape(18.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.CalendarMonth,
                         contentDescription = null,
-                        tint = ElectricViolet,
+                        tint = RoyalGold,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -695,8 +719,8 @@ fun TimeDatesHeroBanner(
                         if (pinnedCount > 0) {
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = PinActiveGold.copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, PinActiveGold.copy(alpha = 0.4f))
+                                color = RoyalGold.copy(alpha = 0.18f),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, RoyalGold.copy(alpha = 0.5f))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
@@ -705,7 +729,7 @@ fun TimeDatesHeroBanner(
                                     Icon(
                                         imageVector = Icons.Default.PushPin,
                                         contentDescription = null,
-                                        tint = PinActiveGold,
+                                        tint = RoyalGold,
                                         modifier = Modifier.size(11.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
@@ -713,7 +737,7 @@ fun TimeDatesHeroBanner(
                                         text = "$pinnedCount مثبت",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = PinActiveGold
+                                        color = RoyalGold
                                     )
                                 }
                             }
@@ -725,7 +749,7 @@ fun TimeDatesHeroBanner(
                     Text(
                         text = "التوقيت العالمي، حاسبة العمر، فروق التواريخ، ومؤقت العد التنازلي",
                         fontSize = 11.sp,
-                        color = MutedSlateText,
+                        color = SecondaryText,
                         lineHeight = 16.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -736,18 +760,30 @@ fun TimeDatesHeroBanner(
                     // Live Ticking Clock Display Strip
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = Color.Black.copy(alpha = 0.35f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MintGlow.copy(alpha = 0.25f))
+                        color = Color.Black.copy(alpha = 0.45f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MintGlow.copy(alpha = 0.3f))
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Pulsing Mint Indicator Dot
+                            val infiniteTransition = rememberInfiniteTransition(label = "mintPulse")
+                            val pulseAlpha by infiniteTransition.animateFloat(
+                                initialValue = 0.4f,
+                                targetValue = 1.0f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(800, easing = FastOutSlowInEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "pulseAlpha"
+                            )
+
                             Box(
                                 modifier = Modifier
-                                    .size(6.dp)
+                                    .size(7.dp)
                                     .clip(CircleShape)
-                                    .background(MintGlow)
+                                    .background(MintGlow.copy(alpha = pulseAlpha))
                             )
 
                             Spacer(modifier = Modifier.width(8.dp))
@@ -782,6 +818,18 @@ fun TimeDatesHeroBanner(
 fun TimeDatesSectionHeaderCounter(
     title: String
 ) {
+    // Dynamic pulsing vertical Royal Gold bar
+    val infiniteTransition = rememberInfiniteTransition(label = "indicatorPulse")
+    val barAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.7f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "barAlpha"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -793,7 +841,7 @@ fun TimeDatesSectionHeaderCounter(
                 .width(4.dp)
                 .height(18.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(ElectricViolet)
+                .background(RoyalGold.copy(alpha = barAlpha))
         )
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -820,16 +868,16 @@ fun TimeDatesGlassToolCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Tactile Scale Press Feedback
+    // Tactile Scale Press Feedback (0.97x)
     var isPressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1.0f,
+        targetValue = if (isPressed) 0.97f else 1.0f,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "pressScale"
     )
 
     // Micro-badge infinite pulse animation
-    val infiniteTransition = rememberInfiniteTransition(label = "pulseTransition")
+    val infiniteTransition = rememberInfiniteTransition(label = "badgePulse")
     val badgeGlowAlpha by infiniteTransition.animateFloat(
         initialValue = 0.5f,
         targetValue = 1.0f,
@@ -857,10 +905,10 @@ fun TimeDatesGlassToolCard(
                 )
             },
         shape = RoundedCornerShape(22.dp),
-        color = GlassSurfaceDark.copy(alpha = 0.8f),
+        color = GlassSurfaceDark.copy(alpha = 0.85f),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            if (isPinned) PinActiveGold.copy(alpha = 0.6f) else ElectricViolet.copy(alpha = 0.25f)
+            if (isPinned) AmberGlow.copy(alpha = 0.7f) else RoyalGold.copy(alpha = 0.3f)
         ),
         shadowElevation = if (isPinned) 4.dp else 2.dp
     ) {
@@ -870,8 +918,8 @@ fun TimeDatesGlassToolCard(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            CardHighlightDark.copy(alpha = 0.4f),
-                            GlassSurfaceDark.copy(alpha = 0.8f)
+                            CardHighlightDark.copy(alpha = if (isPinned) 0.6f else 0.4f),
+                            GlassSurfaceDark.copy(alpha = 0.85f)
                         )
                     )
                 )
@@ -883,14 +931,14 @@ fun TimeDatesGlassToolCard(
                     .padding(8.dp)
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(DarkObsidianStart.copy(alpha = 0.6f))
+                    .background(DeepObsidianStart.copy(alpha = 0.7f))
                     .clickable { onTogglePin() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
                     contentDescription = "تثبيت الأداة",
-                    tint = if (isPinned) PinActiveGold else MutedSlateText,
+                    tint = if (isPinned) RoyalGold else MutedSlateText,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -899,8 +947,8 @@ fun TimeDatesGlassToolCard(
             if (toolItem.badgeType != null) {
                 val badgeColor = when (toolItem.badgeType) {
                     "LIVE" -> MintGlow
-                    "TICKING" -> ElectricViolet
-                    else -> NeonIndigo
+                    "TICKING" -> AmberGlow
+                    else -> RoyalGold
                 }
 
                 Surface(
@@ -939,19 +987,23 @@ fun TimeDatesGlassToolCard(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 48dp Rounded Square Icon Container
+                    // 48dp Rounded Square Icon Container with Royal Gold / Amber gradient
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(ElectricViolet.copy(alpha = 0.12f))
-                            .border(1.dp, ElectricViolet.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(RoyalGold.copy(alpha = 0.2f), AmberGlow.copy(alpha = 0.1f))
+                                )
+                            )
+                            .border(1.dp, RoyalGold.copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = AppIcons.forCalc(toolItem.calcKey),
                             contentDescription = null,
-                            tint = ElectricViolet,
+                            tint = RoyalGold,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -983,7 +1035,7 @@ fun TimeDatesGlassToolCard(
                     Icon(
                         imageVector = Icons.Default.ChevronLeft,
                         contentDescription = null,
-                        tint = ElectricViolet.copy(alpha = 0.6f),
+                        tint = RoyalGold.copy(alpha = 0.7f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -996,19 +1048,23 @@ fun TimeDatesGlassToolCard(
                     horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // 48dp Rounded Square Icon Container
+                    // 48dp Rounded Square Icon Container with Royal Gold / Amber gradient fill
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(ElectricViolet.copy(alpha = 0.12f))
-                            .border(1.dp, ElectricViolet.copy(alpha = 0.35f), RoundedCornerShape(16.dp)),
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(RoyalGold.copy(alpha = 0.2f), AmberGlow.copy(alpha = 0.12f))
+                                )
+                            )
+                            .border(1.dp, RoyalGold.copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = AppIcons.forCalc(toolItem.calcKey),
                             contentDescription = null,
-                            tint = ElectricViolet,
+                            tint = RoyalGold,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -1070,7 +1126,7 @@ fun TimeDatesSkeletonLoadingGrid(columnsCount: Int) {
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
                 color = GlassSurfaceDark.copy(alpha = shimmerAlpha),
-                border = androidx.compose.foundation.BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.1f))
+                border = androidx.compose.foundation.BorderStroke(1.dp, RoyalGold.copy(alpha = 0.15f))
             ) {
                 Box(
                     modifier = Modifier
@@ -1081,7 +1137,7 @@ fun TimeDatesSkeletonLoadingGrid(columnsCount: Int) {
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color.White.copy(alpha = 0.05f))
+                            .background(RoyalGold.copy(alpha = 0.1f))
                     )
                 }
             }
@@ -1102,8 +1158,8 @@ fun TimeDatesEmptyStateCard(
     ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
-            color = GlassSurfaceDark.copy(alpha = 0.8f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, ElectricViolet.copy(alpha = 0.3f)),
+            color = GlassSurfaceDark.copy(alpha = 0.85f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, RoyalGold.copy(alpha = 0.35f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -1113,7 +1169,7 @@ fun TimeDatesEmptyStateCard(
                 Icon(
                     imageVector = Icons.Default.SearchOff,
                     contentDescription = null,
-                    tint = ElectricViolet,
+                    tint = RoyalGold,
                     modifier = Modifier.size(52.dp)
                 )
 
@@ -1140,10 +1196,10 @@ fun TimeDatesEmptyStateCard(
 
                 Button(
                     onClick = onClearSearch,
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricViolet),
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalGold),
                     shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text("إعادة ضبط البحث", color = DarkObsidianStart, fontWeight = FontWeight.Bold)
+                    Text("إعادة ضبط البحث", color = DeepObsidianStart, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -1163,7 +1219,7 @@ fun TimeDatesErrorStateCard(
     ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
-            color = GlassSurfaceDark.copy(alpha = 0.8f),
+            color = GlassSurfaceDark.copy(alpha = 0.85f),
             border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF4D4D).copy(alpha = 0.4f)),
             modifier = Modifier.fillMaxWidth()
         ) {

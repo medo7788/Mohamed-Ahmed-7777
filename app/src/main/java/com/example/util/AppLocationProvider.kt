@@ -45,6 +45,7 @@ object AppLocationProvider {
     fun getCachedLocation(context: Context): CachedLocation? {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (!prefs.contains(KEY_LAT)) return null
+
         return CachedLocation(
             lat = prefs.getFloat(KEY_LAT, 0f).toDouble(),
             lng = prefs.getFloat(KEY_LNG, 0f).toDouble(),
@@ -64,16 +65,13 @@ object AppLocationProvider {
     }
 
     private fun getAttributionContext(context: Context): Context {
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            context.createAttributionContext("default")
-        } else {
-            context
-        }
+        return context
     }
 
     @SuppressLint("MissingPermission")
     suspend fun getLastKnownLocation(context: Context): Result {
         if (!hasLocationPermission(context)) return Result.PermissionDenied
+
         return try {
             val client = LocationServices.getFusedLocationProviderClient(getAttributionContext(context))
             val loc = client.lastLocation.await()
@@ -101,6 +99,7 @@ object AppLocationProvider {
 
                 @Suppress("MissingPermission")
                 val task = client.getCurrentLocation(request, null)
+
                 task.addOnSuccessListener { loc ->
                     if (cont.isActive) {
                         if (loc != null) {
@@ -110,6 +109,7 @@ object AppLocationProvider {
                         }
                     }
                 }
+
                 task.addOnFailureListener { e ->
                     if (cont.isActive) cont.resume(Result.Error(e.message ?: "تعذّر تحديد الموقع"))
                 }

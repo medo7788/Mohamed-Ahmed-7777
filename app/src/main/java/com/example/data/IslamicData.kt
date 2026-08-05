@@ -51,10 +51,7 @@ object IslamicData {
             val jsonArray = JSONArray(jsonStr)
             for (i in 0 until jsonArray.length()) {
                 list.add(jsonArray.getString(i))
-            }
-        } catch (_: Exception) {}
         return list
-    }
 
     fun addCustomDhikr(context: Context, dhikr: String) {
         val trimmed = dhikr.trim()
@@ -63,33 +60,26 @@ object IslamicData {
         if (!current.contains(trimmed)) {
             current.add(trimmed)
             saveCustomDhikrs(context, current)
-        }
-    }
 
     fun deleteCustomDhikr(context: Context, dhikr: String) {
         val current = getCustomDhikrs(context).toMutableList()
         if (current.remove(dhikr)) {
             saveCustomDhikrs(context, current)
-        }
-    }
 
     private fun saveCustomDhikrs(context: Context, list: List<String>) {
         val prefs = context.getSharedPreferences(PREFS_TASBIH, Context.MODE_PRIVATE)
         val jsonArray = JSONArray()
         list.forEach { jsonArray.put(it) }
         prefs.edit().putString(KEY_CUSTOM_DHIKRS, jsonArray.toString()).apply()
-    }
 
     fun getLifetimeCount(context: Context): Int {
         val prefs = context.getSharedPreferences(PREFS_TASBIH, Context.MODE_PRIVATE)
         return prefs.getInt(KEY_LIFETIME_COUNT, 0)
-    }
 
     fun incrementLifetimeCount(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_TASBIH, Context.MODE_PRIVATE)
         val current = prefs.getInt(KEY_LIFETIME_COUNT, 0)
         prefs.edit().putInt(KEY_LIFETIME_COUNT, current + 1).apply()
-    }
 
     val cities = listOf(
         CityPrayerInfo("مكة المكرمة", "Makkah", "السعودية", 21.4225, 39.8262, "Asia/Riyadh", "04:38", "05:58", "12:22", "15:42", "18:46", "20:16"),
@@ -131,22 +121,6 @@ object IslamicData {
         CityPrayerInfo("كوالالمبور", "Kuala Lumpur", "ماليزيا", 3.1390, 101.6869, "Asia/Kuala_Lumpur", "05:48", "07:05", "13:15", "16:40", "19:24", "20:36")
     )
 
-    fun calculateQiblaAngle(lat: Double, lng: Double): Double {
-        val kaabaLat = Math.toRadians(21.4225)
-        val kaabaLng = Math.toRadians(39.8262)
-        val userLat = Math.toRadians(lat)
-        val userLng = Math.toRadians(lng)
-
-        val dLng = kaabaLng - userLng
-        val y = Math.sin(dLng)
-        val x = Math.cos(userLat) * Math.tan(kaabaLat) - Math.sin(userLat) * Math.cos(dLng)
-
-        var qibla = Math.toDegrees(Math.atan2(y, x))
-        if (qibla < 0) {
-            qibla += 360.0
-        }
-        return qibla
-    }
 
     data class DynamicPrayerTimes(
         val fajr: String,
@@ -185,7 +159,6 @@ object IslamicData {
             val cosH = (Math.cos(zenithRad) - Math.sin(latRad) * Math.sin(decl)) / (Math.cos(latRad) * Math.cos(decl))
             val clamped = cosH.coerceIn(-1.0, 1.0)
             return Math.toDegrees(Math.acos(clamped))
-        }
 
         val hSunrise = hourAngle(0.833) / 15.0
         val sunriseVal = noon - hSunrise
@@ -212,9 +185,7 @@ object IslamicData {
             if (mins >= 60) {
                 hrs = (hrs + 1) % 24
                 mins = 0
-            }
             return String.format("%02d:%02d", hrs, mins)
-        }
 
         return DynamicPrayerTimes(
             fajr = formatHours(fajrVal),
@@ -224,7 +195,6 @@ object IslamicData {
             maghrib = formatHours(maghribVal),
             isha = formatHours(ishaVal)
         )
-    }
 
     fun getCorrectTimezoneOffset(lat: Double, lng: Double, calendar: java.util.Calendar = java.util.Calendar.getInstance()): Double {
         val timeMillis = calendar.timeInMillis
@@ -234,7 +204,6 @@ object IslamicData {
             val dLat = city.lat - lat
             val dLng = city.lng - lng
             dLat * dLat + dLng * dLng
-        }
 
         if (matchedCity != null) {
             val distSq = (matchedCity.lat - lat) * (matchedCity.lat - lat) + (matchedCity.lng - lng) * (matchedCity.lng - lng)
@@ -242,9 +211,6 @@ object IslamicData {
                 try {
                     val tz = java.util.TimeZone.getTimeZone(matchedCity.timezone)
                     return tz.getOffset(timeMillis) / 3600000.0
-                } catch (_: Exception) {}
-            }
-        }
 
         // 2. Check if location is in Egypt (lat 22 to 32, lng 25 to 37)
         val isEgypt = (lat in 22.0..32.0 && lng in 25.0..37.0)
@@ -252,21 +218,15 @@ object IslamicData {
             return try {
                 val tzEgypt = java.util.TimeZone.getTimeZone("Africa/Cairo")
                 tzEgypt.getOffset(timeMillis) / 3600000.0
-            } catch (_: Exception) {
                 val year = calendar.get(java.util.Calendar.YEAR)
                 val dstStart = getLastFridayOf(year, java.util.Calendar.APRIL)
                 val dstEnd = getLastThursdayOf(year, java.util.Calendar.OCTOBER)
                 if (timeMillis >= dstStart.timeInMillis && timeMillis <= dstEnd.timeInMillis) {
                     3.0 // UTC+3 Summer Time in Egypt
-                } else {
                     2.0 // UTC+2 Winter Time in Egypt
-                }
-            }
-        }
 
         // 3. Fallback: Estimate standard offset from longitude meridian (15 degrees per hour)
         return Math.round(lng / 15.0).toDouble()
-    }
 
     private fun getLastFridayOf(year: Int, month: Int): java.util.Calendar {
         val cal = java.util.Calendar.getInstance()
@@ -274,10 +234,8 @@ object IslamicData {
         cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
         while (cal.get(java.util.Calendar.DAY_OF_WEEK) != java.util.Calendar.FRIDAY) {
             cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
-        }
         cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
         return cal
-    }
 
     private fun getLastThursdayOf(year: Int, month: Int): java.util.Calendar {
         val cal = java.util.Calendar.getInstance()
@@ -285,24 +243,18 @@ object IslamicData {
         cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
         while (cal.get(java.util.Calendar.DAY_OF_WEEK) != java.util.Calendar.THURSDAY) {
             cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
-        }
         cal.set(java.util.Calendar.HOUR_OF_DAY, 23)
         return cal
-    }
 
     fun getTimezoneOffsetForCity(timezoneId: String): Double {
         return try {
             val tz = java.util.TimeZone.getTimeZone(timezoneId)
             tz.getOffset(System.currentTimeMillis()) / 3600000.0
-        } catch (_: Exception) {
             3.0
-        }
-    }
 
     fun getDynamicPrayerTimesForCity(city: CityPrayerInfo, calendar: java.util.Calendar = java.util.Calendar.getInstance()): DynamicPrayerTimes {
         val tzOffset = getCorrectTimezoneOffset(city.lat, city.lng, calendar)
         return calculatePrayerTimes(city.lat, city.lng, tzOffset, calendar)
-    }
 
     val morningAdhkar = listOf(
         DhikrItem(1, "أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ\n\nاللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ ۚ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ ۚ لَهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ ۗ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ ۚ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ ۖ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ ۚ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ ۖ وَلَا يَئُودُهُ حِفْظُهُمَا ۚ وَهُوَ الْعَلِيُّ الْعَظِيمُ", 1, "من قالها حين يصبح أوجير من الجن حتى يمسي", "الحاكم، صحيح الترغيب"),
