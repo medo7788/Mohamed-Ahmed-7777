@@ -1,9 +1,9 @@
 name: Build Android APK
 
 on:
-  workflow_dispatch:      # يديك زرار تشغيل يدوي من تبويب Actions
+  workflow_dispatch:      # زر تشغيل يدوي من تبويب Actions
   push:
-    branches: [ main ]    # وبيشتغل تلقائي مع أي push على main
+    branches: [ main ]    # يشتغل تلقائي مع أي push على main
 
 jobs:
   build:
@@ -18,8 +18,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # مشروعك بيدور على debug.keystore في جذر المشروع (مُستبعد من Git عمداً)
-      # فبنولّده هنا وقت البناء بنفس القيم اللي متوقعة في build.gradle.kts
+      # توليد debug keystore لأن المشروع يتوقعه في جذر المشروع
       - name: Generate debug keystore
         run: |
           keytool -genkeypair -v \
@@ -29,12 +28,29 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      # بما إن gradlew موجود، استخدمه للبناء
+      # تثبيت Gradle عبر أكشن Gradle مع تعطيل فحص wrapper لمنع الفشل الحالي
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          validate-wrapper: false
+
+      # تأكد أن gradlew قابل للتنفيذ إذا موجود، ثم بنِّي باستخدامه (أو استخدم gradle المثبت)
+      - name: Make gradlew executable
+        run: |
+          if [ -f ./gradlew ]; then
+            git update-index --chmod=+x gradlew || true
+            chmod +x ./gradlew || true
+          fi
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: |
+          if [ -x ./gradlew ]; then
+            echo "Using project wrapper ./gradlew"
+            ./gradlew assembleDebug --stacktrace --no-daemon
+          else
+            echo "Using system gradle"
+            gradle assembleDebug --stacktrace --no-daemon
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
