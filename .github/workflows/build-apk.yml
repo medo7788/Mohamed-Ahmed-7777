@@ -29,12 +29,12 @@ jobs:
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      # بما إن gradlew مش موجود، بنسيب أكشن جوجل الرسمي يثبت Gradle مباشرة
+      # بما إن gradlew موجود، استخدمه للبناء
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
