@@ -16,6 +16,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +41,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -1210,288 +1214,1063 @@ fun AIAssistantScreen(colors: CustomThemeColors) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LivePricesScreen(colors: CustomThemeColors) {
     val context = LocalContext.current
-    
-    var selectedCurrency by remember { mutableStateOf<com.example.data.CurrencyRate>(LivePricesRepository.getSelectedCurrency(context)) }
-    var showCurrencyPicker by remember { mutableStateOf(false) }
-    var isRefreshing by remember { mutableStateOf(false) }
-    var selectedKarat by remember { mutableStateOf(24) }
+    val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
-    
-    // Category state selector
-    var activeCategory by remember { mutableStateOf("العملات") }
 
-    fun refreshData() {
-        isRefreshing = true
+    // Persistent SharedPreferences for base currency & favorites
+    val prefs = remember { context.getSharedPreferences("clevcalc_live_prefs", Context.MODE_PRIVATE) }
+    
+    var selectedCurrency by remember { 
+        mutableStateOf(LivePricesRepository.getSelectedCurrency(context)) 
+    }
+    
+    var favoriteCodes by remember {
+        mutableStateOf(prefs.getStringSet("favorite_currencies", setOf("USD", "EUR", "SAR", "AED")) ?: setOf("USD", "EUR", "SAR", "AED"))
+    }
+
+    fun saveFavorites(set: Set<String>) {
+        favoriteCodes = set
+        prefs.edit().putStringSet("favorite_currencies", set).apply()
+    }
+
+    // States
+    var isLoading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var isError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isOffline by remember { mutableStateOf(false) }
+
+    // Search and Filters
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("الكل") } // الكل, رئيسية, عربية, المفضلة
+    var selectedKarat by remember { mutableStateOf(24) } // 24, 22, 21, 18
+    var showCurrencyPicker by remember { mutableStateOf(false) }
+
+    // Auto-refresh countdown (60 seconds)
+    var countdownSeconds by remember { mutableStateOf(60) }
+
+    // Quick Converter Bottom Sheet state
+    var converterTargetCurrency by remember { mutableStateOf<com.example.data.CurrencyRate?>(null) }
+    var converterAmountInput by remember { mutableStateOf("100") }
+    var converterIsSwapped by remember { mutableStateOf(false) }
+
+    // Initial load and auto-refresh timer
+    fun loadMarketData(isManual: Boolean = false) {
+        if (isManual) isRefreshing = true else isLoading = true
+        isError = false
+        errorMessage = null
+
         coroutineScope.launch {
-            LivePricesRepository.refreshLivePrices(context)
-            isRefreshing = false
+            try {
+                val success = LivePricesRepository.refreshLivePrices(context)
+                if (success) {
+                    isOffline = false
+                } else {
+                    isOffline = true
+                }
+                isLoading = false
+                isRefreshing = false
+                countdownSeconds = 60
+            } catch (e: Exception) {
+                if (isManual) {
+                    isRefreshing = false
+                } else {
+                    isLoading = false
+                }
+                isError = true
+                errorMessage = e.localizedMessage ?: "حدث خطأ أثناء الاتصال بالخادم"
+                isOffline = true
+            }
         }
     }
 
     LaunchedEffect(Unit) {
-        if (!LivePricesRepository.isLiveDataLoaded) {
-            refreshData()
+        loadMarketData(false)
+    }
+
+    // Auto-refresh timer loop (60s countdown)
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(1000L)
+            if (countdownSeconds > 1) {
+                countdownSeconds--
+            } else {
+                countdownSeconds = 60
+                loadMarketData(false)
+            }
         }
     }
 
-    // Calculations based on selected currency
+    // Market status (Open/Closed simulation based on time)
+    val calendar = java.util.Calendar.getInstance()
+    val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+    val dayOfWeek = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+    val isMarketOpen = dayOfWeek != java.util.Calendar.FRIDAY && dayOfWeek != java.util.Calendar.SATURDAY && hour in 8..22
+    val marketStatusText = if (isMarketOpen) "مفتوح الآن" else "مغلق (عطلة الأسواق)"
+    val marketStatusColor = if (isMarketOpen) Color(0xFF10B981) else Color(0xFFEF4444)
+
+    // Calculations
     val currRate = selectedCurrency.rateVsUsd
     val currCode = selectedCurrency.code
 
-    // Gold Prices
     val goldGramUsd = LivePricesRepository.getGoldPricePerGramInUsd(selectedKarat)
     val goldGramCurr = goldGramUsd * currRate
 
-    // Silver Prices
     val silverGramUsd = LivePricesRepository.silverGramUsd
     val silverGramCurr = silverGramUsd * currRate
+
+    val platinumGramUsd = LivePricesRepository.platinumGramUsd
+    val platinumGramCurr = platinumGramUsd * (currRate / (LivePricesRepository.currencies.firstOrNull { it.code == "USD" }?.rateVsUsd ?: 1.0))
+
+    val palladiumGramUsd = LivePricesRepository.palladiumGramUsd
+    val palladiumGramCurr = palladiumGramUsd * (currRate / (LivePricesRepository.currencies.firstOrNull { it.code == "USD" }?.rateVsUsd ?: 1.0))
+
+    // Filtered currencies using derivedStateOf
+    val filteredCurrencies = remember(searchQuery, selectedCategory, currCode, favoriteCodes) {
+        LivePricesRepository.currencies.filter { c ->
+            if (c.code == currCode) return@filter false
+            
+            // Category filter
+            val matchesCategory = when (selectedCategory) {
+                "رئيسية" -> c.code in listOf("USD", "EUR", "GBP", "SAR", "AED", "KWD")
+                "عربية" -> c.code in listOf("SAR", "AED", "KWD", "QAR", "BHD", "OMR", "JOD", "DZD", "MAD", "TND")
+                "المفضلة" -> c.code in favoriteCodes
+                else -> true
+            }
+
+            if (!matchesCategory) return@filter false
+
+            // Search query
+            if (searchQuery.isBlank()) true
+            else c.nameAr.contains(searchQuery, ignoreCase = true) ||
+                 c.code.contains(searchQuery, ignoreCase = true) ||
+                 c.countryAr.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    val favoriteCurrenciesList = remember(favoriteCodes, currCode) {
+        LivePricesRepository.currencies.filter { it.code in favoriteCodes && it.code != currCode }
+    }
+
+    // Error shake animation state
+    val shakeAnim = remember { Animatable(0f) }
+    LaunchedEffect(isError) {
+        if (isError) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            repeat(3) {
+                shakeAnim.animateTo(10f, animationSpec = tween(50))
+                shakeAnim.animateTo(-10f, animationSpec = tween(50))
+            }
+            shakeAnim.animateTo(0f, animationSpec = tween(50))
+        }
+    }
 
     ToolScreenScaffold(
         colors = colors,
         icon = AppIcons.forCalc(CalcKey.LIVE_PRICES),
         title = "الأسعار الحية الفورية",
-        subtitle = "متابعة أسعار صرف العملات والذهب والفضة والمعادن الثمينة والنفط العالمية"
+        subtitle = "متابعة أسعار صرف العملات والذهب والمعادن الثمينة والنفط العالمية"
     ) {
-        // 1. Live Price Status Header
-        FrostedGlassCard(
-            colors = colors,
-            variant = FrostedGlassCardVariant.Compact,
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(colors.positive)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("مباشر ومحدّث", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.positive)
-                }
-
-                Text(
-                    if (LivePricesRepository.isLiveDataLoaded) LivePricesRepository.lastUpdatedText else "آخر تحديث: جاري التحميل...",
-                    fontSize = 11.sp,
-                    color = colors.textMuted
-                )
-
-                IconButton(
-                    onClick = { refreshData() },
-                    enabled = !isRefreshing,
-                    modifier = Modifier.size(36.dp)
+            // 1. OFFLINE BANNER (if applicable)
+            AnimatedVisibility(visible = isOffline) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF59E0B).copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, Color(0xFFF59E0B).copy(alpha = 0.4f))
                 ) {
-                    if (isRefreshing) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = colors.accent)
-                    } else {
-                        Icon(Icons.Filled.Refresh, contentDescription = "تحديث", tint = colors.accent)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.CloudOff, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("يعمل بآخر أسعار صرف مخزنة (غير متصل بالإنترنت)", fontSize = 12.sp, color = Color(0xFFF59E0B), fontWeight = FontWeight.Bold)
+                        }
+                        Text(LivePricesRepository.lastUpdatedText, fontSize = 10.sp, color = colors.textMuted)
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 2. Preferred Currency Picker Pill
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start
-        ) {
-            Box(
+            // 2. DYNAMIC HERO HEADER & BASE CURRENCY BANNER
+            Surface(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colors.surface.copy(alpha = 0.75f))
-                    .border(1.dp, colors.border.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                    .clickable { showCurrencyPicker = true }
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .fillMaxWidth()
+                    .graphicsLayer { translationX = shakeAnim.value },
+                shape = RoundedCornerShape(24.dp),
+                color = Color(0xFF141926).copy(alpha = 0.85f),
+                border = BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.35f)),
+                shadowElevation = 8.dp
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(selectedCurrency.flag, fontSize = 16.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(selectedCurrency.nameAr, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(Icons.Filled.ArrowDropDown, null, tint = colors.textMuted, modifier = Modifier.size(16.dp))
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // Procedural Canvas watermark grid & glow
+                    Canvas(modifier = Modifier.matchParentSize()) {
+                        val paintColor = Color(0xFFD4AF37).copy(alpha = 0.04f)
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0xFFD4AF37).copy(alpha = 0.15f), Color.Transparent),
+                                center = Offset(size.width * 0.8f, size.height * 0.2f),
+                                radius = 250f
+                            )
+                        )
+                        // Background candlestick grid lines
+                        for (i in 0..5) {
+                            drawLine(
+                                color = paintColor,
+                                start = Offset(i * (size.width / 5f), 0f),
+                                end = Offset(i * (size.width / 5f), size.height),
+                                strokeWidth = 1f,
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                            )
+                        }
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Pulsing live indicator
+                                val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                                val pulseAlpha by infiniteTransition.animateFloat(
+                                    initialValue = 0.3f,
+                                    targetValue = 1f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(1000, easing = FastOutSlowInEasing),
+                                        repeatMode = RepeatMode.Reverse
+                                    ),
+                                    label = "pulseAlpha"
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF10B981).copy(alpha = pulseAlpha))
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("● مباشر ومحدث", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                            }
+
+                            // Market Status Badge
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = marketStatusColor.copy(alpha = 0.15f),
+                                border = BorderStroke(1.dp, marketStatusColor.copy(alpha = 0.4f))
+                            ) {
+                                Text(
+                                    text = marketStatusText,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = marketStatusColor
+                                )
+                            }
+                        }
+
+                        // Title & Subtitle
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "الأسعار الحية الفورية للأسواق",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "تتبع أسعار العملات الأجنبية، الذهب، الفضة، والنفط بتحديث لحظي",
+                                fontSize = 12.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+
+                        // Base Currency Selector Dropdown & Refresh Bar
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Base Currency Chip
+                            Surface(
+                                modifier = Modifier.clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    showCurrencyPicker = true
+                                },
+                                shape = RoundedCornerShape(20.dp),
+                                color = Color(0xFF1E293B),
+                                border = BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(selectedCurrency.flag, fontSize = 18.sp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text("العملة الأساسية", fontSize = 9.sp, color = Color(0xFF94A3B8))
+                                        Text("${selectedCurrency.nameAr} (${selectedCurrency.code})", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(Icons.Filled.ArrowDropDown, null, tint = Color(0xFFD4AF37), modifier = Modifier.size(18.dp))
+                                }
+                            }
+
+                            // Refresh Button with circular countdown ring
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "تحديث خلال ${countdownSeconds}ث",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFF94A3B8)
+                                )
+
+                                val rotationAngle by animateFloatAsState(
+                                    targetValue = if (isRefreshing) 360f else 0f,
+                                    animationSpec = tween(durationMillis = 600, easing = LinearEasing),
+                                    label = "refreshRotation"
+                                )
+
+                                Surface(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            loadMarketData(true)
+                                        },
+                                    color = Color(0xFFD4AF37).copy(alpha = 0.15f),
+                                    border = BorderStroke(1.dp, Color(0xFFD4AF37))
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        if (isRefreshing) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                color = Color(0xFFD4AF37),
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Filled.Refresh,
+                                                contentDescription = "تحديث",
+                                                tint = Color(0xFFD4AF37),
+                                                modifier = Modifier
+                                                    .size(20.dp)
+                                                    .graphicsLayer { rotationZ = rotationAngle }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 3. Gold & Silver Realtime Market Summary
-        SectionHeader(colors = colors, title = "أسعار الذهب والمعادن الثمينة اليوم")
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Gold Gram Card
-            FrostedGlassCard(
-                colors = colors,
-                variant = FrostedGlassCardVariant.Standard,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("الذهب (عيار $selectedKarat)", fontSize = 11.sp, color = colors.textMuted)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "$currCode ${LivePricesRepository.formatNumber(goldGramCurr)}",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Black,
-                    color = colors.accent
-                )
-                Text("لكل جرام", fontSize = 9.sp, color = colors.textMuted)
-            }
-
-            // Silver Gram Card
-            FrostedGlassCard(
-                colors = colors,
-                variant = FrostedGlassCardVariant.Standard,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("الفضة الصافية", fontSize = 11.sp, color = colors.textMuted)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "$currCode ${LivePricesRepository.formatNumber(silverGramCurr)}",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Black,
-                    color = colors.text
-                )
-                Text("لكل جرام", fontSize = 9.sp, color = colors.textMuted)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Karat Preferred Selector
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text("تخصيص العيار:", fontSize = 11.sp, color = colors.textMuted)
-            listOf(24, 22, 21, 18).forEach { k ->
-                GlassChip(
-                    colors = colors,
-                    label = "عيار $k",
-                    selected = selectedKarat == k,
-                    onClick = { selectedKarat = k }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // 4. Live Currencies Grid with Search filter
-        var currencySearchQuery by remember { mutableStateOf("") }
-        SectionHeader(colors = colors, title = "صرف العملات الأجنبية مقابل $currCode")
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = currencySearchQuery,
-            onValueChange = { currencySearchQuery = it },
-            placeholder = { Text("ابحث عن عملة أو دولة معينة...", fontSize = 12.sp, color = colors.textMuted) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = colors.accent,
-                unfocusedBorderColor = colors.border.copy(alpha = 0.3f),
-                focusedTextColor = colors.text,
-                unfocusedTextColor = colors.text
-            )
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        val filteredCurrencies = remember(currencySearchQuery, currCode) {
-            LivePricesRepository.currencies.filter { c ->
-                c.code != currCode && (
-                    currencySearchQuery.isBlank() ||
-                    c.nameAr.contains(currencySearchQuery, ignoreCase = true) ||
-                    c.code.contains(currencySearchQuery, ignoreCase = true) ||
-                    c.countryAr.contains(currencySearchQuery, ignoreCase = true)
-                )
-            }
-        }
-
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            filteredCurrencies.forEach { c ->
-                val convertedRate = LivePricesRepository.convertCurrency(1.0, c.code, currCode)
-                Box(
+            // 3. LOADING STATE (SKELETON) vs SUCCESS STATE
+            if (isLoading) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    repeat(3) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(110.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF141926).copy(alpha = 0.5f)
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = Color(0xFFD4AF37), strokeWidth = 2.dp)
+                            }
+                        }
+                    }
+                }
+            } else if (isError && !LivePricesRepository.isLiveDataLoaded) {
+                // ERROR STATE WITH RETRY
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.surface.copy(alpha = 0.5f))
-                        .border(1.dp, colors.border.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .graphicsLayer { translationX = shakeAnim.value },
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xFFEF4444).copy(alpha = 0.1f),
+                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Filled.Warning, null, tint = Color(0xFFEF4444), modifier = Modifier.size(36.dp))
+                        Text("تعذر جلب الأسعار المباشرة", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(errorMessage ?: "يرجى التحقق من اتصال الإنترنت والمحاولة مرة أخرى", fontSize = 12.sp, color = Color(0xFF94A3B8), textAlign = TextAlign.Center)
+                        Button(
+                            onClick = { loadMarketData(true) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("إعادة المحاولة", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                // SUCCESS STATE: PRECIOUS METALS & COMMODITIES
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(c.flag, fontSize = 24.sp)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(c.nameAr, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = colors.text)
-                                Text("${c.countryAr} (${c.code})", fontSize = 10.sp, color = colors.textMuted)
+                        Text(
+                            text = "الذهب والمعادن الثمينة والطاقة",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        // Karat Selection Chips
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf(24, 22, 21, 18).forEach { k ->
+                                val isSelected = selectedKarat == k
+                                Surface(
+                                    modifier = Modifier.clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        selectedKarat = k
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) Color(0xFFD4AF37) else Color(0xFF141926),
+                                    border = BorderStroke(1.dp, if (isSelected) Color(0xFFF3E5AB) else Color(0xFF334155))
+                                ) {
+                                    Text(
+                                        text = "ع $k",
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) Color(0xFF080A0F) else Color(0xFF94A3B8)
+                                    )
+                                }
                             }
                         }
+                    }
+
+                    // Commodities & Metals Grid (2 Columns)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Gold Card
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFF141926).copy(alpha = 0.85f),
+                            border = BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.4f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("ذهب عيار $selectedKarat", fontSize = 12.sp, color = Color(0xFF94A3B8), fontWeight = FontWeight.Bold)
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFF10B981).copy(alpha = 0.15f)
+                                    ) {
+                                        Text("+1.4%", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                                    }
+                                }
+                                Text(
+                                    text = "$currCode ${LivePricesRepository.formatNumber(goldGramCurr)}",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFFF59E0B)
+                                )
+                                Text("لكل جرام واحد", fontSize = 10.sp, color = Color(0xFF94A3B8))
+
+                                // Sparkline Canvas
+                                Canvas(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(35.dp)
+                                ) {
+                                    val path = androidx.compose.ui.graphics.Path().apply {
+                                        moveTo(0f, size.height * 0.7f)
+                                        cubicTo(size.width * 0.3f, size.height * 0.2f, size.width * 0.6f, size.height * 0.9f, size.width, size.height * 0.1f)
+                                    }
+                                    drawPath(
+                                        path = path,
+                                        color = Color(0xFF10B981),
+                                        style = Stroke(width = 2.5f, cap = StrokeCap.Round)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Brent Oil Card
+                        val brentPriceUsd = LivePricesRepository.commodityPrices.firstOrNull { it.symbol == "BRENT" }?.priceUsd ?: 84.0
+                        val brentCurr = brentPriceUsd * (currRate / (LivePricesRepository.currencies.firstOrNull { it.code == "USD" }?.rateVsUsd ?: 1.0))
+
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFF141926).copy(alpha = 0.85f),
+                            border = BorderStroke(1.dp, Color(0xFF3B82F6).copy(alpha = 0.4f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("خام برنت (Oil)", fontSize = 12.sp, color = Color(0xFF94A3B8), fontWeight = FontWeight.Bold)
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFF10B981).copy(alpha = 0.15f)
+                                    ) {
+                                        Text("+0.65%", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                                    }
+                                }
+                                Text(
+                                    text = "$currCode ${LivePricesRepository.formatNumber(brentCurr)}",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color(0xFF3B82F6)
+                                )
+                                Text("لكل برميل", fontSize = 10.sp, color = Color(0xFF94A3B8))
+
+                                // Sparkline Canvas
+                                Canvas(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(35.dp)
+                                ) {
+                                    val path = androidx.compose.ui.graphics.Path().apply {
+                                        moveTo(0f, size.height * 0.5f)
+                                        cubicTo(size.width * 0.25f, size.height * 0.8f, size.width * 0.65f, size.height * 0.2f, size.width, size.height * 0.4f)
+                                    }
+                                    drawPath(
+                                        path = path,
+                                        color = Color(0xFF3B82F6),
+                                        style = Stroke(width = 2.5f, cap = StrokeCap.Round)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Secondary Metals Row (Silver & Platinum)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Silver Card
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF141926).copy(alpha = 0.7f),
+                            border = BorderStroke(1.dp, Color(0xFF94A3B8).copy(alpha = 0.3f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text("الفضة النقية 999", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                                Text("$currCode ${LivePricesRepository.formatNumber(silverGramCurr)} / جرام", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+
+                        // Platinum Card
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress) },
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF141926).copy(alpha = 0.7f),
+                            border = BorderStroke(1.dp, Color(0xFF94A3B8).copy(alpha = 0.3f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text("البلاتين", fontSize = 11.sp, color = Color(0xFF94A3B8))
+                                Text("$currCode ${LivePricesRepository.formatNumber(platinumGramCurr)} / جرام", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
+                        }
+                    }
+                }
+
+                // 4. FAVORITES / PINNED SECTION
+                if (favoriteCurrenciesList.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Star, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("العملات المفضلة السريعة", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(favoriteCurrenciesList, key = { it.code }) { fav ->
+                                val rate = LivePricesRepository.convertCurrency(1.0, fav.code, currCode)
+                                Surface(
+                                    modifier = Modifier
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            converterTargetCurrency = fav
+                                        },
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFF141926),
+                                    border = BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.5f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(fav.flag, fontSize = 16.sp)
+                                        Column {
+                                            Text(fav.code, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                            Text(LivePricesRepository.formatNumber(rate, 2), fontSize = 11.sp, color = Color(0xFFD4AF37))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 5. FOREIGN EXCHANGE (FX) RATES SECTION WITH SEARCH & CATEGORY CHIPS
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
-                            text = "= $currCode ${LivePricesRepository.formatNumber(convertedRate, 2)}",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 14.sp,
-                            color = colors.accent
+                            text = "سعر صرف العملات مقابل $currCode",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
+                        Text(
+                            text = "${filteredCurrencies.size} عملة",
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
+
+                    // Category Filter Chips
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf("الكل", "رئيسية", "عربية", "المفضلة").forEach { cat ->
+                            val isSelected = selectedCategory == cat
+                            Surface(
+                                modifier = Modifier.clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    selectedCategory = cat
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (isSelected) Color(0xFFD4AF37) else Color(0xFF141926),
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFFF3E5AB) else Color(0xFF334155))
+                            ) {
+                                Text(
+                                    text = cat,
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) Color(0xFF080A0F) else Color(0xFF94A3B8)
+                                )
+                            }
+                        }
+                    }
+
+                    // Search Bar
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = { Text("ابحث عن عملة أو دولة معينة...", fontSize = 13.sp, color = Color(0xFF94A3B8)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                        leadingIcon = { Icon(Icons.Filled.Search, null, tint = Color(0xFFD4AF37)) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(Icons.Filled.Close, null, tint = Color(0xFF94A3B8))
+                                }
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFD4AF37),
+                            unfocusedBorderColor = Color(0xFF334155),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+
+                    // FX Rates List / Empty State
+                    if (filteredCurrencies.isEmpty()) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFF141926).copy(alpha = 0.5f)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(Icons.Filled.SearchOff, null, tint = Color(0xFF94A3B8), modifier = Modifier.size(48.dp))
+                                Text("لم يتم العثور على عملة مطابقة لبحثك", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Button(
+                                    onClick = { searchQuery = ""; selectedCategory = "الكل" },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37)),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text("مسح البحث", color = Color(0xFF080A0F), fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    } else {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            filteredCurrencies.forEach { c ->
+                                val convertedRate = LivePricesRepository.convertCurrency(1.0, c.code, currCode)
+                                val isFavorite = c.code in favoriteCodes
+
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            converterTargetCurrency = c
+                                        },
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFF141926).copy(alpha = 0.85f),
+                                    border = BorderStroke(1.dp, Color(0xFF334155).copy(alpha = 0.6f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Text(c.flag, fontSize = 28.sp)
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                    Text(c.nameAr, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White)
+                                                    Text("(${c.code})", fontSize = 11.sp, color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
+                                                }
+                                                Text(c.countryAr, fontSize = 11.sp, color = Color(0xFF94A3B8))
+                                            }
+                                        }
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text(
+                                                    text = LivePricesRepository.formatNumber(convertedRate, 4),
+                                                    fontWeight = FontWeight.Black,
+                                                    fontSize = 15.sp,
+                                                    color = Color(0xFFF59E0B)
+                                                )
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = Color(0xFF10B981).copy(alpha = 0.15f)
+                                                ) {
+                                                    Text("+0.12%", modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp), fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                                                }
+                                            }
+
+                                            IconButton(
+                                                onClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    val newFavs = if (isFavorite) favoriteCodes - c.code else favoriteCodes + c.code
+                                                    saveFavorites(newFavs)
+                                                },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                                                    contentDescription = "المفضلة",
+                                                    tint = if (isFavorite) Color(0xFFF59E0B) else Color(0xFF94A3B8),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    // Currency Picker Dialog
+    // 6. QUICK FX CONVERTER BOTTOM SHEET (Modal Sheet with 75% height)
+    if (converterTargetCurrency != null) {
+        val target = converterTargetCurrency!!
+        var amountVal by remember { mutableStateOf(converterAmountInput) }
+        var isSwapped by remember { mutableStateOf(converterIsSwapped) }
+
+        val parsedAmount = amountVal.toDoubleOrNull() ?: 0.0
+        val conversionResult = if (!isSwapped) {
+            LivePricesRepository.convertCurrency(parsedAmount, target.code, currCode)
+        } else {
+            LivePricesRepository.convertCurrency(parsedAmount, currCode, target.code)
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { converterTargetCurrency = null },
+            containerColor = Color(0xFF0F1422),
+            contentColor = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+                    .navigationBarsPadding(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(target.flag, fontSize = 28.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text("محول العملات السريع", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                            Text("${target.nameAr} (${target.code})", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+
+                    IconButton(onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        isSwapped = !isSwapped
+                    }) {
+                        Icon(Icons.Filled.SwapVert, null, tint = Color(0xFFD4AF37), modifier = Modifier.size(28.dp))
+                    }
+                }
+
+                Divider(color = Color(0xFF334155))
+
+                // Input Field
+                OutlinedTextField(
+                    value = amountVal,
+                    onValueChange = { amountVal = it },
+                    label = { Text(if (!isSwapped) "المبلغ بـ ${target.code}" else "المبلغ بـ $currCode") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFFD4AF37),
+                        unfocusedBorderColor = Color(0xFF334155),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedLabelColor = Color(0xFFD4AF37)
+                    )
+                )
+
+                // Quick Presets
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("100", "500", "1000", "5000").forEach { preset ->
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    amountVal = preset
+                                },
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFF141926),
+                            border = BorderStroke(1.dp, Color(0xFF334155))
+                        ) {
+                            Text(
+                                text = preset,
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                textAlign = TextAlign.Center,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFD4AF37)
+                            )
+                        }
+                    }
+                }
+
+                // Result Box
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xFF141926),
+                    border = BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.5f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text("النتيجة المحسوبة بدقة", fontSize = 12.sp, color = Color(0xFF94A3B8))
+                        Text(
+                            text = "${LivePricesRepository.formatNumber(conversionResult, 4)} ${if (!isSwapped) currCode else target.code}",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFFF59E0B)
+                        )
+                    }
+                }
+
+                // Actions: Favorite toggle & Close
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val isFav = target.code in favoriteCodes
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            val newFavs = if (isFav) favoriteCodes - target.code else favoriteCodes + target.code
+                            saveFavorites(newFavs)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isFav) Color(0xFF334155) else Color(0xFF141926)),
+                        border = BorderStroke(1.dp, Color(0xFFD4AF37)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(if (isFav) Icons.Filled.Star else Icons.Outlined.StarBorder, null, tint = Color(0xFFF59E0B))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (isFav) "إزالة من المفضلة" else "إضافة للمفضلة", color = Color.White)
+                    }
+
+                    Button(
+                        onClick = { converterTargetCurrency = null },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD4AF37)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("إغلاق", color = Color(0xFF080A0F), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    // 7. CURRENCY PICKER DIALOG FOR BASE CURRENCY
     if (showCurrencyPicker) {
-        var searchQuery by remember { mutableStateOf("") }
-        val filteredList = LivePricesRepository.currencies.filter { c ->
-            searchQuery.isBlank() ||
-            c.nameAr.contains(searchQuery, ignoreCase = true) ||
-            c.code.contains(searchQuery, ignoreCase = true) ||
-            c.countryAr.contains(searchQuery, ignoreCase = true)
+        var pickerSearchQuery by remember { mutableStateOf("") }
+        val pickerList = LivePricesRepository.currencies.filter { c ->
+            pickerSearchQuery.isBlank() ||
+            c.nameAr.contains(pickerSearchQuery, ignoreCase = true) ||
+            c.code.contains(pickerSearchQuery, ignoreCase = true) ||
+            c.countryAr.contains(pickerSearchQuery, ignoreCase = true)
         }
 
         AlertDialog(
             onDismissRequest = { showCurrencyPicker = false },
             confirmButton = {
                 TextButton(onClick = { showCurrencyPicker = false }) {
-                    Text("إغلاق", color = colors.accent, fontWeight = FontWeight.Bold)
+                    Text("إغلاق", color = Color(0xFFD4AF37), fontWeight = FontWeight.Bold)
                 }
             },
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Public, null, tint = colors.accent, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Public, null, tint = Color(0xFFD4AF37), modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("اختر دولة العملة", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("اختر العملة الأساسية", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
                 }
             },
             text = {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = { Text("ابحث عن الدولة أو العملة...", fontSize = 12.sp) },
+                        value = pickerSearchQuery,
+                        onValueChange = { pickerSearchQuery = it },
+                        placeholder = { Text("ابحث عن الدولة أو العملة...", fontSize = 12.sp, color = Color(0xFF94A3B8)) },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFFD4AF37),
+                            unfocusedBorderColor = Color(0xFF334155),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -1499,17 +2278,19 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(300.dp)
+                            .height(300.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        items(filteredList) { item ->
+                        items(pickerList, key = { it.code }) { item ->
                             val isSelected = item.code == selectedCurrency.code
                             Surface(
-                                color = if (isSelected) colors.accent.copy(alpha = 0.15f) else colors.surface,
+                                color = if (isSelected) Color(0xFFD4AF37).copy(alpha = 0.2f) else Color(0xFF141926),
                                 shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, if (isSelected) Color(0xFFD4AF37) else Color(0xFF334155)),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 3.dp)
                                     .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         selectedCurrency = item
                                         LivePricesRepository.setSelectedCurrency(context, item.code)
                                         showCurrencyPicker = false
@@ -1518,21 +2299,21 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(item.flag, fontSize = 20.sp)
+                                        Text(item.flag, fontSize = 22.sp)
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Column {
-                                            Text(item.nameAr, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.text)
-                                            Text("${item.countryAr} (${item.code})", fontSize = 11.sp, color = colors.textMuted)
+                                            Text(item.nameAr, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                            Text("${item.countryAr} (${item.code})", fontSize = 11.sp, color = Color(0xFF94A3B8))
                                         }
                                     }
 
                                     if (isSelected) {
-                                        Text("✓", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colors.accent)
+                                        Text("✓", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFFD4AF37))
                                     }
                                 }
                             }
@@ -1540,9 +2321,9 @@ fun LivePricesScreen(colors: CustomThemeColors) {
                     }
                 }
             },
-            containerColor = colors.surface,
-            titleContentColor = colors.text,
-            textContentColor = colors.text
+            containerColor = Color(0xFF0F1422),
+            titleContentColor = Color.White,
+            textContentColor = Color.White
         )
     }
 }

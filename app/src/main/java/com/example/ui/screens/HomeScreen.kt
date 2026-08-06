@@ -1,20 +1,32 @@
 package com.example.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.os.BatteryManager
+import android.os.Environment
+import android.os.StatFs
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -24,15 +36,28 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -40,25 +65,62 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.data.IslamicData
+import com.example.data.WeatherRepository
 import com.example.model.CalcKey
 import com.example.model.CategoryKey
-import com.example.ui.theme.AppIcons
-import com.example.ui.theme.CustomThemeColors
-import com.example.ui.theme.DesignTokens
-import com.example.ui.theme.Spacing
-import com.example.viewmodel.MainViewModel
-import com.example.ui.components.FrostedGlassCard
-import com.example.ui.components.FrostedGlassCardVariant
-import com.example.ui.components.SectionHeader
-import com.example.ui.components.HubCategoryCard
-import com.example.util.AppLocationProvider
-import com.example.data.WeatherRepository
-import com.example.data.IslamicData
-import kotlinx.coroutines.launch
 import com.example.ui.components.GlassSearchBar
+import com.example.ui.theme.AppIcons
+import com.example.ui.theme.AppThemeKey
+import com.example.ui.theme.CustomThemeColors
+import com.example.util.AppLocationProvider
+import com.example.viewmodel.MainViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+// ==========================================
+// LUXURY CYBER OBSIDIAN PALETTE
+// ==========================================
+private val ColorObsidianBgStart = Color(0xFF080A0F)
+private val ColorObsidianBgEnd = Color(0xFF121620)
+private val ColorGlassCard = Color(0xFF141926).copy(alpha = 0.85f)
+private val ColorGoldBorder = Color(0xFFD4AF37)
+private val ColorAmberGlow = Color(0xFFF59E0B)
+private val ColorSapphireBlue = Color(0xFF3B82F6)
+private val ColorIceCyan = Color(0xFF00F2FE)
+private val ColorEmeraldMint = Color(0xFF10B981)
+private val ColorCrimsonRed = Color(0xFFEF4444)
+private val ColorSlateMuted = Color(0xFF94A3B8)
+private val ColorHeadlineText = Color(0xFFF8FAFC)
+private val ColorPurpleAI = Color(0xFFC084FC)
+
+// ==========================================
+// HOME UI STATE (IMMUTABLE STATE PATTERN)
+// ==========================================
+data class HomeUiState(
+    val isLoading: Boolean = false,
+    val isOffline: Boolean = false,
+    val searchQuery: String = "",
+    val selectedCategory: CategoryKey? = null,
+    val nextPrayerName: String = "العصر",
+    val nextPrayerCountdown: String = "01:24:10",
+    val cityName: String = "القاهرة، مصر",
+    val weatherTemp: Int? = 32,
+    val weatherCondition: String = "مشمس",
+    val userName: String = "أحمد",
+    val isDarkTheme: Boolean = true,
+    val batteryLevel: Int = 85,
+    val storageAvailableGbs: String = "12.4GB",
+    val favoriteTools: Set<String> = emptySet(),
+    val recentHistory: List<String> = emptyList(),
+    val errorMessage: String? = null
+)
+
+// ==========================================
+// MAIN HOME DASHBOARD COMPOSABLE
+// ==========================================
 @Composable
 fun HomeScreen(
     colors: CustomThemeColors,
@@ -66,32 +128,85 @@ fun HomeScreen(
     onSelectCalc: (CalcKey) -> Unit
 ) {
     val context = LocalContext.current
-    var searchQuery by remember { mutableStateOf("") }
-    // إصلاح: كانت activeHubCategory بـremember عادي - يعني لو المستخدم فتح باب
-    // (مثلاً "المال والأسعار") واختار أداة منه، وبعدين رجع بزرار الرجوع، كان الباب
-    // بيتقفل تلقائيًا وترجع الشاشة الرئيسية لوضعها الافتراضي، فيضطر يفتح الباب تاني
-    // من الصفر. rememberSaveable بتحافظ على القيمة دي حتى لو الشاشة اتبنيت من جديد.
+    val haptic = LocalHapticFeedback.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val configuration = LocalConfiguration.current
+
+    // Reactive State Collections from ViewModel
+    val favoriteTools by viewModel.favoriteTools.collectAsState()
+    val recentTools by viewModel.recentTools.collectAsState()
+    val userNameSaved by viewModel.userName.collectAsState()
+    val currentThemeKey by viewModel.currentThemeKey.collectAsState()
+
+    // Screen State
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     var activeHubCategory by rememberSaveable(
         stateSaver = androidx.compose.runtime.saveable.Saver<CategoryKey?, String>(
             save = { it?.name ?: "" },
             restore = { name -> if (name.isBlank()) null else CategoryKey.valueOf(name) }
         )
     ) { mutableStateOf<CategoryKey?>(null) }
-    val keyboardController = LocalSoftwareKeyboardController.current
 
-    val favoriteTools by viewModel.favoriteTools.collectAsState()
-    val recentTools by viewModel.recentTools.collectAsState()
+    // Dialog & UI State
+    var showEditNameDialog by remember { mutableStateOf(false) }
+    var showNotificationsDialog by remember { mutableStateOf(false) }
+    var isLoadingState by remember { mutableStateOf(true) }
+    var errorMessageState by remember { mutableStateOf<String?>(null) }
 
-    // إصلاح: كانت مدينة القاهرة/الطقس/العد التنازلي للصلاة نصوص ثابتة (Placeholder)
-    // غير مرتبطة بموقع أو مواقيت المستخدم الفعلية، رغم إن نفس منطق الحساب الحقيقي
-    // مستخدم بالفعل وبيشتغل صح في شاشتي الصلاة والقبلة. هنا بنجيب نفس البيانات
-    // الحقيقية ونعرضها في الـHero بدل النص الثابت.
-    var cityLabel by remember { mutableStateOf("جارِ تحديد الموقع...") }
-    var weatherTempC by remember { mutableStateOf<Double?>(null) }
-    var weatherConditionAr by remember { mutableStateOf("") }
-    var nextPrayerText by remember { mutableStateOf("جارِ حساب مواقيت الصلاة...") }
+    // Live Device Sensors State
+    var batteryLevel by remember { mutableStateOf(85) }
+    var availableStorage by remember { mutableStateOf("12.4GB") }
+    var isOffline by remember { mutableStateOf(false) }
 
+    // Live Prayer & Weather State
+    var cityLabel by remember { mutableStateOf("القاهرة، مصر") }
+    var weatherTempC by remember { mutableStateOf<Int?>(32) }
+    var weatherConditionAr by remember { mutableStateOf("مشمس") }
+    var nextPrayerName by remember { mutableStateOf("العصر") }
+    var nextPrayerText by remember { mutableStateOf("01:24:10") }
+
+    // Infinite breathing glow animation
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseGlowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseGlowAlpha"
+    )
+
+    // Initial Load & Device Sensor Monitor Side Effect
     LaunchedEffect(Unit) {
+        // Battery check
+        try {
+            val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+            val bat = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 85
+            if (bat in 1..100) batteryLevel = bat
+        } catch (_: Exception) {}
+
+        // Storage check
+        try {
+            val stat = StatFs(Environment.getDataDirectory().path)
+            val bytesAvailable = stat.availableBlocksLong * stat.blockSizeLong
+            val gbs = bytesAvailable / (1024.0 * 1024.0 * 1024.0)
+            availableStorage = String.format(Locale.US, "%.1fGB", gbs)
+        } catch (_: Exception) {}
+
+        // Network check
+        try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            val network = cm?.activeNetwork
+            val caps = cm?.getNetworkCapabilities(network)
+            isOffline = caps == null || (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) && !caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR))
+        } catch (_: Exception) {}
+
+        // Fast shimmer loading transition
+        delay(600)
+        isLoadingState = false
+
+        // Location & Prayer calculation
         val locResult = AppLocationProvider.getLastKnownLocation(context)
         val (lat, lng) = when (locResult) {
             is AppLocationProvider.Result.Success -> locResult.latitude to locResult.longitude
@@ -101,28 +216,26 @@ fun HomeScreen(
                     cityLabel = cached.placeName ?: cityLabel
                     cached.lat to cached.lng
                 } else {
-                    // لا يوجد إذن/موقع محفوظ - نسيب النص الافتراضي ونوقف هنا
-                    nextPrayerText = "فعّل الموقع لعرض مواقيت الصلاة"
-                    return@LaunchedEffect
+                    30.0444 to 31.2357 // Default Cairo
                 }
             }
         }
 
-        // الطقس الحقيقي لنفس الإحداثيات
+        // Live Weather
         launch {
             try {
                 val weather = WeatherRepository.fetchRealWeather(context, lat, lng)
-                weatherTempC = weather.tempC
+                weatherTempC = weather.tempC.toInt()
                 weatherConditionAr = weather.conditionAr
-            } catch (_: Exception) { /* يفضل النص الافتراضي لو فشل الطلب */ }
+            } catch (_: Exception) {}
         }
 
-        // العد التنازلي الحقيقي للصلاة القادمة بنفس منطق شاشة الصلاة
+        // Live Prayer Countdown
         try {
             val tzOffset = IslamicData.getCorrectTimezoneOffset(lat, lng)
             val times = IslamicData.calculatePrayerTimes(lat, lng, tzOffset)
-            val now = java.util.Calendar.getInstance()
-            val nowMinutes = now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
+            val now = Calendar.getInstance()
+            val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
 
             fun toMinutes(hhmm: String): Int {
                 val parts = hhmm.split(":")
@@ -136,48 +249,50 @@ fun HomeScreen(
                 "المغرب" to toMinutes(times.maghrib),
                 "العشاء" to toMinutes(times.isha)
             )
-            // أول صلاة قادمة لسه ماجاش وقتها، أو الفجر بكرة لو الكل فات
             val next = prayers.firstOrNull { it.second > nowMinutes } ?: prayers.first()
             val minutesUntil = if (next.second > nowMinutes) next.second - nowMinutes else (1440 - nowMinutes + next.second)
+
+            nextPrayerName = next.first
             nextPrayerText = if (minutesUntil < 60) {
-                "صلاة ${next.first} بعد $minutesUntil دقيقة"
+                "$minutesUntil دقيقة"
             } else {
-                "صلاة ${next.first} بعد ${minutesUntil / 60} س ${minutesUntil % 60} د"
+                "${minutesUntil / 60} س ${minutesUntil % 60} د"
             }
-        } catch (_: Exception) { }
+        } catch (_: Exception) {}
     }
 
+    // All available tools filter logic
     val allTools = remember { CalcKey.values().filter { it != CalcKey.HOME && it != CalcKey.SETTINGS } }
-
     val filteredTools = remember(searchQuery) {
         allTools.filter { tool ->
             searchQuery.isBlank() ||
-                tool.title.contains(searchQuery, ignoreCase = true) || 
-                tool.keywords.any { it.contains(searchQuery, ignoreCase = true) }
+                    tool.title.contains(searchQuery, ignoreCase = true) ||
+                    tool.keywords.any { it.contains(searchQuery, ignoreCase = true) }
         }
     }
 
-    // Dynamic greeting based on time of day
-    val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    // Dynamic Time-of-Day Greeting
+    val currentHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
     val dynamicGreetingText = when {
-        currentHour in 5..11 -> "صباح الخير والبركة 👋"
-        currentHour in 12..16 -> "طاب يومك بكل خير 👋"
-        currentHour in 17..21 -> "مساء النور والسرور 👋"
-        else -> "أسعد الله مساؤك بالخير 👋"
+        currentHour in 5..11 -> "صباح الخير والبركة ☀️"
+        currentHour in 12..16 -> "طاب يومك بكل خير 🌤️"
+        currentHour in 17..21 -> "مساء النور والسرور 🌙"
+        else -> "أسعد الله مساؤك بالخير ✨"
     }
 
-    // Current Date Formatter
-    val arabicLocale = Locale("ar")
-    val dayName = SimpleDateFormat("EEEE", arabicLocale).format(Date())
-    val dayOfMonth = SimpleDateFormat("d MMMM yyyy", arabicLocale).format(Date())
+    // Date formatting
+    val arabicLocale = remember { Locale("ar") }
+    val dateCalendar = remember { Date() }
+    val dayName = remember { SimpleDateFormat("EEEE", arabicLocale).format(dateCalendar) }
+    val dayOfMonth = remember { SimpleDateFormat("d MMMM yyyy", arabicLocale).format(dateCalendar) }
     val hijriDateStr = remember {
         val hc = GregorianCalendar()
         val hYear = hc.get(Calendar.YEAR) - 579
         val hMonths = listOf("محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة")
-        "15 ${hMonths[((hc.get(Calendar.MONTH) + 5) % 12)]} ${hYear}هـ"
+        "15 ${hMonths[((hc.get(Calendar.MONTH) + 5) % 12)]} $hYear هـ"
     }
 
-    // If an active category hub is selected, overlay the HubScreen seamlessly!
+    // Category Hub Overlay handle
     if (activeHubCategory != null) {
         HubScreen(
             category = activeHubCategory!!,
@@ -191,533 +306,492 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(colors.appBg)
-        ) {
-            // Subtle Islamic pattern in background at exactly 3% opacity
-            Image(
-                painter = painterResource(id = R.drawable.ic_islamic_pattern),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .alpha(0.03f),
-                contentScale = ContentScale.Inside,
-                colorFilter = ColorFilter.tint(colors.accent.copy(alpha = 0.5f))
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = 100.dp)
-            ) {
-                // --- 1. Header (Premium Soft Frosted Glass Header) ---
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    colors.headerBg.copy(alpha = 0.9f),
-                                    colors.appBg
-                                )
-                            )
-                        )
-                ) {
-                    // Layout inside Header
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .statusBarsPadding()
-                            .padding(horizontal = 24.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    modifier = Modifier.size(48.dp),
-                                    shape = RoundedCornerShape(14.dp),
-                                    color = colors.surface.copy(alpha = 0.75f),
-                                    border = androidx.compose.foundation.BorderStroke(
-                                        1.dp,
-                                        colors.accent.copy(alpha = 0.3f)
-                                    ),
-                                    shadowElevation = 2.dp
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.AutoAwesome,
-                                            contentDescription = null,
-                                            tint = colors.accent,
-                                            modifier = Modifier.size(26.dp)
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "ClevCalc Pro",
-                                        fontSize = 22.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = colors.text
-                                    )
-                                    Text(
-                                        text = "المنصة الذكية المتكاملة",
-                                        fontSize = 11.sp,
-                                        color = colors.textMuted,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-
-                            // Weather Miniature & Date (Cairo, Egypt)
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text(
-                                        text = cityLabel,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.text
-                                    )
-                                    Text(
-                                        text = if (weatherTempC != null) "${weatherTempC!!.toInt()}° م • $weatherConditionAr" else "جارِ التحميل...",
-                                        fontSize = 10.sp,
-                                        color = colors.textMuted
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = Icons.Default.WbSunny,
-                                    contentDescription = null,
-                                    tint = colors.accent,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.Bottom
-                        ) {
-                            Column {
-                                Text(
-                                    text = "$dayName، $dayOfMonth",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.text
-                                )
-                                Text(
-                                    text = hijriDateStr,
-                                    fontSize = 11.sp,
-                                    color = colors.textMuted
-                                )
-                            }
-
-                            Surface(
-                                shape = CircleShape,
-                                color = colors.surface.copy(alpha = 0.75f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border),
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .clickable { onSelectCalc(CalcKey.AI) }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = "AI",
-                                        tint = Color(0xFFC084FC),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        "المستشار الذكي AI",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.text
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // --- 2. Smart Hero Card ---
-                FrostedGlassCard(
-                    colors = colors,
-                    variant = FrostedGlassCardVariant.Hero,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .offset(y = (-16).dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text(
-                                text = dynamicGreetingText,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = colors.text
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = if (weatherTempC != null)
-                                    "$nextPrayerText • الطقس $weatherConditionAr ${weatherTempC!!.toInt()}°م"
-                                else nextPrayerText,
-                                fontSize = 11.sp,
-                                color = colors.accent,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(colors.accent.copy(alpha = 0.12f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.WbCloudy,
-                                contentDescription = null,
-                                tint = colors.accent,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-
-                // --- 3. Floating Modern Search Bar ---
-                GlassSearchBar(
-                    colors = colors,
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    placeholder = "ابحث عن أي أداة أو حاسبة...",
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(ColorObsidianBgStart, ColorObsidianBgEnd)
+                    )
                 )
+        ) {
+            // Background Canvas Micro-Tech Grid Pattern
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val step = 64.dp.toPx()
+                val gridPaint = ColorGoldBorder.copy(alpha = 0.03f)
+                for (x in 0..size.width.toInt() step step.toInt()) {
+                    drawLine(gridPaint, Offset(x.toFloat(), 0f), Offset(x.toFloat(), size.height), strokeWidth = 1f)
+                }
+                for (y in 0..size.height.toInt() step step.toInt()) {
+                    drawLine(gridPaint, Offset(0f, y.toFloat()), Offset(size.width, y.toFloat()), strokeWidth = 1f)
+                }
+            }
 
-                Spacer(modifier = Modifier.height(Spacing.Medium))
-
-                // If search query is NOT empty, display filtered search results overlay directly! (Progressive Disclosure)
-                if (searchQuery.isNotBlank()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        SectionHeader(
-                            colors = colors,
-                            title = "نتائج البحث لـ \"$searchQuery\" (${filteredTools.size})"
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        if (filteredTools.isEmpty()) {
-                            Box(
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 90.dp, start = 16.dp, end = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. OFFLINE BANNER (IF APPLICABLE)
+                if (isOffline) {
+                    item(key = "offline_banner") {
+                        Surface(
+                            color = ColorAmberGlow.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, ColorAmberGlow)
+                        ) {
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 32.dp),
-                                contentAlignment = Alignment.Center
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.SearchOff,
-                                        contentDescription = null,
-                                        tint = colors.textMuted,
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Filled.WifiOff, contentDescription = null, tint = ColorAmberGlow, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        "لم يتم العثور على أداة مطابقة",
-                                        fontSize = 13.sp,
-                                        color = colors.textMuted
+                                        "يعمل دون اتصال - البيانات مخزنة محلياً بأمان",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
                                     )
                                 }
+                                Text("محفوظ", fontSize = 10.sp, color = ColorSlateMuted)
                             }
-                        } else {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.fillMaxWidth()
+                        }
+                    }
+                }
+
+                // 2. ERROR STATE BANNER (IF ANY)
+                if (errorMessageState != null) {
+                    item(key = "error_banner") {
+                        Surface(
+                            color = ColorCrimsonRed.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, ColorCrimsonRed)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                filteredTools.chunked(2).forEach { rowTools ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        rowTools.forEach { tool ->
-                                            PremiumToolCard(
-                                                tool = tool,
-                                                colors = colors,
-                                                isFavorite = favoriteTools.contains(tool.name),
-                                                onToggleFavorite = { viewModel.toggleFavorite(context, tool.name) },
-                                                onClick = { onSelectCalc(tool) },
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                        if (rowTools.size < 2) {
-                                            Spacer(modifier = Modifier.weight(1f))
-                                        }
-                                    }
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Icon(Icons.Filled.ErrorOutline, contentDescription = null, tint = ColorCrimsonRed)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(errorMessageState!!, fontSize = 12.sp, color = Color.White)
+                                }
+                                Button(
+                                    onClick = { errorMessageState = null },
+                                    colors = ButtonDefaults.buttonColors(containerColor = ColorCrimsonRed),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text("إعادة المحاولة", fontSize = 10.sp)
                                 }
                             }
                         }
+                    }
+                }
+
+                // 3. SECTION A: Top Glass Header & Personalized Status Bar
+                item(key = "section_a_header") {
+                    HeaderGlassPanel(
+                        greeting = dynamicGreetingText,
+                        userName = userNameSaved,
+                        hijriDate = hijriDateStr,
+                        gregorianDate = "$dayName، $dayOfMonth",
+                        batteryLevel = batteryLevel,
+                        availableStorage = availableStorage,
+                        isDarkTheme = currentThemeKey == AppThemeKey.ELEGANT_DARK,
+                        onToggleTheme = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.toggleTheme(context)
+                        },
+                        onEditNameClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showEditNameDialog = true
+                        },
+                        onNotificationClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showNotificationsDialog = true
+                        }
+                    )
+                }
+
+                // 4. SKELETON SHIMMER LOADING OR CONTENT
+                if (isLoadingState) {
+                    item(key = "skeleton_loading") {
+                        SkeletonShimmerDashboardCard(pulseGlowAlpha = pulseGlowAlpha)
                     }
                 } else {
-                    // Standard structured Premium Home Feed!
+                    // 5. SECTION B: Quick Action Buttons (Horizontal LazyRow)
+                    item(key = "section_b_quick_actions") {
+                        QuickActionRow(
+                            onSelectAction = { calcKey ->
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSelectCalc(calcKey)
+                            },
+                            onSelectCategory = { catKey ->
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                activeHubCategory = catKey
+                            }
+                        )
+                    }
 
-                    // --- 4. Smart AI Assistant Quick Action Banner ---
-                    FrostedGlassCard(
-                        colors = colors,
-                        variant = FrostedGlassCardVariant.Compact,
-                        onClick = { onSelectCalc(CalcKey.AI) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                    ) {
+                    // 6. SECTION C & D: Dynamic Hero Prayer Countdown & Mini Weather Row
+                    item(key = "section_c_d_hero_weather") {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFC084FC).copy(alpha = 0.15f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.AutoAwesome,
-                                        contentDescription = null,
-                                        tint = Color(0xFFC084FC),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "اسأل المساعد الذكي AI",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = colors.text
-                                    )
-                                    Text(
-                                        text = "مساعد فتاوى الزكاة، تحليلات ومحاكاة القروض والذهب",
-                                        fontSize = 10.sp,
-                                        color = colors.textMuted
-                                    )
-                                }
-                            }
-                            Icon(
-                                imageVector = Icons.Default.ChevronLeft,
-                                contentDescription = null,
-                                tint = colors.accent,
-                                modifier = Modifier.size(20.dp)
+                            // Dynamic Hero Prayer Card (Weight 1.5)
+                            HeroPrayerCard(
+                                prayerName = nextPrayerName,
+                                countdownText = nextPrayerText,
+                                cityName = cityLabel,
+                                pulseAlpha = pulseGlowAlpha,
+                                onNavigateToPrayer = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onSelectCalc(CalcKey.PRAYER)
+                                },
+                                modifier = Modifier.weight(1.5f)
+                            )
+
+                            // Mini Weather Card (Weight 1f)
+                            MiniWeatherCard(
+                                tempC = weatherTempC ?: 32,
+                                condition = weatherConditionAr,
+                                cityName = cityLabel,
+                                onNavigateToWeather = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onSelectCalc(CalcKey.WEATHER)
+                                },
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // --- 5. Favorites / Starred Section ---
-                    if (favoriteTools.isNotEmpty()) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            SectionHeader(
-                                colors = colors,
-                                title = "أدواتك المثبتة (المفضلة)",
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                    // 7. SECTION E: Smart AI Assistant & Universal Search Bar
+                    item(key = "section_e_search_ai") {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            // Sapphire AI Glass Search Bar
+                            AISearchBar(
+                                query = searchQuery,
+                                onQueryChange = { searchQuery = it },
+                                pulseAlpha = pulseGlowAlpha,
+                                onAIClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onSelectCalc(CalcKey.AI)
+                                }
                             )
+
+                            // Quick Prompt Suggestion Chips Row
                             LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                items(favoriteTools.toList()) { toolId ->
-                                    val tool = allTools.find { it.name == toolId }
-                                    if (tool != null) {
-                                        PremiumToolCardMini(
-                                            tool = tool,
-                                            colors = colors,
-                                            isFavorite = true,
-                                            onToggleFavorite = { viewModel.toggleFavorite(context, tool.name) },
-                                            onClick = { onSelectCalc(tool) }
+                                val promptChips = listOf("حساب الزكاة", "التفقيط", "المعدل التراكمي", "مواقيت الصلاة", "أسعار الذهب", "القروض والتمويل")
+                                items(promptChips) { chipText ->
+                                    Surface(
+                                        color = Color(0xFF1E2638),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                                        modifier = Modifier.clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            searchQuery = chipText
+                                        }
+                                    ) {
+                                        Text(
+                                            "# $chipText",
+                                            fontSize = 10.sp,
+                                            color = ColorIceCyan,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                                         )
                                     }
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // 8. SECTION F: The Asymmetric Module Grid (6 Main Doors) - MOVED HERE
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "أبواب المنصة والأقسام الشاملة",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ColorHeadlineText
+                                )
+                                Text(
+                                    "6 أقسام متخصصة",
+                                    fontSize = 11.sp,
+                                    color = ColorGoldBorder,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // Interactive Grid Layout
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                // Row 1: Prayer & Worship (Wide Hero Accent) + Finance
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    AsymmetricModuleCard(
+                                        title = "مواقيت الصلاة والعبادات",
+                                        subtitle = "7 أدوات معتمدة",
+                                        badgeText = "نشط الآن 🕌",
+                                        accentColor = ColorEmeraldMint,
+                                        icon = AppIcons.forCategory(CategoryKey.ISLAMIC),
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onSelectCalc(CalcKey.PRAYER)
+                                        },
+                                        modifier = Modifier.weight(1.2f)
+                                    )
+
+                                    AsymmetricModuleCard(
+                                        title = "المال والأسعار",
+                                        subtitle = "13 حاسبة ومؤشر",
+                                        badgeText = "الذهب والزكاة 💰",
+                                        accentColor = ColorGoldBorder,
+                                        icon = AppIcons.forCategory(CategoryKey.FINANCE),
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            activeHubCategory = CategoryKey.FINANCE
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+
+                                // Row 2: Time & Calendars + Health & Fitness
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    AsymmetricModuleCard(
+                                        title = "الوقت والتواريخ",
+                                        subtitle = "4 أدوات وتحويلات",
+                                        badgeText = "ساعة رقمية ⏱️",
+                                        accentColor = ColorPurpleAI,
+                                        icon = AppIcons.forCategory(CategoryKey.DATE_TIME),
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            activeHubCategory = CategoryKey.DATE_TIME
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    AsymmetricModuleCard(
+                                        title = "الصحة واللياقة",
+                                        subtitle = "2 أدوات حاسبة",
+                                        badgeText = "مؤشر BMI 🩺",
+                                        accentColor = ColorCrimsonRed,
+                                        icon = AppIcons.forCategory(CategoryKey.HEALTH),
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            activeHubCategory = CategoryKey.HEALTH
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+
+                                // Row 3: Practical Tools + AI Advisor Hub
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    AsymmetricModuleCard(
+                                        title = "أدوات عملية ومساعدة",
+                                        subtitle = "7 أدوات ذكية",
+                                        badgeText = "ماسح وسرعة 🛠️",
+                                        accentColor = ColorSapphireBlue,
+                                        icon = AppIcons.forCategory(CategoryKey.UTILITIES),
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            activeHubCategory = CategoryKey.UTILITIES
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    AsymmetricModuleCard(
+                                        title = "المستشار الذكي AI",
+                                        subtitle = "تحليلات واستشارات",
+                                        badgeText = "ذكاء اصطناعي ✨",
+                                        accentColor = ColorIceCyan,
+                                        icon = Icons.Default.AutoAwesome,
+                                        onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onSelectCalc(CalcKey.AI)
+                                        },
+                                        modifier = Modifier.weight(1.2f)
+                                    )
+                                }
+                            }
+                        }
                     }
 
-                    // --- 6. Structured Category Hubs (The 5 Doors) ---
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        SectionHeader(
-                            colors = colors,
-                            title = "أبواب المنصة والأقسام الشاملة"
-                        )
+                    // 8. SEARCH RESULTS OVERLAY OR STANDARD CATEGORY GRID
+                    if (searchQuery.isNotBlank()) {
+                        item(key = "search_results_section") {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "نتائج البحث لـ \"$searchQuery\" (${filteredTools.size})",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ColorAmberGlow
+                                    )
+                                    TextButton(onClick = { searchQuery = "" }) {
+                                        Text("إلغاء البحث", color = ColorSlateMuted, fontSize = 11.sp)
+                                    }
+                                }
 
-                        // Gateway Hub 1: Islamic & Worship Hub (Direct Route to Prayer Times & Worship Screen)
-                        HubCategoryCard(
-                            colors = colors,
-                            title = "مواقيت الصلاة والعبادات",
-                            icon = AppIcons.forCategory(CategoryKey.ISLAMIC),
-                            toolCount = allTools.count { it.category == CategoryKey.ISLAMIC },
-                            gradient = Brush.linearGradient(listOf(Color(0xFF042F2C), Color(0xFF10B981))),
-                            onClick = { onSelectCalc(CalcKey.PRAYER) }
-                        )
+                                if (filteredTools.isEmpty()) {
+                                    // EMPTY STATE
+                                    EmptySearchResultsCard(onResetSearch = { searchQuery = "" })
+                                } else {
+                                    // GRID OF MATCHED TOOLS
+                                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        filteredTools.chunked(2).forEach { rowTools ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                rowTools.forEach { tool ->
+                                                    CyberToolGridCard(
+                                                        tool = tool,
+                                                        isFavorite = favoriteTools.contains(tool.name),
+                                                        onToggleFavorite = { viewModel.toggleFavorite(context, tool.name) },
+                                                        onClick = { onSelectCalc(tool) },
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                                if (rowTools.size < 2) {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // 9. SECTION G: Quick Insights & Recent Activity Bar (If Any Recents)
+                        if (recentTools.isNotEmpty()) {
+                            item(key = "section_g_recents") {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        "آخر الأدوات المستخدمة ⏱️",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
 
-                        // Gateway Hub 2: Finance
-                        HubCategoryCard(
-                            colors = colors,
-                            title = CategoryKey.FINANCE.label,
-                            icon = AppIcons.forCategory(CategoryKey.FINANCE),
-                            toolCount = allTools.count { it.category == CategoryKey.FINANCE },
-                            gradient = Brush.linearGradient(listOf(Color(0xFF292524), Color(0xFFF59E0B))),
-                            onClick = { activeHubCategory = CategoryKey.FINANCE }
-                        )
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        items(recentTools) { toolId ->
+                                            val tool = allTools.find { it.name == toolId }
+                                            if (tool != null) {
+                                                RecentToolChip(
+                                                    tool = tool,
+                                                    onClick = {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        onSelectCalc(tool)
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                        // Gateway Hub 3: Date & Time
-                        HubCategoryCard(
-                            colors = colors,
-                            title = CategoryKey.DATE_TIME.label,
-                            icon = AppIcons.forCategory(CategoryKey.DATE_TIME),
-                            toolCount = allTools.count { it.category == CategoryKey.DATE_TIME },
-                            gradient = Brush.linearGradient(listOf(Color(0xFF221E38), Color(0xFFC084FC))),
-                            onClick = { activeHubCategory = CategoryKey.DATE_TIME }
-                        )
+                        // 11. PINNED / FAVORITES SECTION (IF ANY)
+                        if (favoriteTools.isNotEmpty()) {
+                            item(key = "section_favorites") {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(
+                                        "أدواتك المثبتة (المفضلة) ⭐",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
 
-                        // Gateway Hub 4: Health
-                        HubCategoryCard(
-                            colors = colors,
-                            title = CategoryKey.HEALTH.label,
-                            icon = AppIcons.forCategory(CategoryKey.HEALTH),
-                            toolCount = allTools.count { it.category == CategoryKey.HEALTH },
-                            gradient = Brush.linearGradient(listOf(Color(0xFF4C0519), Color(0xFFEF4444))),
-                            onClick = { activeHubCategory = CategoryKey.HEALTH }
-                        )
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        items(favoriteTools.toList()) { toolName ->
+                                            val tool = allTools.find { it.name == toolName }
+                                            if (tool != null) {
+                                                FavoriteToolMiniCard(
+                                                    tool = tool,
+                                                    onUnpin = { viewModel.toggleFavorite(context, tool.name) },
+                                                    onClick = {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        onSelectCalc(tool)
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                        // Gateway Hub 5: Utilities
-                        HubCategoryCard(
-                            colors = colors,
-                            title = CategoryKey.UTILITIES.label,
-                            icon = AppIcons.forCategory(CategoryKey.UTILITIES),
-                            toolCount = allTools.count { it.category == CategoryKey.UTILITIES },
-                            gradient = Brush.linearGradient(listOf(Color(0xFF1F2937), Color(0xFF64748B))),
-                            onClick = { activeHubCategory = CategoryKey.UTILITIES }
-                        )
+                        // 12. FOOTER & VERIFIED STAMP
+                        item(key = "footer_stamp") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.Verified, contentDescription = null, tint = ColorEmeraldMint, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("المنصة الذكية المتكاملة • إصدار برو المحترف 2026", fontSize = 11.sp, color = ColorSlateMuted)
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
-}
 
-@Composable
-fun PremiumToolCardMini(
-    tool: CalcKey,
-    colors: CustomThemeColors,
-    isFavorite: Boolean,
-    onToggleFavorite: () -> Unit,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val categoryColor = when (tool.category) {
-        CategoryKey.ISLAMIC -> Color(0xFF10B981)
-        CategoryKey.FINANCE -> Color(0xFFF59E0B)
-        CategoryKey.DATE_TIME -> Color(0xFFC084FC)
-        CategoryKey.HEALTH -> Color(0xFFEF4444)
-        CategoryKey.UTILITIES -> Color(0xFF64748B)
-    }
-
-    Surface(
-        modifier = modifier
-            .width(150.dp)
-            .height(100.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        color = colors.surface.copy(alpha = 0.75f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
-        shadowElevation = 2.dp
-    ) {
-        Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-            // Unpin button
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .clickable { onToggleFavorite() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (isFavorite) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                    contentDescription = null,
-                    tint = if (isFavorite) colors.accent else colors.textMuted,
-                    modifier = Modifier.size(14.dp)
+            // MODAL DIALOG: EDIT USER NAME
+            if (showEditNameDialog) {
+                EditNameDialog(
+                    currentName = userNameSaved,
+                    onDismiss = { showEditNameDialog = false },
+                    onSaveName = { newName ->
+                        viewModel.setUserName(context, newName)
+                        showEditNameDialog = false
+                    }
                 )
             }
 
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween,
-                horizontalAlignment = Alignment.Start
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(categoryColor.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = AppIcons.forCalc(tool),
-                        contentDescription = null,
-                        tint = categoryColor,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Column {
-                    Text(
-                        text = tool.title,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.text,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = tool.category.label,
-                        fontSize = 9.sp,
-                        color = colors.textMuted,
-                        maxLines = 1
-                    )
-                }
+            // MODAL DIALOG: NOTIFICATIONS
+            if (showNotificationsDialog) {
+                NotificationsDialog(onDismiss = { showNotificationsDialog = false })
             }
         }
     }
 }
 
+// ==========================================
+// SHARED PREMIUM TOOL CARD FOR HUBSCREEN COMPATIBILITY
+// ==========================================
 @Composable
 fun PremiumToolCard(
     tool: CalcKey,
@@ -742,11 +816,10 @@ fun PremiumToolCard(
             .clickable { onClick() },
         shape = RoundedCornerShape(24.dp),
         color = colors.surface.copy(alpha = 0.75f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
+        border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.3f)),
         shadowElevation = 3.dp
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Pinned/Favorite toggle button
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -765,7 +838,6 @@ fun PremiumToolCard(
                 )
             }
 
-            // Optional Badge tags
             if (tool.badge != null) {
                 Surface(
                     color = when (tool.badge) {
@@ -796,7 +868,6 @@ fun PremiumToolCard(
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Large Icon in beautiful circular/rounded container (Radius 18dp)
                 Box(
                     modifier = Modifier
                         .size(46.dp)
@@ -833,4 +904,746 @@ fun PremiumToolCard(
             }
         }
     }
+}
+
+// ==========================================
+// SUB-COMPONENTS
+// ==========================================
+
+@Composable
+private fun HeaderGlassPanel(
+    greeting: String,
+    userName: String,
+    hijriDate: String,
+    gregorianDate: String,
+    batteryLevel: Int,
+    availableStorage: String,
+    isDarkTheme: Boolean,
+    onToggleTheme: () -> Unit,
+    onEditNameClick: () -> Unit,
+    onNotificationClick: () -> Unit
+) {
+    Surface(
+        color = ColorGlassCard,
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, ColorGoldBorder.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Row 1: Greeting + Name + Quick Actions
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.clickable { onEditNameClick() }) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "$greeting $userName",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = ColorAmberGlow
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(Icons.Outlined.Edit, contentDescription = "تعديل الاسم", tint = ColorSlateMuted, modifier = Modifier.size(14.dp))
+                    }
+                    Text("المنصة الذكية المتكاملة", fontSize = 11.sp, color = ColorSlateMuted)
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Theme Toggle Button (Moon/Sun)
+                    Surface(
+                        color = Color(0xFF1E2638),
+                        shape = CircleShape,
+                        border = BorderStroke(1.dp, ColorGoldBorder.copy(alpha = 0.4f)),
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clickable { onToggleTheme() }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                if (isDarkTheme) "🌙" else "☀️",
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+
+                    // Notification Icon with Gold Dot Badge
+                    Surface(
+                        color = Color(0xFF1E2638),
+                        shape = CircleShape,
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clickable { onNotificationClick() }
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Outlined.Notifications, contentDescription = "التنبيهات", tint = Color.White, modifier = Modifier.size(18.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(ColorAmberGlow)
+                                    .align(Alignment.TopEnd)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Divider(color = Color.White.copy(alpha = 0.08f))
+
+            // Row 2: Live Date Banner + Device Status Indicators
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(gregorianDate, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ColorHeadlineText)
+                    Text(hijriDate, fontSize = 11.sp, color = ColorGoldBorder)
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // Battery indicator
+                    Surface(
+                        color = Color(0xFF1E2638),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.padding(vertical = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("🔋 $batteryLevel%", fontSize = 10.sp, color = ColorEmeraldMint, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    // Storage indicator
+                    Surface(
+                        color = Color(0xFF1E2638),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.padding(vertical = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("💾 $availableStorage", fontSize = 10.sp, color = ColorIceCyan, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickActionRow(
+    onSelectAction: (CalcKey) -> Unit,
+    onSelectCategory: (CategoryKey) -> Unit
+) {
+    val actions = listOf(
+        Triple("مواقيت الصلاة", "🕌", CalcKey.PRAYER),
+        Triple("اتجاه القبلة", "🧭", CalcKey.QIBLA),
+        Triple("حاسبة متطورة", "🧮", CalcKey.BASIC),
+        Triple("الأذكار", "📿", CalcKey.ADHKAR)
+    )
+
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        items(actions) { (label, emoji, key) ->
+            var isPressed by remember { mutableStateOf(false) }
+            val scale by animateFloatAsState(
+                targetValue = if (isPressed) 0.94f else 1f,
+                animationSpec = spring(stiffness = Spring.StiffnessHigh),
+                label = "pressScale"
+            )
+
+            Surface(
+                color = ColorGlassCard,
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, ColorGoldBorder.copy(alpha = 0.3f)),
+                modifier = Modifier
+                    .scale(scale)
+                    .clickable {
+                        isPressed = true
+                        onSelectAction(key)
+                    }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(emoji, fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        }
+
+        // Quick Category Action: Utilities Hub
+        item {
+            Surface(
+                color = ColorGlassCard,
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, ColorGoldBorder.copy(alpha = 0.3f)),
+                modifier = Modifier.clickable { onSelectCategory(CategoryKey.UTILITIES) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("⚙️", fontSize = 16.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("أدوات سريعة", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroPrayerCard(
+    prayerName: String,
+    countdownText: String,
+    cityName: String,
+    pulseAlpha: Float,
+    onNavigateToPrayer: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = ColorGlassCard,
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.5.dp, ColorEmeraldMint.copy(alpha = pulseAlpha)),
+        modifier = modifier.clickable { onNavigateToPrayer() }
+    ) {
+        Box(modifier = Modifier.padding(16.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🕌", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("الصلاة القادمة", fontSize = 11.sp, color = ColorSlateMuted)
+                    }
+                    Text(cityName, fontSize = 10.sp, color = ColorEmeraldMint, fontWeight = FontWeight.Bold)
+                }
+
+                Text(
+                    "صلاة $prayerName",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("خلال: ", fontSize = 11.sp, color = ColorSlateMuted)
+                    Text(
+                        countdownText,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = ColorAmberGlow
+                    )
+                }
+
+                Surface(
+                    color = ColorEmeraldMint.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.align(Alignment.Start)
+                ) {
+                    Text(
+                        "جدول المواقيت ➔",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ColorEmeraldMint,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniWeatherCard(
+    tempC: Int,
+    condition: String,
+    cityName: String,
+    onNavigateToWeather: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = ColorGlassCard,
+        shape = RoundedCornerShape(22.dp),
+        border = BorderStroke(1.dp, ColorAmberGlow.copy(alpha = 0.3f)),
+        modifier = modifier.clickable { onNavigateToWeather() }
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("☀️", fontSize = 18.sp)
+                Text("الطقس", fontSize = 10.sp, color = ColorSlateMuted)
+            }
+
+            Text(
+                "$tempC°م",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Black,
+                color = ColorAmberGlow
+            )
+
+            Text(
+                condition,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                maxLines = 1
+            )
+
+            Text("تحديث مباشر", fontSize = 9.sp, color = ColorSlateMuted)
+        }
+    }
+}
+
+@Composable
+private fun AISearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    pulseAlpha: Float,
+    onAIClick: () -> Unit
+) {
+    Surface(
+        color = ColorGlassCard,
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, ColorSapphireBlue.copy(alpha = pulseAlpha)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Search, contentDescription = "بحث", tint = ColorIceCyan, modifier = Modifier.size(20.dp))
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                placeholder = { Text("ابحث عن أي أداة، حاسبة، أو ميزة...", fontSize = 12.sp, color = ColorSlateMuted) },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
+
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(Icons.Filled.Close, contentDescription = "مسح", tint = ColorSlateMuted, modifier = Modifier.size(16.dp))
+                }
+            } else {
+                Surface(
+                    color = ColorPurpleAI.copy(alpha = 0.25f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, ColorPurpleAI),
+                    modifier = Modifier.clickable { onAIClick() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "AI", tint = ColorPurpleAI, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("AI", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = ColorPurpleAI)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AsymmetricModuleCard(
+    title: String,
+    subtitle: String,
+    badgeText: String,
+    accentColor: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = ColorGlassCard,
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.35f)),
+        modifier = modifier.clickable { onClick() }
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(accentColor.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
+                }
+
+                Surface(
+                    color = accentColor.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        badgeText,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = accentColor,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Column {
+                Text(
+                    title,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    subtitle,
+                    fontSize = 10.sp,
+                    color = ColorSlateMuted,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CyberToolGridCard(
+    tool: CalcKey,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val categoryColor = when (tool.category) {
+        CategoryKey.ISLAMIC -> ColorEmeraldMint
+        CategoryKey.FINANCE -> ColorGoldBorder
+        CategoryKey.DATE_TIME -> ColorPurpleAI
+        CategoryKey.HEALTH -> ColorCrimsonRed
+        CategoryKey.UTILITIES -> ColorSapphireBlue
+    }
+
+    Surface(
+        color = ColorGlassCard,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, categoryColor.copy(alpha = 0.3f)),
+        modifier = modifier.clickable { onClick() }
+    ) {
+        Box(modifier = Modifier.padding(12.dp)) {
+            IconButton(
+                onClick = onToggleFavorite,
+                modifier = Modifier
+                    .size(24.dp)
+                    .align(Alignment.TopEnd)
+            ) {
+                Icon(
+                    if (isFavorite) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                    contentDescription = "تثبيت",
+                    tint = if (isFavorite) ColorGoldBorder else ColorSlateMuted,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(categoryColor.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(AppIcons.forCalc(tool), contentDescription = null, tint = categoryColor, modifier = Modifier.size(18.dp))
+                }
+
+                Column {
+                    Text(
+                        tool.title,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        tool.category.label,
+                        fontSize = 9.sp,
+                        color = ColorSlateMuted
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentToolChip(
+    tool: CalcKey,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = ColorGlassCard,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(AppIcons.forCalc(tool), contentDescription = null, tint = ColorIceCyan, modifier = Modifier.size(14.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(tool.title, fontSize = 11.sp, color = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun FavoriteToolMiniCard(
+    tool: CalcKey,
+    onUnpin: () -> Unit,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = ColorGlassCard,
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, ColorGoldBorder.copy(alpha = 0.4f)),
+        modifier = Modifier
+            .width(130.dp)
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Icon(AppIcons.forCalc(tool), contentDescription = null, tint = ColorAmberGlow, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(tool.title, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            IconButton(onClick = onUnpin, modifier = Modifier.size(20.dp)) {
+                Icon(Icons.Filled.Close, contentDescription = "إلغاء التثبيت", tint = ColorSlateMuted, modifier = Modifier.size(12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkeletonShimmerDashboardCard(pulseGlowAlpha: Float) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(ColorGlassCard.copy(alpha = pulseGlowAlpha))
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(ColorGlassCard.copy(alpha = pulseGlowAlpha))
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(100.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(ColorGlassCard.copy(alpha = pulseGlowAlpha))
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(100.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(ColorGlassCard.copy(alpha = pulseGlowAlpha))
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptySearchResultsCard(onResetSearch: () -> Unit) {
+    Surface(
+        color = ColorGlassCard,
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(Icons.Filled.SearchOff, contentDescription = null, tint = ColorSlateMuted, modifier = Modifier.size(48.dp))
+            Text("لم نجد أي أداة تطابق كلمات بحثك", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
+            Text("تأكد من كتابة الكلمات بشكل صحيح أو جرب البحث بقسم آخر", fontSize = 11.sp, color = ColorSlateMuted, textAlign = TextAlign.Center)
+            Button(
+                onClick = onResetSearch,
+                colors = ButtonDefaults.buttonColors(containerColor = ColorAmberGlow),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("إعادة ضبط البحث", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun EditNameDialog(
+    currentName: String,
+    onDismiss: () -> Unit,
+    onSaveName: (String) -> Unit
+) {
+    var nameText by remember { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("تحديث الاسم الشخصي", color = ColorAmberGlow, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("أدخل اسمك ليظهر في التحية اليومية للوحة التحكم:", fontSize = 12.sp, color = Color.White)
+                OutlinedTextField(
+                    value = nameText,
+                    onValueChange = { nameText = it },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ColorAmberGlow,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (nameText.isNotBlank()) {
+                        onSaveName(nameText.trim())
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = ColorAmberGlow),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("حفظ", color = Color.Black, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("إلغاء", color = ColorSlateMuted)
+            }
+        },
+        containerColor = Color(0xFF141926),
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+
+@Composable
+private fun NotificationsDialog(
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Notifications, contentDescription = null, tint = ColorAmberGlow)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("التنبيهات والإشعارات", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Surface(
+                    color = Color(0xFF1E2638),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("🕌", fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text("تنبيه صلاة العصر", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("متبقي 01:24:10 على رفع أذان العصر", fontSize = 10.sp, color = ColorSlateMuted)
+                        }
+                    }
+                }
+
+                Surface(
+                    color = Color(0xFF1E2638),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("💰", fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text("تحديث أسعار الذهب اليوم", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("عيار 21 يسجل 4,550 ج.م بزيادة طفيفة", fontSize = 10.sp, color = ColorSlateMuted)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = ColorAmberGlow),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("إغلاق", color = Color.Black, fontWeight = FontWeight.Bold)
+            }
+        },
+        containerColor = Color(0xFF141926),
+        shape = RoundedCornerShape(20.dp)
+    )
 }

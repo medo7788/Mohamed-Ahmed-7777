@@ -21,6 +21,17 @@ class UserPreferencesRepository(private val context: Context) {
         val PREFERRED_UNIT = stringPreferencesKey("preferred_unit_key")
         val FAVORITE_TOOLS = stringSetPreferencesKey("favorite_tools_key")
         val RECENT_TOOLS = stringPreferencesKey("recent_tools_key") // comma-separated tool IDs
+        val USER_NAME = stringPreferencesKey("user_name_key")
+    }
+
+    val userNameFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.USER_NAME] ?: "أحمد"
+    }
+
+    suspend fun saveUserName(name: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.USER_NAME] = name
+        }
     }
 
     val selectedThemeFlow: Flow<AppThemeKey> = context.dataStore.data.map { preferences ->

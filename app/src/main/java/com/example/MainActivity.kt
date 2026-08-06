@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -31,6 +32,7 @@ import com.example.model.CalcKey
 import com.example.ui.components.*
 import com.example.ui.screens.*
 import androidx.compose.ui.text.font.FontWeight
+import com.example.ui.theme.AppIcons
 import com.example.ui.theme.AppThemeKey
 import com.example.ui.theme.ClevCalcTheme
 import com.example.ui.theme.getThemeColors
@@ -49,6 +51,12 @@ import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.MoreHoriz
+
+private data class BottomNavItem(
+    val label: String,
+    val key: CalcKey,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
 
 class MainActivity : ComponentActivity() {
 
@@ -110,108 +118,160 @@ class MainActivity : ComponentActivity() {
                     Scaffold(
                         contentWindowInsets = WindowInsets(0, 0, 0, 0),
                         topBar = {
-                            AppHeader(
-                                currentCalc = currentCalcKey,
-                                colors = colors,
-                                onGoHome = {
-                                    if (currentCalcKey != CalcKey.HOME) {
-                                        navController.navigate(CalcKey.HOME.name) {
-                                            popUpTo(CalcKey.HOME.name) { inclusive = true }
-                                            launchSingleTop = true
+                            if (currentCalcKey != CalcKey.HOME) {
+                                AppHeader(
+                                    currentCalc = currentCalcKey,
+                                    colors = colors,
+                                    onGoHome = {
+                                        if (currentCalcKey != CalcKey.HOME) {
+                                            navController.navigate(CalcKey.HOME.name) {
+                                                popUpTo(CalcKey.HOME.name) { inclusive = true }
+                                                launchSingleTop = true
+                                            }
                                         }
-                                    }
-                                },
-                                onToggleTheme = { viewModel.toggleTheme(context) },
-                                onOpenThemes = { viewModel.setShowThemesModal(true) },
-                                onOpenAbout = { viewModel.setShowAboutModal(true) }
-                            )
+                                    },
+                                    onToggleTheme = { viewModel.toggleTheme(context) },
+                                    onOpenThemes = { viewModel.setShowThemesModal(true) },
+                                    onOpenAbout = { viewModel.setShowAboutModal(true) }
+                                )
+                            }
                         },
                         bottomBar = {
                             val isImeVisible = WindowInsets.isImeVisible
-                            if (!isImeVisible && (currentCalcKey == CalcKey.HOME || currentCalcKey == CalcKey.WEATHER || 
-                                currentCalcKey == CalcKey.AI || currentCalcKey == CalcKey.ADHAN_SETTINGS)) {
-
+                            if (!isImeVisible) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .navigationBarsPadding()
-                                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
                                 ) {
                                     Surface(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(72.dp),
-                                        shape = RoundedCornerShape(24.dp),
-                                        color = colors.surface.copy(alpha = 0.75f),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.5f)),
-                                        shadowElevation = 8.dp
+                                            .height(68.dp),
+                                        shape = RoundedCornerShape(32.dp),
+                                        color = Color(0xFF0F1422).copy(alpha = 0.94f),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.35f)),
+                                        shadowElevation = 12.dp
                                     ) {
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .padding(horizontal = 8.dp),
-                                            horizontalArrangement = Arrangement.SpaceAround,
+                                            horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            val items = listOf(
-                                                Triple("الرئيسية", CalcKey.HOME, Icons.Default.Home),
-                                                Triple("الطقس", CalcKey.WEATHER, Icons.Default.Cloud),
-                                                Triple("المستشار", CalcKey.AI, Icons.Default.AutoAwesome),
-                                                Triple("الإعدادات", CalcKey.ADHAN_SETTINGS, Icons.Default.Settings)
-                                            )
-
-                                            items.forEach { (label, key, icon) ->
-                                                val isSelected = currentCalcKey == key
-
-                                                Column(
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .fillMaxHeight()
-                                                        .clip(RoundedCornerShape(16.dp))
-                                                        .clickable {
-                                                            if (currentCalcKey != key) {
-                                                                navController.navigate(key.name) {
-                                                                    popUpTo(CalcKey.HOME.name) { saveState = true }
-                                                                    launchSingleTop = true
-                                                                    restoreState = true
-                                                                }
+                                            // Right Wing (RTL): المساعد الذكي
+                                            Row(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight(),
+                                                horizontalArrangement = Arrangement.Center,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // 2. المساعد الذكي
+                                                val isAiSelected = currentCalcKey == CalcKey.AI
+                                                BottomNavItemColumn(
+                                                    label = "المساعد الذكي",
+                                                    icon = AppIcons.forCalc(CalcKey.AI),
+                                                    isSelected = isAiSelected,
+                                                    onClick = {
+                                                        if (!isAiSelected) {
+                                                            navController.navigate(CalcKey.AI.name) {
+                                                                popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                                launchSingleTop = true
+                                                                restoreState = true
                                                             }
                                                         }
-                                                        .padding(vertical = 6.dp),
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.Center
-                                                ) {
-                                                    if (isSelected) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .clip(RoundedCornerShape(16.dp))
-                                                                .background(colors.accent.copy(alpha = 0.2f))
-                                                                .padding(horizontal = 16.dp, vertical = 6.dp),
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            Icon(
-                                                                icon,
-                                                                contentDescription = label,
-                                                                tint = colors.accent,
-                                                                modifier = Modifier.size(24.dp)
-                                                            )
-                                                        }
-                                                    } else {
-                                                        Icon(
-                                                            icon,
-                                                            contentDescription = label,
-                                                            tint = colors.textMuted,
-                                                            modifier = Modifier.size(24.dp)
-                                                        )
                                                     }
-                                                    Spacer(modifier = Modifier.height(3.dp))
-                                                    Text(
-                                                        label,
-                                                        fontSize = 11.sp,
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                        color = if (isSelected) colors.accent else colors.textMuted
+                                                )
+                                            }
+
+                                            // Center Anchor: الرئيسية (Home - Dead Center)
+                                            val isHomeSelected = currentCalcKey == CalcKey.HOME
+                                            Column(
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .clickable {
+                                                        if (!isHomeSelected) {
+                                                            navController.navigate(CalcKey.HOME.name) {
+                                                                popUpTo(CalcKey.HOME.name) { inclusive = true }
+                                                                launchSingleTop = true
+                                                            }
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(36.dp)
+                                                        .clip(CircleShape)
+                                                        .background(
+                                                            if (isHomeSelected) {
+                                                                androidx.compose.ui.graphics.Brush.radialGradient(
+                                                                    colors = listOf(
+                                                                        Color(0xFFD4AF37).copy(alpha = 0.5f),
+                                                                        Color(0xFFD4AF37).copy(alpha = 0.15f)
+                                                                    )
+                                                                )
+                                                            } else {
+                                                                androidx.compose.ui.graphics.Brush.radialGradient(
+                                                                    colors = listOf(
+                                                                        Color(0xFF1E293B).copy(alpha = 0.8f),
+                                                                        Color(0xFF0F172A).copy(alpha = 0.5f)
+                                                                    )
+                                                                )
+                                                            }
+                                                        )
+                                                        .border(
+                                                            width = 1.dp,
+                                                            color = if (isHomeSelected) Color(0xFFD4AF37) else Color(0xFF334155),
+                                                            shape = CircleShape
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = AppIcons.forCalc(CalcKey.HOME),
+                                                        contentDescription = "الرئيسية",
+                                                        tint = if (isHomeSelected) Color(0xFFD4AF37) else Color(0xFF94A3B8),
+                                                        modifier = Modifier.size(20.dp)
                                                     )
                                                 }
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Text(
+                                                    text = "الرئيسية",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = if (isHomeSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                                    color = if (isHomeSelected) Color(0xFFD4AF37) else Color(0xFF94A3B8)
+                                                )
+                                            }
+
+                                            // Left Wing (RTL): الإعدادات (Equal weight to Right Wing for true geometric center)
+                                            Row(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight(),
+                                                horizontalArrangement = Arrangement.Center,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // 4. الإعدادات
+                                                val isSettingsSelected = currentCalcKey == CalcKey.ADHAN_SETTINGS
+                                                BottomNavItemColumn(
+                                                    label = "الإعدادات",
+                                                    icon = AppIcons.forCalc(CalcKey.SETTINGS),
+                                                    isSelected = isSettingsSelected,
+                                                    onClick = {
+                                                        if (!isSettingsSelected) {
+                                                            navController.navigate(CalcKey.ADHAN_SETTINGS.name) {
+                                                                popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                                launchSingleTop = true
+                                                                restoreState = true
+                                                            }
+                                                        }
+                                                    }
+                                                )
                                             }
                                         }
                                     }
@@ -310,5 +370,60 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BottomNavItemColumn(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .clip(CircleShape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        androidx.compose.ui.graphics.Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFFD4AF37).copy(alpha = 0.45f),
+                                Color(0xFFD4AF37).copy(alpha = 0.12f)
+                            )
+                        )
+                    )
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = Color(0xFFD4AF37),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        } else {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = Color(0xFF94A3B8),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+            color = if (isSelected) Color(0xFFD4AF37) else Color(0xFF94A3B8)
+        )
     }
 }

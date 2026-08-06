@@ -49,6 +49,9 @@ class MainViewModel : ViewModel() {
     private val _recentTools = MutableStateFlow<List<String>>(emptyList())
     val recentTools: StateFlow<List<String>> = _recentTools.asStateFlow()
 
+    private val _userName = MutableStateFlow("أحمد")
+    val userName: StateFlow<String> = _userName.asStateFlow()
+
     fun initTheme(context: Context) {
         if (prefsRepository == null) {
             val repo = UserPreferencesRepository(context.applicationContext)
@@ -68,6 +71,19 @@ class MainViewModel : ViewModel() {
                     _recentTools.value = recents
                 }
             }
+            viewModelScope.launch {
+                repo.userNameFlow.collectLatest { name ->
+                    _userName.value = name
+                }
+            }
+        }
+    }
+
+    fun setUserName(context: Context, name: String) {
+        _userName.value = name
+        viewModelScope.launch {
+            val repo = prefsRepository ?: UserPreferencesRepository(context.applicationContext).also { prefsRepository = it }
+            repo.saveUserName(name)
         }
     }
 
