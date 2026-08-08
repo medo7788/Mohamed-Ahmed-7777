@@ -217,14 +217,14 @@ class MainActivity : ComponentActivity() {
                                             )
 
                                             // 4. الإعدادات
-                                            val isSettingsSelected = currentCalcKey == CalcKey.ADHAN_SETTINGS
+                                            val isSettingsSelected = currentCalcKey == CalcKey.SETTINGS
                                             BottomNavItemColumn(
                                                 label = "الإعدادات",
                                                 icon = AppIcons.forCalc(CalcKey.SETTINGS),
                                                 isSelected = isSettingsSelected,
                                                 onClick = {
                                                     if (!isSettingsSelected) {
-                                                        navController.navigate(CalcKey.ADHAN_SETTINGS.name) {
+                                                        navController.navigate(CalcKey.SETTINGS.name) {
                                                             popUpTo(CalcKey.HOME.name) { saveState = true }
                                                             launchSingleTop = true
                                                             restoreState = true
@@ -289,6 +289,15 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.TASBIH.name) { TasbihScreen(colors) }
                                 composable(CalcKey.QURAN.name) { QuranScreen(colors) }
                                 composable(CalcKey.ZAKAT.name) { ZakatCalcScreen(colors) }
+                                composable(CalcKey.SETTINGS.name) {
+                                    SettingsScreen(
+                                        colors = colors,
+                                        viewModel = viewModel,
+                                        onOpenAdhanSettings = { navController.navigate(CalcKey.ADHAN_SETTINGS.name) },
+                                        onOpenAbout = { viewModel.setShowAboutModal(true) },
+                                        onOpenPrivacy = { /* privacy policy */ }
+                                    )
+                                }
                                 composable(CalcKey.ADHAN_SETTINGS.name) { AdhanSettingsScreen(colors, viewModel) }
                                 composable(CalcKey.BASIC.name) { BasicCalculatorScreen(colors) }
                                 composable(CalcKey.CURRENCY.name) { CurrencyConverterScreen(colors) }
@@ -306,8 +315,8 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.DATE.name) { DateCalcScreen(colors) }
                                 composable(CalcKey.AGE.name) { AgeCalcScreen(colors) }
                                 composable(CalcKey.COUNTDOWN.name) { CountdownScreen(colors) }
-                                composable(CalcKey.HEALTH.name) { HealthCalcScreen(colors) }
-                                composable(CalcKey.OVULATION.name) { OvulationCalcScreen(colors) }
+                                composable(CalcKey.HEALTH.name) { UltimateHealthDashboard(colors) }
+                                composable(CalcKey.OVULATION.name) { UltimateHealthDashboard(colors) }
                                 composable(CalcKey.FUEL_COST.name) { FuelCostCalcScreen(colors) }
                                 composable(CalcKey.FUEL_EFF.name) { FuelEfficiencyCalcScreen(colors) }
                                 composable(CalcKey.NUM_WORDS.name) { NumberToWordsScreen(colors) }

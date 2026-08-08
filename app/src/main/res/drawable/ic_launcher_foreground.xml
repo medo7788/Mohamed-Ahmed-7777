@@ -1,8 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="66dp"
-        android:height="66dp"
-        android:drawable="@drawable/adhan_icon_1785722159516"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Outer Glow Ring -->
+    <path
+        android:fillColor="#1A38BDF8"
+        android:pathData="M54,18 C73.88,18 90,34.12 90,54 C90,73.88 73.88,90 54,90 C34.12,90 18,73.88 18,54 C18,34.12 34.12,18 54,18 Z"/>
+        
+    <!-- Main Glass Body -->
+    <path
+        android:fillColor="#0F172A"
+        android:pathData="M32,26 L76,26 C80.42,26 84,29.58 84,34 L84,74 C84,78.42 80.42,82 76,82 L32,82 C27.58,82 24,78.42 24,74 L24,34 C24,29.58 27.58,26 32,26 Z"/>
+        
+    <!-- Display Screen -->
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M30,32 L78,32 C80.21,32 82,33.79 82,36 L82,46 C82,48.21 80.21,50 78,50 L30,50 C27.79,50 26,48.21 26,46 L26,36 C26,33.79 27.79,32 30,32 Z"/>
+        
+    <!-- Cyan Screen Accent Line -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M30,48 L78,48 L78,50 L30,50 Z"/>
+        
+    <!-- Gold Keypad Buttons -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M30,56 h12 v8 h-12 z M48,56 h12 v8 h-12 z M66,56 h12 v8 h-12 z M30,68 h12 v8 h-12 z M48,68 h12 v8 h-12 z M66,68 h12 v8 h-12 z"/>
+        
+    <!-- AI Sparkle Icon -->
+    <path
+        android:fillColor="#D4AF37"
+        android:pathData="M70,36 L72,40 L76,42 L72,44 L70,48 L68,44 L64,42 L68,40 Z"/>
+</vector>

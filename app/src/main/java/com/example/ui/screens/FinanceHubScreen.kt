@@ -148,6 +148,13 @@ val FINANCE_TOOLS_LIST = listOf(
         subgroup = FinanceToolSubgroup.DISCOUNTS
     ),
     FinanceToolItem(
+        calcKey = CalcKey.LEDGER,
+        titleAr = "دفتر الحسابات والمالية",
+        descriptionAr = "تسجيل الدخل والمصاريف ومتابعة الميزانية الشخصية",
+        subgroup = FinanceToolSubgroup.FINANCIAL,
+        badgeType = "جديد"
+    ),
+    FinanceToolItem(
         calcKey = CalcKey.UNIT_PRICE,
         titleAr = "سعر الوحدة",
         descriptionAr = "مقارنة أسعار المنتجات والكميات لاختيار الأفضل",

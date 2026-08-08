@@ -582,6 +582,17 @@ fun PracticalToolsHubScreen(
                             )
                         }
 
+                        // ROW 3.5: NEW TOOLS
+                        if (selectedCategory == ToolCategoryFilter.ALL.name || selectedCategory == ToolCategoryFilter.FINANCIAL.name) {
+                            Tool7IncomeExpenseCard(onNavigate = { onToolClick(CalcKey.LEDGER) })
+                        }
+                        if (selectedCategory == ToolCategoryFilter.ALL.name || selectedCategory == ToolCategoryFilter.TECH.name) {
+                            Tool8NotepadCard(onNavigate = { onToolClick(CalcKey.NOTES) })
+                        }
+                        if (selectedCategory == ToolCategoryFilter.ALL.name || selectedCategory == ToolCategoryFilter.TECH.name) {
+                            Tool9NewsBrowserCard(onNavigate = { onToolClick(CalcKey.NEWS_BROWSER) })
+                        }
+
                         // ROW 3: TOOL 5 (GPA Calc) & TOOL 6 (Home & Paint Calc)
                         if (selectedCategory == ToolCategoryFilter.ALL.name || selectedCategory == ToolCategoryFilter.ACADEMIC.name) {
                             Tool5GPACalculatorCard(
@@ -755,9 +766,36 @@ fun PracticalToolsHubScreen(
     }
 }
 
-// ==========================================
-// INDIVIDUAL TOOL CARD COMPOSABLES
-// ==========================================
+@Composable
+fun Tool7IncomeExpenseCard(onNavigate: () -> Unit) {
+    ToolSimpleCard(title = "دفتر المصروفات والإيرادات", icon = "📊", onClick = onNavigate, color = Color(0xFF3B82F6))
+}
+
+@Composable
+fun Tool8NotepadCard(onNavigate: () -> Unit) {
+    ToolSimpleCard(title = "المفكرة الذكية", icon = "📝", onClick = onNavigate, color = Color(0xFFF59E0B))
+}
+
+@Composable
+fun Tool9NewsBrowserCard(onNavigate: () -> Unit) {
+    ToolSimpleCard(title = "الأخبار والمتصفح", icon = "🌐", onClick = onNavigate, color = Color(0xFF10B981))
+}
+
+@Composable
+fun ToolSimpleCard(title: String, icon: String, onClick: () -> Unit, color: Color) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF141926).copy(alpha = 0.9f),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.4f))
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(icon, fontSize = 24.sp)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        }
+    }
+}
 
 @Composable
 fun Tool1TafqeetCard(

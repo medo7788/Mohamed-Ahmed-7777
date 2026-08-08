@@ -27,17 +27,19 @@ object GeminiRepository {
     data class AIModel(val id: String, val displayName: String)
 
     val AVAILABLE_MODELS = listOf(
-        AIModel("gemini-2.5-flash", "Gemini 2.5 Flash (موصى به - سريع ومستقر)"),
-        AIModel("gemini-2.0-flash", "Gemini 2.0 Flash"),
-        AIModel("gemini-1.5-flash", "Gemini 1.5 Flash"),
-        AIModel("gemini-3.1-flash-lite-preview", "Gemini 3.1 Flash Lite (معاينة)")
+        AIModel("gemini-3.6-flash", "Gemini 3.6 Flash (افتراضي)"),
+        AIModel("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite"),
+        AIModel("gemini-3.5-flash", "Gemini 3.5 Flash"),
+        AIModel("gemini-3.1-pro-preview", "Gemini 3.1 Pro Preview"),
+        AIModel("gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite"),
+        AIModel("gemini-3-flash-preview", "Gemini 3 Flash Preview")
     )
 
     private const val KEY_SELECTED_MODEL = "selected_gemini_model"
 
     fun getSelectedModel(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        return prefs.getString(KEY_SELECTED_MODEL, "gemini-2.5-flash") ?: "gemini-2.5-flash"
+        return prefs.getString(KEY_SELECTED_MODEL, "gemini-3.6-flash") ?: "gemini-3.6-flash"
     }
 
     fun saveSelectedModel(context: Context, model: String) {

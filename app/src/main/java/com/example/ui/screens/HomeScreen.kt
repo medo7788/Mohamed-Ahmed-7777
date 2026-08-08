@@ -570,6 +570,8 @@ fun HomeScreen(
                             }
                         }
 
+
+
                         // 11. PINNED / FAVORITES SECTION (IF ANY)
                         if (favoriteTools.isNotEmpty()) {
                             item(key = "section_favorites") {
@@ -1222,10 +1224,10 @@ private fun PlatformCategorySliderRow(
 ) {
     val categoryItems = listOf(
         CategorySliderItem("العبادات والقرآن", "7 أدوات معتمدة", AppIcons.forCategory(CategoryKey.ISLAMIC), ColorEmeraldMint, "🕌", CategoryKey.ISLAMIC),
-        CategorySliderItem("المال والأسعار", "13 حاسبة ومؤشر", AppIcons.forCategory(CategoryKey.FINANCE), ColorGoldBorder, "💰", CategoryKey.FINANCE),
+        CategorySliderItem("المال والأسعار", "14 حاسبة ومؤشر", AppIcons.forCategory(CategoryKey.FINANCE), ColorGoldBorder, "💰", CategoryKey.FINANCE),
         CategorySliderItem("الوقت والتواريخ", "4 أدوات تحويل", AppIcons.forCategory(CategoryKey.DATE_TIME), ColorPurpleAI, "⏱️", CategoryKey.DATE_TIME),
         CategorySliderItem("الصحة واللياقة", "مؤشرات وتتبع", AppIcons.forCategory(CategoryKey.HEALTH), ColorCrimsonRed, "🩺", CategoryKey.HEALTH),
-        CategorySliderItem("أدوات عمليّة", "7 أدوات مساعدة", AppIcons.forCategory(CategoryKey.UTILITIES), ColorSapphireBlue, "🛠️", CategoryKey.UTILITIES),
+        CategorySliderItem("أدوات عملية", "10 أدوات مساعدة", AppIcons.forCategory(CategoryKey.UTILITIES), ColorSapphireBlue, "🛠️", CategoryKey.UTILITIES),
         CategorySliderItem("المستشار الذكي AI", "تحليلات واستشارات", Icons.Default.AutoAwesome, ColorIceCyan, "✨", null)
     )
 
