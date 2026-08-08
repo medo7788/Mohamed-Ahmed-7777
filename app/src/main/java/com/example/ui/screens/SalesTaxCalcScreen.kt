@@ -143,14 +143,13 @@ fun SalesTaxCalcScreen(colors: CustomThemeColors) {
     var selectedCurrency by rememberSaveable { mutableStateOf("EGP") }
 
     // Multi-Item Basket List
-    var basketItems by remember {
-        mutableStateOf(
-            listOf(
-                VatBasketItem(name = "المنتج الأوّل", priceStr = "200", quantityStr = "1"),
-                VatBasketItem(name = "المنتج الثاني", priceStr = "300", quantityStr = "1")
-            )
+    val initialBasketItems = remember {
+        listOf(
+            VatBasketItem(name = "المنتج الأوّل", priceStr = "200", quantityStr = "1"),
+            VatBasketItem(name = "المنتج الثاني", priceStr = "300", quantityStr = "1")
         )
     }
+    var basketItems by remember { mutableStateOf(initialBasketItems) }
 
     // Expandable Sections
     var isBreakdownExpanded by rememberSaveable { mutableStateOf(true) }

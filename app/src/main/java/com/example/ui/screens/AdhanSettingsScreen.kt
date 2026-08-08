@@ -61,23 +61,21 @@ fun AdhanSettingsScreen(colors: CustomThemeColors, viewModel: MainViewModel) {
     val prefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
     val currentThemeKey by viewModel.currentThemeKey.collectAsState()
 
-    var soundUri by remember {
-        mutableStateOf(
-            prefs.getString(KEY_SOUND_URI, null)?.let { Uri.parse(it) }
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-        )
+    val initialUri = remember(prefs) {
+        prefs.getString(KEY_SOUND_URI, null)?.let { Uri.parse(it) }
+            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
     }
+    var soundUri by remember { mutableStateOf(initialUri) }
     var vibrateEnabled by remember { mutableStateOf(prefs.getBoolean(KEY_VIBRATE, true)) }
-    var togglesState by remember {
-        mutableStateOf(PRAYER_TOGGLES.associate { it.key to prefs.getBoolean(it.key, false) })
+    val initialToggles = remember(prefs) {
+        PRAYER_TOGGLES.associate { it.key to prefs.getBoolean(it.key, false) }
     }
+    var togglesState by remember { mutableStateOf(initialToggles) }
 
-    var selectedAdhanVoice by remember {
-        mutableStateOf(prefs.getString(KEY_ADHAN_VOICE, "system") ?: "system")
-    }
-    var selectedQuranVoice by remember {
-        mutableStateOf(prefs.getString(KEY_QURAN_VOICE, "ar.alafasy") ?: "ar.alafasy")
-    }
+    val initialAdhanVoice = remember(prefs) { prefs.getString(KEY_ADHAN_VOICE, "system") ?: "system" }
+    var selectedAdhanVoice by remember { mutableStateOf(initialAdhanVoice) }
+    val initialQuranVoice = remember(prefs) { prefs.getString(KEY_QURAN_VOICE, "ar.alafasy") ?: "ar.alafasy" }
+    var selectedQuranVoice by remember { mutableStateOf(initialQuranVoice) }
 
     var showAdhanVoiceDropdown by remember { mutableStateOf(false) }
     var showQuranVoiceDropdown by remember { mutableStateOf(false) }

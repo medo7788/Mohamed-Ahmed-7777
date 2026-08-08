@@ -986,7 +986,7 @@ private fun SectionDHistoryModal(
                         .heightIn(max = 320.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(history) { item ->
+                    items(history, key = { it.timestampMs }) { item ->
                         val dateFormatted = remember(item.timestampMs) {
                             SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault()).format(Date(item.timestampMs))
                         }
@@ -1310,7 +1310,7 @@ private fun CitySelectorDialog(
                         .heightIn(max = 280.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    items(filteredCities) { city ->
+                    items(filteredCities, key = { it.nameAr }) { city ->
                         val qiblaAngle = remember(city) { QiblaMath.calculateQiblaBearing(city.lat, city.lng) }
 
                         Surface(

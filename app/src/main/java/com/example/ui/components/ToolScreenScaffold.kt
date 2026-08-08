@@ -1,16 +1,22 @@
 package com.example.ui.components
 
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -19,8 +25,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.CustomThemeColors
-import com.example.ui.theme.DesignTokens
-import com.example.ui.theme.Spacing
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 
@@ -29,28 +33,32 @@ fun ToolScreenScaffold(
     colors: CustomThemeColors,
     icon: ImageVector,
     title: String,
-    subtitle: String,
+    subtitle: String = "",
+    onBackClick: (() -> Unit)? = null,
     onPrimaryActionClick: (() -> Unit)? = null,
     primaryActionText: String? = null,
     showResult: Boolean = false,
     resultMainText: String? = null,
     resultSubText: String? = null,
-    isScrollable: Boolean = true,
+    isScrollable: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    // حالة الزجاج الخاصة بالشاشة دي - أي FrostedGlassCard جوه content() هيلاقيها
-    // تلقائيًا عن طريق LocalHazeState من غير ما نعدّل توقيعه.
     val hazeState = remember { HazeState() }
+    val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 
+    // 5. Visuals: Deep dark cyberpunk background (#0B1120 to #0F172A)
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(colors.headerBg, colors.appBg)
+                    listOf(
+                        Color(0xFF0B1120),
+                        Color(0xFF0F172A),
+                        Color(0xFF070A0F)
+                    )
                 )
             )
-            // الخلفية دي هي اللي هتتبلور خلف أي كارت زجاجي فوقها
             .haze(hazeState)
     ) {
         Column(
@@ -58,92 +66,122 @@ fun ToolScreenScaffold(
                 .fillMaxSize()
                 .then(if (isScrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
         ) {
-            // 1. Hero Card Header (Respects active theme colors)
-            Box(
+            // 1. Top App Bar (Compact & Space-Efficient):
+            // Minimalist header with back arrow, 24px neon icon, centered title. Zero vertical waste!
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Spacing.Medium, vertical = Spacing.Large),
-                contentAlignment = Alignment.Center
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                IconButton(
+                    onClick = {
+                        if (onBackClick != null) {
+                            onBackClick()
+                        } else {
+                            backDispatcher?.onBackPressed()
+                        }
+                    },
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "رجوع",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
-                            .background(colors.accent.copy(alpha = 0.12f), RoundedCornerShape(16.dp)),
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF00FFCC).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFF00FFCC).copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = colors.accent,
-                            modifier = Modifier.size(28.dp)
+                            tint = Color(0xFF00FFCC),
+                            modifier = Modifier.size(16.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.height(Spacing.Small))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = title,
-                        color = colors.text,
-                        fontSize = 22.sp,
+                        color = Color.White,
+                        fontSize = 17.sp,
                         fontWeight = FontWeight.ExtraBold,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = subtitle,
-                        color = colors.textMuted,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 24.dp)
-                    )
                 }
+
+                Spacer(modifier = Modifier.size(40.dp))
             }
 
-            // 2. Content Surface (Clean, consistent z-axis spacing, no illegal weights)
+            // 2. Main Workspace (Inputs & Interactive Controls):
+            // Begins immediately below top bar in modern Glassmorphism card (#1E293B, neon cyan border)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = Spacing.Medium),
-                shape = RoundedCornerShape(topStart = DesignTokens.Radius.Medium, topEnd = DesignTokens.Radius.Medium),
-                color = colors.surface.copy(alpha = 0.85f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, colors.border.copy(alpha = 0.15f))
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF1E293B).copy(alpha = 0.88f),
+                border = BorderStroke(
+                    1.2.dp,
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFF00FFCC).copy(alpha = 0.45f),
+                            Color(0xFF1E293B).copy(alpha = 0.2f),
+                            Color(0xFF00FFCC).copy(alpha = 0.3f)
+                        )
+                    )
+                )
             ) {
                 Column(
                     modifier = Modifier
-                        .padding(Spacing.Medium)
+                        .padding(14.dp)
                         .fillMaxWidth()
                 ) {
                     CompositionLocalProvider(LocalHazeState provides hazeState) {
                         content()
                     }
 
-                    // Result Area (Glassmorphic results container)
-                    if (showResult) {
-                        Spacer(modifier = Modifier.height(Spacing.Large))
+                    // 3. Output & Results Card:
+                    // Distinct glowing card displaying calculations/results in bold golden digital typography (#FFB703)
+                    if (showResult || resultMainText != null) {
+                        Spacer(modifier = Modifier.height(14.dp))
                         Surface(
-                            color = colors.accent.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(DesignTokens.Radius.Small),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, colors.accent.copy(alpha = 0.25f)),
+                            color = Color(0xFF0F172A).copy(alpha = 0.95f),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.5.dp, Color(0xFFFFB703).copy(alpha = 0.6f)),
+                            shadowElevation = 6.dp,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
-                                modifier = Modifier.padding(Spacing.Medium),
+                                modifier = Modifier.padding(14.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 if (resultMainText != null) {
                                     Text(
                                         text = resultMainText,
-                                        color = colors.accent,
-                                        fontSize = 26.sp,
+                                        color = Color(0xFFFFB703),
+                                        fontSize = 24.sp,
                                         fontWeight = FontWeight.Black,
                                         textAlign = TextAlign.Center
                                     )
                                 }
                                 if (resultSubText != null) {
-                                    Spacer(modifier = Modifier.height(Spacing.ExtraSmall))
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = resultSubText,
-                                        color = colors.text,
+                                        color = Color.White.copy(alpha = 0.9f),
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium,
                                         textAlign = TextAlign.Center
@@ -153,22 +191,32 @@ fun ToolScreenScaffold(
                         }
                     }
 
-                    // 3. Prominent primary action button placed directly inline after content
+                    // Primary Action Button (Gold Cyberpunk Button)
                     if (primaryActionText != null && onPrimaryActionClick != null) {
-                        Spacer(modifier = Modifier.height(Spacing.Large))
-                        GoldPrimaryButton(
-                            colors = colors,
-                            text = primaryActionText,
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Button(
                             onClick = onPrimaryActionClick,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFFB703),
+                                contentColor = Color(0xFF0B1120)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = primaryActionText,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
                     }
-
-                    Spacer(modifier = Modifier.height(Spacing.ExtraLarge))
                 }
             }
 
-            Spacer(modifier = Modifier.height(90.dp)) // Extra bottom spacing to avoid bottom nav clipping
+            Spacer(modifier = Modifier.height(90.dp)) // Floating Bottom Nav clearance
         }
     }
 }
+

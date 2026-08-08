@@ -178,7 +178,7 @@ object GeminiRepository {
         }
         contentsArray.put(currentContent)
 
-        val jsonBody = JSONObject().apply {
+        val jsonBodyWithTools = JSONObject().apply {
             put("contents", contentsArray)
             put("systemInstruction", systemInstruction)
             put("tools", JSONArray().apply {
@@ -188,36 +188,40 @@ object GeminiRepository {
             })
         }
 
-        val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+        val jsonBodySimple = JSONObject().apply {
+            put("contents", contentsArray)
+            put("systemInstruction", systemInstruction)
+        }
 
         for (model in models) {
             val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$apiKey"
-            val request = Request.Builder()
-                .url(url)
-                .post(requestBody)
-                .build()
+            val payloads = listOf(jsonBodyWithTools, jsonBodySimple)
+            for (payload in payloads) {
+                val requestBody = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                val request = Request.Builder().url(url).post(requestBody).build()
 
-            try {
-                val response = client.newCall(request).execute()
-                val responseText = response.body?.string() ?: ""
+                try {
+                    val response = client.newCall(request).execute()
+                    val responseText = response.body?.string() ?: ""
 
-                if (response.isSuccessful && responseText.isNotBlank()) {
-                    val jsonResponse = JSONObject(responseText)
-                    val candidates = jsonResponse.optJSONArray("candidates")
-                    if (candidates != null && candidates.length() > 0) {
-                        val firstCand = candidates.getJSONObject(0)
-                        val content = firstCand.optJSONObject("content")
-                        val parts = content?.optJSONArray("parts")
-                        if (parts != null && parts.length() > 0) {
-                            val text = parts.getJSONObject(0).optString("text")
-                            if (text.isNotBlank()) return@withContext text
+                    if (response.isSuccessful && responseText.isNotBlank()) {
+                        val jsonResponse = JSONObject(responseText)
+                        val candidates = jsonResponse.optJSONArray("candidates")
+                        if (candidates != null && candidates.length() > 0) {
+                            val firstCand = candidates.getJSONObject(0)
+                            val content = firstCand.optJSONObject("content")
+                            val parts = content?.optJSONArray("parts")
+                            if (parts != null && parts.length() > 0) {
+                                val text = parts.getJSONObject(0).optString("text")
+                                if (text.isNotBlank()) return@withContext text
+                            }
                         }
+                    } else {
+                        lastErrorMsg = parseGoogleError(response.code, responseText)
                     }
-                } else {
-                    lastErrorMsg = parseGoogleError(response.code, responseText)
+                } catch (e: Exception) {
+                    lastErrorMsg = "عذراً، حدث خطأ أثناء الاتصال بالشبكة: ${e.localizedMessage}"
                 }
-            } catch (e: Exception) {
-                lastErrorMsg = "عذراً، حدث خطأ أثناء الاتصال بالشبكة: ${e.localizedMessage}"
             }
         }
 
@@ -225,9 +229,12 @@ object GeminiRepository {
     }
 
     suspend fun testApiKey(apiKey: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        val cleanKey = apiKey.trim()
+        if (cleanKey.isBlank()) return@withContext Pair(false, "يرجى إدخال مفتاح API أولاً.")
+
         val testPrompt = "قل 'مرحباً بك' فقط."
-        val primaryModel = "gemini-2.5-flash"
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/$primaryModel:generateContent?key=${apiKey.trim()}"
+        val testModels = listOf("gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash")
+        var lastErr = ""
 
         val jsonBody = JSONObject().apply {
             put("contents", JSONArray().apply {
@@ -238,20 +245,25 @@ object GeminiRepository {
             })
         }
 
-        val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-        val request = Request.Builder().url(url).post(requestBody).build()
+        for (m in testModels) {
+            val url = "https://generativelanguage.googleapis.com/v1beta/models/$m:generateContent?key=$cleanKey"
+            val requestBody = jsonBody.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            val request = Request.Builder().url(url).post(requestBody).build()
 
-        try {
-            val response = client.newCall(request).execute()
-            val text = response.body?.string() ?: ""
-            if (response.isSuccessful) {
-                return@withContext Pair(true, "✅ الاتصال ناجح ومفتاح API يعمل بشكل ممتاز!")
-            } else {
-                return@withContext Pair(false, parseGoogleError(response.code, text))
+            try {
+                val response = client.newCall(request).execute()
+                val text = response.body?.string() ?: ""
+                if (response.isSuccessful) {
+                    return@withContext Pair(true, "✅ الاتصال ناجح ومفتاح API يعمل بنجاح على نموذج $m!")
+                } else {
+                    lastErr = parseGoogleError(response.code, text)
+                }
+            } catch (e: Exception) {
+                lastErr = "❌ خطأ في الشبكة: ${e.localizedMessage}"
             }
-        } catch (e: Exception) {
-            return@withContext Pair(false, "❌ خطأ في الاتصال بالشبكة: ${e.localizedMessage}")
         }
+
+        return@withContext Pair(false, lastErr.ifBlank { "فشل اختبار الاتصال بمفتاح API." })
     }
 
     suspend fun askEconomicExpert(context: Context, prompt: String, countryContext: String): Result<String> = withContext(Dispatchers.IO) {

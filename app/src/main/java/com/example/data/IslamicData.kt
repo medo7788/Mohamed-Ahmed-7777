@@ -212,6 +212,19 @@ object IslamicData {
         )
     }
 
+    fun formatTo12Hour(time24: String): String {
+        if (time24.isBlank() || !time24.contains(":")) return time24
+        val parts = time24.trim().split(":")
+        if (parts.size < 2) return time24
+        val hrs = parts[0].toIntOrNull() ?: return time24
+        val mins = parts[1].take(2).toIntOrNull() ?: return time24
+        val isPm = hrs >= 12
+        var hrs12 = hrs % 12
+        if (hrs12 == 0) hrs12 = 12
+        val period = if (isPm) "م" else "ص"
+        return String.format(java.util.Locale.getDefault(), "%02d:%02d %s", hrs12, mins, period)
+    }
+
     fun getCorrectTimezoneOffset(lat: Double, lng: Double, calendar: java.util.Calendar = java.util.Calendar.getInstance()): Double {
         val timeMillis = calendar.timeInMillis
 

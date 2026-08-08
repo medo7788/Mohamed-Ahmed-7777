@@ -808,7 +808,8 @@ fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
                                         Triple("صدور بيانات التضخم", "28 أغسطس", "متوسط الأهمية"),
                                         Triple("تقرير الناتج المحلي Q3", "10 سبتمبر", "مرتفع الأهمية"),
                                         Triple("مؤشر مديرو المشتريات PMI", "01 أكتوبر", "عادي الأهمية")
-                                    )
+                                    ),
+                                    key = { it.first }
                                 ) { (event, date, importance) ->
                                     Surface(
                                         modifier = Modifier.width(180.dp),
@@ -850,7 +851,8 @@ fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
                                         "توقعات أسعار الذهب والفائدة",
                                         "أفضل قنوات الادخار الآمنة حالياً",
                                         "تحليل أداء البورصة هذا الشهر"
-                                    )
+                                    ),
+                                    key = { it }
                                 ) { prompt ->
                                     Surface(
                                         modifier = Modifier
@@ -973,7 +975,7 @@ fun EconomicIndicatorsScreen(colors: CustomThemeColors) {
                         .height(340.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(EconomicRepository.countries) { item ->
+                    items(EconomicRepository.countries, key = { it.code }) { item ->
                         val isSelected = item.code == selectedCountryCode
                         Surface(
                             color = if (isSelected) Color(0xFFD4AF37).copy(alpha = 0.2f) else Color(0xFF141926),

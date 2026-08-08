@@ -170,7 +170,7 @@ fun WorldTimeScreen(colors: CustomThemeColors) {
     var selectedRegionFilter by rememberSaveable { mutableStateOf("الكل") }
 
     // Pinned City IDs List
-    var pinnedCityIds by rememberSaveable {
+    var pinnedCityIds by remember {
         mutableStateOf(listOf("cairo", "mecca", "dubai", "london", "new_york", "tokyo"))
     }
 
@@ -455,7 +455,7 @@ fun WorldTimeScreen(colors: CustomThemeColors) {
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             val regions = listOf("الكل", "الشرق الأوسط", "أفريقيا", "أوروبا", "آسيا", "الأمريكتان", "أوقيانوسيا")
-                            items(regions) { region ->
+                            items(regions, key = { it }) { region ->
                                 val isSelected = selectedRegionFilter == region
                                 FilterChip(
                                     selected = isSelected,

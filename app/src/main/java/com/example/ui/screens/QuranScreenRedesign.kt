@@ -58,16 +58,16 @@ fun QuranScreenRedesign(colors: CustomThemeColors) {
     var wirdDoneToday by remember { mutableStateOf(quranPrefs.getBoolean("wird_done_today", false)) }
 
     // Favorites toggling list
-    var favoritesSet by remember {
-        mutableStateOf(
-            quranPrefs.getStringSet("favorite_surahs", setOf("1", "18", "36", "67")) ?: setOf("1", "18", "36", "67")
-        )
+    val initialFavs = remember(quranPrefs) {
+        quranPrefs.getStringSet("favorite_surahs", setOf("1", "18", "36", "67")) ?: setOf("1", "18", "36", "67")
     }
+    var favoritesSet by remember { mutableStateOf(initialFavs) }
 
     // Reciter Preferences
-    var selectedReciterKey by remember {
-        mutableStateOf(quranPrefs.getString("quran_voice_key", "ar.alafasy") ?: "ar.alafasy")
+    val initialReciterKey = remember(quranPrefs) {
+        quranPrefs.getString("quran_voice_key", "ar.alafasy") ?: "ar.alafasy"
     }
+    var selectedReciterKey by remember { mutableStateOf(initialReciterKey) }
     var showSettingsModal by remember { mutableStateOf(false) }
 
     // Toggle Favorite helper

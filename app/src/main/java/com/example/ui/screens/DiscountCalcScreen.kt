@@ -122,9 +122,8 @@ fun DiscountCalcScreen(colors: CustomThemeColors) {
     var showHistoryDrawer by rememberSaveable { mutableStateOf(false) }
 
     // History JSON
-    var historyListJson by remember {
-        mutableStateOf(sharedPrefs.getString("discount_history_json", "[]") ?: "[]")
-    }
+    val initialHistoryJson = remember(sharedPrefs) { sharedPrefs.getString("discount_history_json", "[]") ?: "[]" }
+    var historyListJson by remember { mutableStateOf(initialHistoryJson) }
 
     val historyItems = remember(historyListJson) {
         parseDiscountHistory(historyListJson)
@@ -256,7 +255,8 @@ fun DiscountCalcScreen(colors: CustomThemeColors) {
         colors = colors,
         icon = AppIcons.forCalc(CalcKey.DISCOUNT),
         title = "حاسبة الخصم والتخفيض وسلة التوفير",
-        subtitle = "حساب الأسعار النهائية، التخفيضات المركبة، والعروض الترويجية بدقة"
+        subtitle = "حساب الأسعار النهائية، التخفيضات المركبة، والعروض الترويجية بدقة",
+        isScrollable = false
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
@@ -523,7 +523,7 @@ private fun DiscountHeaderSection(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(currencies) { curr ->
+                    items(currencies, key = { it }) { curr ->
                         val isSelected = curr == selectedCurrency
                         Surface(
                             color = if (isSelected) Color(0xFFD4AF37) else Color(0xFF1E2638),
@@ -599,7 +599,7 @@ private fun ModeSelectorRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 2.dp)
     ) {
-        items(modes) { mode ->
+        items(modes, key = { it.title }) { mode ->
             val isSelected = mode == activeMode
             Surface(
                 shape = RoundedCornerShape(16.dp),
@@ -819,7 +819,7 @@ private fun EmptyDiscountCard(
 
             val presets = listOf(100L, 250L, 500L, 1000L, 2500L, 5000L)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(presets) { preset ->
+                items(presets, key = { it }) { preset ->
                     Surface(
                         color = Color(0xFF1E2638),
                         shape = RoundedCornerShape(12.dp),
@@ -961,7 +961,7 @@ private fun DiscountInputSection(
                 // Quick Preset Discount Chips
                 val discountPresets = listOf(10, 15, 20, 25, 30, 50, 70)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(discountPresets) { disc ->
+                    items(discountPresets, key = { it }) { disc ->
                         val isSelected = discountPercentText == disc.toString()
                         Surface(
                             color = if (isSelected) Color(0xFFD4AF37) else Color(0xFF1E2638),
@@ -1027,7 +1027,7 @@ private fun DiscountInputSection(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         val vatPresets = listOf(5, 14, 15, 20)
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(vatPresets) { vat ->
+                            items(vatPresets, key = { it }) { vat ->
                                 Surface(
                                     color = Color(0xFF1E2638),
                                     shape = RoundedCornerShape(10.dp),

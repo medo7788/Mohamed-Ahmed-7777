@@ -1319,7 +1319,7 @@ private fun AddEditGoalDialog(
                 Text("فئة الهدف:", fontSize = 11.sp, color = ColorSlateMuted)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     val categories = listOf("طوارئ", "سيارة", "منزل", "سفر", "تعليم", "استثمار", "هدية", "أخرى")
-                    items(categories) { cat ->
+                    items(categories, key = { it }) { cat ->
                         val isSel = cat == selectedCategory
                         Surface(
                             color = if (isSel) ColorAmberGlow.copy(alpha = 0.25f) else Color(0xFF1E2638),

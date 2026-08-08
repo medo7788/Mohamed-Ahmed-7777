@@ -123,7 +123,9 @@ class MainActivity : ComponentActivity() {
                                     currentCalc = currentCalcKey,
                                     colors = colors,
                                     onGoHome = {
-                                        if (currentCalcKey != CalcKey.HOME) {
+                                        if (navController.previousBackStackEntry != null) {
+                                            navController.popBackStack()
+                                        } else if (currentCalcKey != CalcKey.HOME) {
                                             navController.navigate(CalcKey.HOME.name) {
                                                 popUpTo(CalcKey.HOME.name) { inclusive = true }
                                                 launchSingleTop = true
@@ -158,121 +160,78 @@ class MainActivity : ComponentActivity() {
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .padding(horizontal = 8.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            horizontalArrangement = Arrangement.SpaceEvenly,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            // Right Wing (RTL): المساعد الذكي
-                                            Row(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .fillMaxHeight(),
-                                                horizontalArrangement = Arrangement.Center,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                // 2. المساعد الذكي
-                                                val isAiSelected = currentCalcKey == CalcKey.AI
-                                                BottomNavItemColumn(
-                                                    label = "المساعد الذكي",
-                                                    icon = AppIcons.forCalc(CalcKey.AI),
-                                                    isSelected = isAiSelected,
-                                                    onClick = {
-                                                        if (!isAiSelected) {
-                                                            navController.navigate(CalcKey.AI.name) {
-                                                                popUpTo(CalcKey.HOME.name) { saveState = true }
-                                                                launchSingleTop = true
-                                                                restoreState = true
-                                                            }
-                                                        }
-                                                    }
-                                                )
-                                            }
-
-                                            // Center Anchor: الرئيسية (Home - Dead Center)
+                                            // 1. الرئيسية
                                             val isHomeSelected = currentCalcKey == CalcKey.HOME
-                                            Column(
-                                                modifier = Modifier
-                                                    .clip(CircleShape)
-                                                    .clickable {
-                                                        if (!isHomeSelected) {
-                                                            navController.navigate(CalcKey.HOME.name) {
-                                                                popUpTo(CalcKey.HOME.name) { inclusive = true }
-                                                                launchSingleTop = true
-                                                            }
+                                            BottomNavItemColumn(
+                                                label = "الرئيسية",
+                                                icon = AppIcons.forCalc(CalcKey.HOME),
+                                                isSelected = isHomeSelected,
+                                                onClick = {
+                                                    if (!isHomeSelected) {
+                                                        navController.navigate(CalcKey.HOME.name) {
+                                                            popUpTo(CalcKey.HOME.name) { inclusive = true }
+                                                            launchSingleTop = true
                                                         }
                                                     }
-                                                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.Center
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(36.dp)
-                                                        .clip(CircleShape)
-                                                        .background(
-                                                            if (isHomeSelected) {
-                                                                androidx.compose.ui.graphics.Brush.radialGradient(
-                                                                    colors = listOf(
-                                                                        Color(0xFFD4AF37).copy(alpha = 0.5f),
-                                                                        Color(0xFFD4AF37).copy(alpha = 0.15f)
-                                                                    )
-                                                                )
-                                                            } else {
-                                                                androidx.compose.ui.graphics.Brush.radialGradient(
-                                                                    colors = listOf(
-                                                                        Color(0xFF1E293B).copy(alpha = 0.8f),
-                                                                        Color(0xFF0F172A).copy(alpha = 0.5f)
-                                                                    )
-                                                                )
-                                                            }
-                                                        )
-                                                        .border(
-                                                            width = 1.dp,
-                                                            color = if (isHomeSelected) Color(0xFFD4AF37) else Color(0xFF334155),
-                                                            shape = CircleShape
-                                                        ),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = AppIcons.forCalc(CalcKey.HOME),
-                                                        contentDescription = "الرئيسية",
-                                                        tint = if (isHomeSelected) Color(0xFFD4AF37) else Color(0xFF94A3B8),
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
                                                 }
-                                                Spacer(modifier = Modifier.height(2.dp))
-                                                Text(
-                                                    text = "الرئيسية",
-                                                    fontSize = 10.sp,
-                                                    fontWeight = if (isHomeSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                                    color = if (isHomeSelected) Color(0xFFD4AF37) else Color(0xFF94A3B8)
-                                                )
-                                            }
+                                            )
 
-                                            // Left Wing (RTL): الإعدادات (Equal weight to Right Wing for true geometric center)
-                                            Row(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .fillMaxHeight(),
-                                                horizontalArrangement = Arrangement.Center,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                // 4. الإعدادات
-                                                val isSettingsSelected = currentCalcKey == CalcKey.ADHAN_SETTINGS
-                                                BottomNavItemColumn(
-                                                    label = "الإعدادات",
-                                                    icon = AppIcons.forCalc(CalcKey.SETTINGS),
-                                                    isSelected = isSettingsSelected,
-                                                    onClick = {
-                                                        if (!isSettingsSelected) {
-                                                            navController.navigate(CalcKey.ADHAN_SETTINGS.name) {
-                                                                popUpTo(CalcKey.HOME.name) { saveState = true }
-                                                                launchSingleTop = true
-                                                                restoreState = true
-                                                            }
+                                            // 2. العبادات والأذان
+                                            val isPrayerSelected = currentCalcKey in listOf(
+                                                CalcKey.PRAYER, CalcKey.QIBLA, CalcKey.QURAN,
+                                                CalcKey.ADHKAR, CalcKey.TASBIH, CalcKey.ZAKAT
+                                            )
+                                            BottomNavItemColumn(
+                                                label = "العبادات",
+                                                icon = AppIcons.forCalc(CalcKey.PRAYER),
+                                                isSelected = isPrayerSelected,
+                                                onClick = {
+                                                    if (!isPrayerSelected) {
+                                                        navController.navigate(CalcKey.PRAYER.name) {
+                                                            popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                            launchSingleTop = true
+                                                            restoreState = true
                                                         }
                                                     }
-                                                )
-                                            }
+                                                }
+                                            )
+
+                                            // 3. المساعد الذكي
+                                            val isAiSelected = currentCalcKey == CalcKey.AI
+                                            BottomNavItemColumn(
+                                                label = "المساعد الذكي",
+                                                icon = AppIcons.forCalc(CalcKey.AI),
+                                                isSelected = isAiSelected,
+                                                onClick = {
+                                                    if (!isAiSelected) {
+                                                        navController.navigate(CalcKey.AI.name) {
+                                                            popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                            launchSingleTop = true
+                                                            restoreState = true
+                                                        }
+                                                    }
+                                                }
+                                            )
+
+                                            // 4. الإعدادات
+                                            val isSettingsSelected = currentCalcKey == CalcKey.ADHAN_SETTINGS
+                                            BottomNavItemColumn(
+                                                label = "الإعدادات",
+                                                icon = AppIcons.forCalc(CalcKey.SETTINGS),
+                                                isSelected = isSettingsSelected,
+                                                onClick = {
+                                                    if (!isSettingsSelected) {
+                                                        navController.navigate(CalcKey.ADHAN_SETTINGS.name) {
+                                                            popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                            launchSingleTop = true
+                                                            restoreState = true
+                                                        }
+                                                    }
+                                                }
+                                            )
                                         }
                                     }
                                 }
@@ -290,7 +249,7 @@ class MainActivity : ComponentActivity() {
                                 startDestination = CalcKey.HOME.name,
                                 enterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(300)) },
                                 exitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(300)) },
-                                popEnterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(300)) },
+                                 popEnterTransition = { androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(300)) },
                                 popExitTransition = { androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(300)) }
                             ) {
                                 composable(CalcKey.HOME.name) {
@@ -300,9 +259,7 @@ class MainActivity : ComponentActivity() {
                                         onSelectCalc = { key ->
                                             viewModel.recordToolOpened(context, key.name)
                                             navController.navigate(key.name) {
-                                                popUpTo(CalcKey.HOME.name) { saveState = true }
                                                 launchSingleTop = true
-                                                restoreState = true
                                             }
                                         }
                                     )
@@ -317,9 +274,7 @@ class MainActivity : ComponentActivity() {
                                         onNavigate = { key ->
                                             viewModel.recordToolOpened(context, key.name)
                                             navController.navigate(key.name) {
-                                                popUpTo(CalcKey.HOME.name) { saveState = true }
                                                 launchSingleTop = true
-                                                restoreState = true
                                             }
                                         }
                                     )
@@ -346,6 +301,7 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.TIP.name) { TipCalcScreen(colors) }
                                 composable(CalcKey.PERCENT.name) { PercentageCalcScreen(colors) }
                                 composable(CalcKey.UNIT_PRICE.name) { UnitPriceCalcScreen(colors) }
+                                composable(CalcKey.LEDGER.name) { IncomeExpenseLedgerScreen(colors) }
                                 composable(CalcKey.WORLD_TIME.name) { WorldTimeScreen(colors) }
                                 composable(CalcKey.DATE.name) { DateCalcScreen(colors) }
                                 composable(CalcKey.AGE.name) { AgeCalcScreen(colors) }
@@ -357,6 +313,9 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.NUM_WORDS.name) { NumberToWordsScreen(colors) }
                                 composable(CalcKey.GPA.name) { GPACalcScreen(colors) }
                                 composable(CalcKey.HEX.name) { HexConverterScreen(colors) }
+                                composable(CalcKey.NOTES.name) { NotepadScreen(colors) }
+                                composable(CalcKey.QR_TOOL.name) { QrScannerToolScreen(colors) }
+                                composable(CalcKey.NEWS_BROWSER.name) { NewsAndWebBrowserScreen(colors) }
                             }
                         }
                     }

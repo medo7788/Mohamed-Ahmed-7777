@@ -221,3 +221,57 @@ fun AboutModal(
         shape = RoundedCornerShape(18.dp)
     )
 }
+
+/**
+ * Reusable Atomic AppButton component adhering to M3 rules,
+ * 48dp minimum touch target, and flexible state hoisting.
+ */
+@Composable
+fun AppButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    colors: ButtonColors = ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary
+    ),
+    shape: androidx.compose.ui.graphics.Shape = MaterialTheme.shapes.medium,
+    contentDescription: String? = null
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+        colors = colors,
+        shape = shape
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+/**
+ * Reusable LocationDisabledStateView for location state handling.
+ */
+@Composable
+fun LocationDisabledStateView(
+    onEnableLocationClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        AppButton(
+            text = "تفعيل الموقع الجغرافي",
+            onClick = onEnableLocationClick,
+            modifier = Modifier.padding(16.dp)
+        )
+    }
+}
+

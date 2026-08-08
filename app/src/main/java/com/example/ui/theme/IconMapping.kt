@@ -60,6 +60,7 @@ object AppIcons {
         CalcKey.TIP -> Icons.Filled.Payments
         CalcKey.PERCENT -> Icons.Filled.Percent
         CalcKey.UNIT_PRICE -> Icons.Filled.ShoppingCart
+        CalcKey.LEDGER -> Icons.Filled.AccountBalanceWallet
 
         // Dates & time
         CalcKey.WORLD_TIME -> Icons.Filled.Public
@@ -79,6 +80,9 @@ object AppIcons {
         CalcKey.NUM_WORDS -> Icons.Filled.EditNote
         CalcKey.GPA -> Icons.Filled.School
         CalcKey.HEX -> Icons.Filled.Tag
+        CalcKey.NOTES -> Icons.Filled.StickyNote2
+        CalcKey.QR_TOOL -> Icons.Filled.QrCodeScanner
+        CalcKey.NEWS_BROWSER -> Icons.Filled.Language
 
         // Settings (make when exhaustive)
         CalcKey.SETTINGS -> Icons.Filled.Settings

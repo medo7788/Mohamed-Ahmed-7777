@@ -1401,7 +1401,7 @@ private fun AddProfileDialog(
 
                 Text("اختر رمزاً:", fontSize = 12.sp, color = ColorSlateMuted)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(emojis) { em ->
+                    items(emojis, key = { it }) { em ->
                         Box(
                             modifier = Modifier
                                 .size(36.dp)

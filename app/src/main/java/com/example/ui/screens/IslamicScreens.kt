@@ -310,16 +310,15 @@ fun TasbihScreen(colors: CustomThemeColors) {
         )
     }
 
-    var customDhikrs by remember {
-        mutableStateOf(
-            try {
-                val arr = org.json.JSONArray(prefs.getString("custom_dhikrs", "[]"))
-                val list = mutableListOf<String>()
-                for (i in 0 until arr.length()) list.add(arr.getString(i))
-                list
-            } catch (e: Exception) { emptyList<String>() }
-        )
+    val initialCustomDhikrs = remember(prefs) {
+        try {
+            val arr = org.json.JSONArray(prefs.getString("custom_dhikrs", "[]"))
+            val list = mutableListOf<String>()
+            for (i in 0 until arr.length()) list.add(arr.getString(i))
+            list
+        } catch (e: Exception) { emptyList<String>() }
     }
+    var customDhikrs by remember { mutableStateOf(initialCustomDhikrs) }
 
     val allDhikrs = remember(customDhikrs) { defaultDhikrs + customDhikrs }
 
@@ -1223,16 +1222,16 @@ fun QuranScreenOld(colors: CustomThemeColors) {
     var wirdDoneToday by remember { mutableStateOf(quranPrefs.getBoolean("wird_done_today", false)) }
 
     // Favorites toggling list
-    var favoritesSet by remember {
-        mutableStateOf(
-            quranPrefs.getStringSet("favorite_surahs", setOf("1", "18", "36", "67")) ?: setOf("1", "18", "36", "67")
-        )
+    val initialFavs = remember(quranPrefs) {
+        quranPrefs.getStringSet("favorite_surahs", setOf("1", "18", "36", "67")) ?: setOf("1", "18", "36", "67")
     }
+    var favoritesSet by remember { mutableStateOf(initialFavs) }
 
     // Reciter Preferences
-    var selectedReciterKey by remember {
-        mutableStateOf(quranPrefs.getString("quran_voice_key", "ar.alafasy") ?: "ar.alafasy")
+    val initialReciterKey = remember(quranPrefs) {
+        quranPrefs.getString("quran_voice_key", "ar.alafasy") ?: "ar.alafasy"
     }
+    var selectedReciterKey by remember { mutableStateOf(initialReciterKey) }
     var showSettingsModal by remember { mutableStateOf(false) }
 
     // Toggle Favorite helper
@@ -2044,9 +2043,10 @@ fun SurahDetailReader(
     var loadError by remember(surah.number) { mutableStateOf<String?>(null) }
 
     val adhanPrefs = remember { context.getSharedPreferences("clevcalc_adhan_prefs", Context.MODE_PRIVATE) }
-    var selectedReciterKey by remember {
-        mutableStateOf(adhanPrefs.getString("quran_voice_key", "ar.alafasy") ?: "ar.alafasy")
+    val initialReciterKey = remember(adhanPrefs) {
+        adhanPrefs.getString("quran_voice_key", "ar.alafasy") ?: "ar.alafasy"
     }
+    var selectedReciterKey by remember { mutableStateOf(initialReciterKey) }
 
     var isAudioPlaying by remember { mutableStateOf(false) }
     var isAudioLoading by remember { mutableStateOf(false) }

@@ -327,7 +327,7 @@ fun BasicCalculatorScreen(colors: CustomThemeColors) {
                         .fillMaxWidth()
                         .height(170.dp)
                 ) {
-                    items(sciBtns) { btn ->
+                    items(sciBtns, key = { it }) { btn ->
                         Surface(
                             color = Color(0xFF1E293B),
                             shape = RoundedCornerShape(14.dp),
@@ -663,7 +663,7 @@ fun CurrencyConverterScreen(colors: CustomThemeColors) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val commonCodes = listOf("USD", "EUR", "EGP", "SAR", "AED", "KWD", "GBP")
-                items(commonCodes) { code ->
+                items(commonCodes, key = { it }) { code ->
                     val isSelected = fromCode == code || toCode == code
                     Surface(
                         modifier = Modifier.clickable {
@@ -1940,7 +1940,7 @@ fun UnitConverterScreen(colors: CustomThemeColors) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(categories) { cat ->
+                items(categories, key = { it }) { cat ->
                     val isSelected = selectedCategory == cat
                     Surface(
                         modifier = Modifier
@@ -2113,7 +2113,7 @@ fun UnitConverterScreen(colors: CustomThemeColors) {
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(conversionResults) { (unitName, convertedValue) ->
+                    items(conversionResults, key = { it.first }) { (unitName, convertedValue) ->
                         val unitDef = unitDefinitions.firstOrNull { it.name == unitName }
                         val symbol = unitDef?.symbol ?: ""
                         val badgeType = unitDef?.badge ?: "Metric"

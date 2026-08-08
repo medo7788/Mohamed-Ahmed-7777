@@ -99,7 +99,7 @@ fun UltimateHealthDashboard(
     var isRefreshing by remember { mutableStateOf(false) }
 
     // --- Persistent User Health Data (DataStore / SharedPreferences) ---
-    var userGender by rememberSaveable {
+    var userGender by remember {
         mutableStateOf(if (prefs.getBoolean("profile_is_female", true)) UserGender.FEMALE else UserGender.MALE)
     }
     var ageText by rememberSaveable { mutableStateOf(prefs.getString("health_age", "25") ?: "25") }
@@ -212,19 +212,33 @@ fun UltimateHealthDashboard(
     val currentCal = Calendar.getInstance()
     val diffMillis = currentCal.timeInMillis - lastPeriodCal.timeInMillis
     val daysSinceLastPeriod = (diffMillis / (1000 * 60 * 60 * 24)).toInt()
-    val currentCycleDay = ((daysSinceLastPeriod % cycleLength) + 1).coerceAtLeast(1)
+    val (currentCycleDay, ovulationDateStr, nextPeriodDateStr, daysUntilNextPeriod) = remember(
+        lastPeriodDay, lastPeriodMonth, lastPeriodYear, cycleLength
+    ) {
+        val currentCal = Calendar.getInstance()
+        val lastPeriodCal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, lastPeriodYear)
+            set(Calendar.MONTH, lastPeriodMonth - 1)
+            set(Calendar.DAY_OF_MONTH, lastPeriodDay)
+        }
+        val diffMillis = currentCal.timeInMillis - lastPeriodCal.timeInMillis
+        val daysDiff = (diffMillis / (1000 * 60 * 60 * 24)).toInt().coerceAtLeast(0)
+        val cycleDay = ((daysDiff % cycleLength) + 1).coerceAtLeast(1)
 
-    val nextPeriodCal = (lastPeriodCal.clone() as Calendar).apply {
-        add(Calendar.DAY_OF_YEAR, cycleLength)
-    }
-    val ovulationCal = (lastPeriodCal.clone() as Calendar).apply {
-        add(Calendar.DAY_OF_YEAR, cycleLength - 14)
-    }
-    val daysUntilNextPeriod = ((nextPeriodCal.timeInMillis - currentCal.timeInMillis) / (1000 * 60 * 60 * 24)).toInt().coerceAtLeast(0)
+        val nextPeriodCal = (lastPeriodCal.clone() as Calendar).apply {
+            add(Calendar.DAY_OF_YEAR, cycleLength)
+        }
+        val ovulationCal = (lastPeriodCal.clone() as Calendar).apply {
+            add(Calendar.DAY_OF_YEAR, cycleLength - 14)
+        }
+        val daysUntil = ((nextPeriodCal.timeInMillis - currentCal.timeInMillis) / (1000 * 60 * 60 * 24)).toInt().coerceAtLeast(0)
 
-    val sdfDisplay = SimpleDateFormat("dd MMMM", Locale("ar"))
-    val ovulationDateStr = sdfDisplay.format(ovulationCal.time)
-    val nextPeriodDateStr = sdfDisplay.format(nextPeriodCal.time)
+        val sdfDisplay = SimpleDateFormat("dd MMMM", Locale("ar"))
+        val ovulationStr = sdfDisplay.format(ovulationCal.time)
+        val nextPeriodStr = sdfDisplay.format(nextPeriodCal.time)
+
+        Quadruple(cycleDay, ovulationStr, nextPeriodStr, daysUntil)
+    }
 
     // Overall Computed Health Score (0-100)
     val healthScore = remember(bmi, waterCups, sleepHours, stepCount) {
@@ -879,7 +893,7 @@ fun HealthSummaryStrip(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        items(items) { (title, subtitle, accentColor) ->
+        items(items, key = { it.first }) { (title, subtitle, accentColor) ->
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = GlassSurface.copy(alpha = 0.8f),
@@ -1337,7 +1351,7 @@ fun FertilityTimelineStrip(currentCycleDay: Int, cycleLength: Int) {
             Spacer(modifier = Modifier.height(10.dp))
 
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(14) { index ->
+                items(14, key = { it }) { index ->
                     val dayNum = index + 1
                     val isCurrent = dayNum == currentCycleDay
                     val isFertile = dayNum in 12..16
@@ -1413,7 +1427,7 @@ fun DailySymptomsLoggerCard(
             Spacer(modifier = Modifier.height(6.dp))
 
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(moods) { mood ->
+                items(moods, key = { it }) { mood ->
                     val isSelected = mood == selectedMood
                     Surface(
                         onClick = { onMoodSelected(mood) },
@@ -1438,7 +1452,7 @@ fun DailySymptomsLoggerCard(
             Spacer(modifier = Modifier.height(6.dp))
 
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(symptoms) { symptom ->
+                items(symptoms, key = { it }) { symptom ->
                     val isSelected = selectedSymptoms.contains(symptom)
                     Surface(
                         onClick = { onSymptomToggled(symptom) },
@@ -1903,3 +1917,11 @@ fun DashboardEmptyState(onStartSetup: () -> Unit) {
         }
     }
 }
+
+private data class Quadruple<out A, out B, out C, out D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
+)
+

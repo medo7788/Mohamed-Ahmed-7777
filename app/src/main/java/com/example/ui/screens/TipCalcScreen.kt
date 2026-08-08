@@ -154,14 +154,13 @@ fun TipCalcScreen(colors: CustomThemeColors) {
     var selectedCurrency by rememberSaveable { mutableStateOf("EGP") }
 
     // Custom Persons List
-    var customPersonsList by remember {
-        mutableStateOf(
-            listOf(
-                CustomPersonItem(name = "أحمد", amountStr = "150"),
-                CustomPersonItem(name = "محمد", amountStr = "100")
-            )
+    val initialCustomPersons = remember {
+        listOf(
+            CustomPersonItem(name = "أحمد", amountStr = "150"),
+            CustomPersonItem(name = "محمد", amountStr = "100")
         )
     }
+    var customPersonsList by remember { mutableStateOf(initialCustomPersons) }
 
     // Expandable Drawers
     var isBreakdownExpanded by rememberSaveable { mutableStateOf(true) }

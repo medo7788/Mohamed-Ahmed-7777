@@ -146,9 +146,8 @@ fun LoanCalcScreen(colors: CustomThemeColors) {
     var settlementFeePercentText by rememberSaveable { mutableStateOf("0.0") }
 
     // History State (Persisted in SharedPreferences)
-    var historyListJson by remember {
-        mutableStateOf(sharedPrefs.getString("history_json", "[]") ?: "[]")
-    }
+    val initialHistoryJson = remember(sharedPrefs) { sharedPrefs.getString("history_json", "[]") ?: "[]" }
+    var historyListJson by remember { mutableStateOf(initialHistoryJson) }
 
     val historyItems = remember(historyListJson) {
         parseHistoryJson(historyListJson)
@@ -317,7 +316,8 @@ fun LoanCalcScreen(colors: CustomThemeColors) {
         colors = colors,
         icon = AppIcons.forCalc(CalcKey.LOAN),
         title = "حاسبة القروض والتمويل",
-        subtitle = "حساب الأقساط الشهرية، الفوائد المركبة، وجدول السداد التفصيلي"
+        subtitle = "حساب الأقساط الشهرية، الفوائد المركبة، وجدول السداد التفصيلي",
+        isScrollable = false
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
@@ -679,7 +679,7 @@ private fun HeroHeaderSection(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(currencies) { curr ->
+                    items(currencies, key = { it }) { curr ->
                         val isSelected = curr == selectedCurrency
                         Surface(
                             color = if (isSelected) Color(0xFFD4AF37) else Color(0xFF1E2638),
@@ -1077,7 +1077,7 @@ private fun InputControlsCard(
                 // Quick Presets
                 val amountPresets = listOf(50000L, 100000L, 250000L, 500000L, 1000000L, 2500000L)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(amountPresets) { preset ->
+                    items(amountPresets, key = { it }) { preset ->
                         Surface(
                             color = Color(0xFF1E2638),
                             shape = RoundedCornerShape(10.dp),
@@ -1249,7 +1249,7 @@ private fun InputControlsCard(
                 }
 
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(tenurePresets) { tPreset ->
+                    items(tenurePresets, key = { it }) { tPreset ->
                         Surface(
                             color = Color(0xFF1E2638),
                             shape = RoundedCornerShape(10.dp),

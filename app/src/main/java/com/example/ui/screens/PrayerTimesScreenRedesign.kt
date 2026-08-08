@@ -549,12 +549,12 @@ fun PrayerTimesScreenRedesign(
                 }
 
                 val pList = listOf(
-                    PrayerItemInfo("fajr", "الفجر", "Fajr", dynamicTimes.fajr, nextPrayerInfo.nextNameAr == "الفجر", nextPrayerInfo.currentPhase == "fajr"),
-                    PrayerItemInfo("sunrise", "الشروق", "Sunrise", dynamicTimes.sunrise, false, nextPrayerInfo.currentPhase == "sunrise"),
-                    PrayerItemInfo("dhuhr", "الظهر", "Dhuhr", dynamicTimes.dhuhr, nextPrayerInfo.nextNameAr == "الظهر", nextPrayerInfo.currentPhase == "dhuhr"),
-                    PrayerItemInfo("asr", "العصر", "Asr", dynamicTimes.asr, nextPrayerInfo.nextNameAr == "العصر", nextPrayerInfo.currentPhase == "asr"),
-                    PrayerItemInfo("maghrib", "المغرب", "Maghrib", dynamicTimes.maghrib, nextPrayerInfo.nextNameAr == "المغرب", nextPrayerInfo.currentPhase == "maghrib"),
-                    PrayerItemInfo("isha", "العشاء", "Isha", dynamicTimes.isha, nextPrayerInfo.nextNameAr == "العشاء", nextPrayerInfo.currentPhase == "isha")
+                    PrayerItemInfo("fajr", "الفجر", "Fajr", com.example.data.IslamicData.formatTo12Hour(dynamicTimes.fajr), nextPrayerInfo.nextNameAr == "الفجر", nextPrayerInfo.currentPhase == "fajr"),
+                    PrayerItemInfo("sunrise", "الشروق", "Sunrise", com.example.data.IslamicData.formatTo12Hour(dynamicTimes.sunrise), false, nextPrayerInfo.currentPhase == "sunrise"),
+                    PrayerItemInfo("dhuhr", "الظهر", "Dhuhr", com.example.data.IslamicData.formatTo12Hour(dynamicTimes.dhuhr), nextPrayerInfo.nextNameAr == "الظهر", nextPrayerInfo.currentPhase == "dhuhr"),
+                    PrayerItemInfo("asr", "العصر", "Asr", com.example.data.IslamicData.formatTo12Hour(dynamicTimes.asr), nextPrayerInfo.nextNameAr == "العصر", nextPrayerInfo.currentPhase == "asr"),
+                    PrayerItemInfo("maghrib", "المغرب", "Maghrib", com.example.data.IslamicData.formatTo12Hour(dynamicTimes.maghrib), nextPrayerInfo.nextNameAr == "المغرب", nextPrayerInfo.currentPhase == "maghrib"),
+                    PrayerItemInfo("isha", "العشاء", "Isha", com.example.data.IslamicData.formatTo12Hour(dynamicTimes.isha), nextPrayerInfo.nextNameAr == "العشاء", nextPrayerInfo.currentPhase == "isha")
                 )
 
                 items(pList, key = { it.key }) { prayer ->
@@ -778,7 +778,7 @@ fun DynamicHeroPrayerCard(
                         border = BorderStroke(1.dp, if (nextInfo.isImminent) sunsetOrange else mintGlow.copy(alpha = 0.4f))
                     ) {
                         Text(
-                            text = nextInfo.nextTimeStr,
+                            text = com.example.data.IslamicData.formatTo12Hour(nextInfo.nextTimeStr),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = if (nextInfo.isImminent) sunsetOrange else mintGlow,
@@ -1685,7 +1685,7 @@ fun CityPickerModalSheet(
                                 Text(text = city.nameAr, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                 Text(text = city.countryAr, fontSize = 11.sp, color = Color(0xFFBFC8D2))
                             }
-                            Text(text = "الفجر ${city.fajr} • المغرب ${city.maghrib}", fontSize = 10.sp, color = Color(0xFFD8B56A))
+                            Text(text = "الفجر ${com.example.data.IslamicData.formatTo12Hour(city.fajr)} • المغرب ${com.example.data.IslamicData.formatTo12Hour(city.maghrib)}", fontSize = 10.sp, color = Color(0xFFD8B56A))
                         }
                     }
                 }

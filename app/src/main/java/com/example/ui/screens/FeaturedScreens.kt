@@ -1224,13 +1224,13 @@ fun LivePricesScreen(colors: CustomThemeColors) {
     // Persistent SharedPreferences for base currency & favorites
     val prefs = remember { context.getSharedPreferences("clevcalc_live_prefs", Context.MODE_PRIVATE) }
     
-    var selectedCurrency by remember { 
-        mutableStateOf(LivePricesRepository.getSelectedCurrency(context)) 
-    }
+    val initialCurrency = remember(context) { LivePricesRepository.getSelectedCurrency(context) }
+    var selectedCurrency by remember { mutableStateOf(initialCurrency) }
     
-    var favoriteCodes by remember {
-        mutableStateOf(prefs.getStringSet("favorite_currencies", setOf("USD", "EUR", "SAR", "AED")) ?: setOf("USD", "EUR", "SAR", "AED"))
+    val initialFavoriteCodes = remember(prefs) {
+        prefs.getStringSet("favorite_currencies", setOf("USD", "EUR", "SAR", "AED")) ?: setOf("USD", "EUR", "SAR", "AED")
     }
+    var favoriteCodes by remember { mutableStateOf(initialFavoriteCodes) }
 
     fun saveFavorites(set: Set<String>) {
         favoriteCodes = set

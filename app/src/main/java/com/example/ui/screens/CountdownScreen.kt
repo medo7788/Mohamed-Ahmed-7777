@@ -438,23 +438,46 @@ fun CountdownScreen(colors: CustomThemeColors) {
                 }
             }
 
-            // Floating Action Button to Add New Custom Event
-            FloatingActionButton(
+            // Floating Action Button to Add New Custom Event (Glassmorphism Neon Cyber Pill)
+            Surface(
                 onClick = {
                     showAddEventModal = true
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                 },
-                containerColor = ColorAmberGlow,
-                contentColor = Color.Black,
+                color = ColorObsidianBgStart.copy(alpha = 0.90f),
+                shape = RoundedCornerShape(30.dp),
+                border = BorderStroke(1.5.dp, Brush.horizontalGradient(listOf(ColorAmberGlow, ColorIceCyan))),
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 90.dp)
-                    .shadow(12.dp, CircleShape)
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp)
+                    .shadow(16.dp, RoundedCornerShape(30.dp), spotColor = ColorAmberGlow)
             ) {
-                Row(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Icon(Icons.Filled.Add, contentDescription = "إضافة حدث")
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("حدث جديد", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Row(
+                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Brush.linearGradient(listOf(ColorAmberGlow, ColorIceCyan))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Add,
+                            contentDescription = "إضافة حدث جديد",
+                            tint = Color.Black,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "إضافة حدث جديد +",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color.White
+                    )
                 }
             }
 

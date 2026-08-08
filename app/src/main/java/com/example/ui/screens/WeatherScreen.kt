@@ -1173,7 +1173,7 @@ private fun CityPickerDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 LazyColumn(modifier = Modifier.height(280.dp)) {
-                    items(filteredCities) { item ->
+                    items(filteredCities, key = { it.nameAr }) { item ->
                         val isSelected = item.nameAr == currentCity.nameAr
                         Surface(
                             color = if (isSelected) ElectricCyan.copy(alpha = 0.18f) else Color.Transparent,

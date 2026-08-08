@@ -52,6 +52,7 @@ enum class CalcKey(
     TIP("tip", "حاسبة البقشيش", "💵", CategoryKey.FINANCE, null, listOf("بقشيش", "فاتورة")),
     PERCENT("percent", "النسبة المئوية", "%", CategoryKey.FINANCE, null, listOf("نسبة", "مئوية")),
     UNIT_PRICE("unit-price", "سعر الوحدة", "🛒", CategoryKey.FINANCE, null, listOf("سعر", "مقارنة", "منتجات")),
+    LEDGER("ledger", "دفتر المصروفات والإيرادات", "📊", CategoryKey.FINANCE, "جديد", listOf("مصروفات", "إيرادات", "دفتر", "حسابات", "دخل", "مصاريف")),
 
     // 📅 Dates & Time
     WORLD_TIME("world-time", "التوقيت العالمي", "🌍", CategoryKey.DATE_TIME, null, listOf("وقت", "ساعة", "مدن")),
@@ -68,5 +69,8 @@ enum class CalcKey(
     FUEL_EFF("fuel-eff", "كفاءة الوقود", "🚗", CategoryKey.UTILITIES, null, listOf("كفاءة", "سيارة", "استهلاك")),
     NUM_WORDS("num-words", "تفقيط الأرقام", "✍️", CategoryKey.UTILITIES, null, listOf("تفقيط", "كلمات", "حروف", "شيك")),
     GPA("gpa", "المعدل التراكمي", "🎓", CategoryKey.UTILITIES, null, listOf("gpa", "معدل", "دراسة", "جامعة")),
-    HEX("hex", "محول سداسي عشري", "#", CategoryKey.UTILITIES, null, listOf("hex", "ثنائي", "عشري", "binary"))
+    HEX("hex", "محول سداسي عشري", "#", CategoryKey.UTILITIES, null, listOf("hex", "ثنائي", "عشري", "binary")),
+    NOTES("notes", "المفكرة الذكية", "📝", CategoryKey.UTILITIES, "جديد", listOf("نوت", "ملاحظات", "مفكرة", "دفتر", "مهام")),
+    QR_TOOL("qr-tool", "قارئ ومولد الـ QR", "📷", CategoryKey.UTILITIES, "مطور", listOf("qr", "باركود", "مسح", "رمز", "توليد")),
+    NEWS_BROWSER("news-browser", "الأخبار والمتصفح", "🌐", CategoryKey.UTILITIES, "جديد", listOf("أخبار", "متصفح", "إنترنت", "جريدة", "عاجل"))
 }

@@ -440,42 +440,29 @@ fun HomeScreen(
                         )
                     }
 
-                    // 6. SECTION C & D: Dynamic Hero Prayer Countdown & Mini Weather Row
-                    item(key = "section_c_d_hero_weather") {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // Dynamic Hero Prayer Card (Weight 1.5)
-                            HeroPrayerCard(
-                                prayerName = nextPrayerName,
-                                countdownText = nextPrayerText,
-                                cityName = cityLabel,
-                                pulseAlpha = pulseGlowAlpha,
-                                onNavigateToPrayer = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onSelectCalc(CalcKey.PRAYER)
-                                },
-                                modifier = Modifier.weight(1.5f)
-                            )
-
-                            // Mini Weather Card (Weight 1f)
-                            MiniWeatherCard(
-                                tempC = weatherTempC ?: 32,
-                                condition = weatherConditionAr,
-                                cityName = cityLabel,
-                                onNavigateToWeather = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onSelectCalc(CalcKey.WEATHER)
-                                },
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
+                    // 6. UNIFIED HERO CARD: MERGED NEXT PRAYER & LIVE WEATHER
+                    item(key = "section_unified_hero") {
+                        UnifiedHeroPrayerWeatherCard(
+                            prayerName = nextPrayerName,
+                            countdownText = nextPrayerText,
+                            tempC = weatherTempC ?: 32,
+                            weatherCondition = weatherConditionAr,
+                            cityName = cityLabel,
+                            pulseAlpha = pulseGlowAlpha,
+                            onNavigateToPrayer = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSelectCalc(CalcKey.PRAYER)
+                            },
+                            onNavigateToWeather = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSelectCalc(CalcKey.WEATHER)
+                            }
+                        )
                     }
 
-                    // 7. SECTION E: Smart AI Assistant & Universal Search Bar
-                    item(key = "section_e_search_ai") {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    // 7. UNIVERSAL SEARCH BAR & 6-SECTION CATEGORY SLIDER
+                    item(key = "section_search_and_categories") {
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             // Sapphire AI Glass Search Bar
                             AISearchBar(
                                 query = searchQuery,
@@ -487,152 +474,17 @@ fun HomeScreen(
                                 }
                             )
 
-                            // Quick Prompt Suggestion Chips Row
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                val promptChips = listOf("حساب الزكاة", "التفقيط", "المعدل التراكمي", "مواقيت الصلاة", "أسعار الذهب", "القروض والتمويل")
-                                items(promptChips) { chipText ->
-                                    Surface(
-                                        color = Color(0xFF1E2638),
-                                        shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
-                                        modifier = Modifier.clickable {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            searchQuery = chipText
-                                        }
-                                    ) {
-                                        Text(
-                                            "# $chipText",
-                                            fontSize = 10.sp,
-                                            color = ColorIceCyan,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                                        )
-                                    }
+                            // 6 Sections Horizontal Slider (Replaces individual tool chips & removes big bottom block)
+                            PlatformCategorySliderRow(
+                                onSelectCategory = { catKey ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    activeHubCategory = catKey
+                                },
+                                onSelectAi = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onSelectCalc(CalcKey.AI)
                                 }
-                            }
-                        }
-
-                        // 8. SECTION F: The Asymmetric Module Grid (6 Main Doors) - MOVED HERE
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    "أبواب المنصة والأقسام الشاملة",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ColorHeadlineText
-                                )
-                                Text(
-                                    "6 أقسام متخصصة",
-                                    fontSize = 11.sp,
-                                    color = ColorGoldBorder,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            // Interactive Grid Layout
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                // Row 1: Prayer & Worship (Wide Hero Accent) + Finance
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    AsymmetricModuleCard(
-                                        title = "مواقيت الصلاة والعبادات",
-                                        subtitle = "7 أدوات معتمدة",
-                                        badgeText = "نشط الآن 🕌",
-                                        accentColor = ColorEmeraldMint,
-                                        icon = AppIcons.forCategory(CategoryKey.ISLAMIC),
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onSelectCalc(CalcKey.PRAYER)
-                                        },
-                                        modifier = Modifier.weight(1.2f)
-                                    )
-
-                                    AsymmetricModuleCard(
-                                        title = "المال والأسعار",
-                                        subtitle = "13 حاسبة ومؤشر",
-                                        badgeText = "الذهب والزكاة 💰",
-                                        accentColor = ColorGoldBorder,
-                                        icon = AppIcons.forCategory(CategoryKey.FINANCE),
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            activeHubCategory = CategoryKey.FINANCE
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-
-                                // Row 2: Time & Calendars + Health & Fitness
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    AsymmetricModuleCard(
-                                        title = "الوقت والتواريخ",
-                                        subtitle = "4 أدوات وتحويلات",
-                                        badgeText = "ساعة رقمية ⏱️",
-                                        accentColor = ColorPurpleAI,
-                                        icon = AppIcons.forCategory(CategoryKey.DATE_TIME),
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            activeHubCategory = CategoryKey.DATE_TIME
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    AsymmetricModuleCard(
-                                        title = "الصحة واللياقة",
-                                        subtitle = "2 أدوات حاسبة",
-                                        badgeText = "مؤشر BMI 🩺",
-                                        accentColor = ColorCrimsonRed,
-                                        icon = AppIcons.forCategory(CategoryKey.HEALTH),
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            activeHubCategory = CategoryKey.HEALTH
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-
-                                // Row 3: Practical Tools + AI Advisor Hub
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    AsymmetricModuleCard(
-                                        title = "أدوات عملية ومساعدة",
-                                        subtitle = "7 أدوات ذكية",
-                                        badgeText = "ماسح وسرعة 🛠️",
-                                        accentColor = ColorSapphireBlue,
-                                        icon = AppIcons.forCategory(CategoryKey.UTILITIES),
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            activeHubCategory = CategoryKey.UTILITIES
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    AsymmetricModuleCard(
-                                        title = "المستشار الذكي AI",
-                                        subtitle = "تحليلات واستشارات",
-                                        badgeText = "ذكاء اصطناعي ✨",
-                                        accentColor = ColorIceCyan,
-                                        icon = Icons.Default.AutoAwesome,
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            onSelectCalc(CalcKey.AI)
-                                        },
-                                        modifier = Modifier.weight(1.2f)
-                                    )
-                                }
-                            }
+                            )
                         }
                     }
 
@@ -701,7 +553,7 @@ fun HomeScreen(
                                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        items(recentTools) { toolId ->
+                                        items(recentTools, key = { it }) { toolId ->
                                             val tool = allTools.find { it.name == toolId }
                                             if (tool != null) {
                                                 RecentToolChip(
@@ -733,7 +585,7 @@ fun HomeScreen(
                                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        items(favoriteTools.toList()) { toolName ->
+                                        items(favoriteTools.toList(), key = { it }) { toolName ->
                                             val tool = allTools.find { it.name == toolName }
                                             if (tool != null) {
                                                 FavoriteToolMiniCard(
@@ -1057,7 +909,7 @@ private fun QuickActionRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        items(actions) { (label, emoji, key) ->
+        items(actions, key = { it.third }) { (label, emoji, key) ->
             var isPressed by remember { mutableStateOf(false) }
             val scale by animateFloatAsState(
                 targetValue = if (isPressed) 0.94f else 1f,
@@ -1109,114 +961,196 @@ private fun QuickActionRow(
 }
 
 @Composable
-private fun HeroPrayerCard(
+private fun UnifiedHeroPrayerWeatherCard(
     prayerName: String,
     countdownText: String,
+    tempC: Int,
+    weatherCondition: String,
     cityName: String,
     pulseAlpha: Float,
     onNavigateToPrayer: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        color = ColorGlassCard,
-        shape = RoundedCornerShape(22.dp),
-        border = BorderStroke(1.5.dp, ColorEmeraldMint.copy(alpha = pulseAlpha)),
-        modifier = modifier.clickable { onNavigateToPrayer() }
-    ) {
-        Box(modifier = Modifier.padding(16.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🕌", fontSize = 16.sp)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("الصلاة القادمة", fontSize = 11.sp, color = ColorSlateMuted)
-                    }
-                    Text(cityName, fontSize = 10.sp, color = ColorEmeraldMint, fontWeight = FontWeight.Bold)
-                }
-
-                Text(
-                    "صلاة $prayerName",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("خلال: ", fontSize = 11.sp, color = ColorSlateMuted)
-                    Text(
-                        countdownText,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = ColorAmberGlow
-                    )
-                }
-
-                Surface(
-                    color = ColorEmeraldMint.copy(alpha = 0.2f),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.align(Alignment.Start)
-                ) {
-                    Text(
-                        "جدول المواقيت ➔",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = ColorEmeraldMint,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MiniWeatherCard(
-    tempC: Int,
-    condition: String,
-    cityName: String,
     onNavigateToWeather: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
         color = ColorGlassCard,
-        shape = RoundedCornerShape(22.dp),
-        border = BorderStroke(1.dp, ColorAmberGlow.copy(alpha = 0.3f)),
-        modifier = modifier.clickable { onNavigateToWeather() }
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(
+            1.5.dp,
+            Brush.horizontalGradient(
+                colors = listOf(
+                    ColorEmeraldMint.copy(alpha = pulseAlpha),
+                    ColorGoldBorder.copy(alpha = 0.6f),
+                    ColorIceCyan.copy(alpha = 0.5f)
+                )
+            )
+        ),
+        shadowElevation = 8.dp,
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            horizontalAlignment = Alignment.Start
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            // Top Bar: Location & Real-Time Badge
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("☀️", fontSize = 18.sp)
-                Text("الطقس", fontSize = 10.sp, color = ColorSlateMuted)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF1E2638))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = ColorIceCyan,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = cityName,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+
+                Surface(
+                    color = ColorEmeraldMint.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, ColorEmeraldMint.copy(alpha = 0.4f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(ColorEmeraldMint)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "مباشر ودقيق 📍",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorEmeraldMint
+                        )
+                    }
+                }
             }
 
-            Text(
-                "$tempC°م",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black,
-                color = ColorAmberGlow
-            )
+            // Split Interactive Content Section (Prayer | Weather)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // PRAYER TIME COLUMN (Clickable)
+                Column(
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF182030).copy(alpha = 0.6f))
+                        .border(1.dp, ColorEmeraldMint.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                        .clickable { onNavigateToPrayer() }
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🕌", fontSize = 15.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("الصلاة القادمة", fontSize = 11.sp, color = ColorSlateMuted, fontWeight = FontWeight.Medium)
+                        }
+                        Text("➔", fontSize = 11.sp, color = ColorEmeraldMint, fontWeight = FontWeight.Bold)
+                    }
 
-            Text(
-                condition,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                maxLines = 1
-            )
+                    Text(
+                        text = "صلاة $prayerName",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
 
-            Text("تحديث مباشر", fontSize = 9.sp, color = ColorSlateMuted)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("خلال: ", fontSize = 11.sp, color = ColorSlateMuted)
+                        Text(
+                            text = countdownText,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = ColorAmberGlow
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // VERTICAL DIVIDER
+                Box(
+                    modifier = Modifier
+                        .height(68.dp)
+                        .width(1.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, ColorGoldBorder.copy(alpha = 0.5f), Color.Transparent)
+                            )
+                        )
+                )
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // WEATHER COLUMN (Clickable)
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF182030).copy(alpha = 0.6f))
+                        .border(1.dp, ColorIceCyan.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                        .clickable { onNavigateToWeather() }
+                        .padding(12.dp),
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("☀️", fontSize = 15.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("الطقس", fontSize = 11.sp, color = ColorSlateMuted, fontWeight = FontWeight.Medium)
+                        }
+                        Text("➔", fontSize = 11.sp, color = ColorIceCyan, fontWeight = FontWeight.Bold)
+                    }
+
+                    Text(
+                        text = "$tempC°م",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = ColorIceCyan
+                    )
+
+                    Text(
+                        text = weatherCondition,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
     }
 }
@@ -1282,75 +1216,117 @@ private fun AISearchBar(
 }
 
 @Composable
-private fun AsymmetricModuleCard(
-    title: String,
-    subtitle: String,
-    badgeText: String,
-    accentColor: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+private fun PlatformCategorySliderRow(
+    onSelectCategory: (CategoryKey) -> Unit,
+    onSelectAi: () -> Unit
 ) {
-    Surface(
-        color = ColorGlassCard,
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.35f)),
-        modifier = modifier.clickable { onClick() }
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+    val categoryItems = listOf(
+        CategorySliderItem("العبادات والقرآن", "7 أدوات معتمدة", AppIcons.forCategory(CategoryKey.ISLAMIC), ColorEmeraldMint, "🕌", CategoryKey.ISLAMIC),
+        CategorySliderItem("المال والأسعار", "13 حاسبة ومؤشر", AppIcons.forCategory(CategoryKey.FINANCE), ColorGoldBorder, "💰", CategoryKey.FINANCE),
+        CategorySliderItem("الوقت والتواريخ", "4 أدوات تحويل", AppIcons.forCategory(CategoryKey.DATE_TIME), ColorPurpleAI, "⏱️", CategoryKey.DATE_TIME),
+        CategorySliderItem("الصحة واللياقة", "مؤشرات وتتبع", AppIcons.forCategory(CategoryKey.HEALTH), ColorCrimsonRed, "🩺", CategoryKey.HEALTH),
+        CategorySliderItem("أدوات عمليّة", "7 أدوات مساعدة", AppIcons.forCategory(CategoryKey.UTILITIES), ColorSapphireBlue, "🛠️", CategoryKey.UTILITIES),
+        CategorySliderItem("المستشار الذكي AI", "تحليلات واستشارات", Icons.Default.AutoAwesome, ColorIceCyan, "✨", null)
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(accentColor.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
-                }
+            Text(
+                text = "أقسام المنصة والشاشات الرئيسية",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = ColorHeadlineText
+            )
+            Text(
+                text = "6 أقسام ↔️",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = ColorGoldBorder
+            )
+        }
 
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(categoryItems, key = { it.title }) { item ->
                 Surface(
-                    color = accentColor.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(6.dp)
+                    color = ColorGlassCard,
+                    shape = RoundedCornerShape(18.dp),
+                    border = BorderStroke(1.dp, item.color.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .width(155.dp)
+                        .clickable {
+                            if (item.categoryKey != null) {
+                                onSelectCategory(item.categoryKey)
+                            } else {
+                                onSelectAi()
+                            }
+                        }
                 ) {
-                    Text(
-                        badgeText,
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = accentColor,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(item.color.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = null,
+                                    tint = item.color,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Text(text = item.badge, fontSize = 14.sp)
+                        }
+
+                        Column {
+                            Text(
+                                text = item.title,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = item.subtitle,
+                                fontSize = 10.sp,
+                                color = ColorSlateMuted,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Column {
-                Text(
-                    title,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    subtitle,
-                    fontSize = 10.sp,
-                    color = ColorSlateMuted,
-                    maxLines = 1
-                )
             }
         }
     }
 }
+
+private data class CategorySliderItem(
+    val title: String,
+    val subtitle: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val color: Color,
+    val badge: String,
+    val categoryKey: CategoryKey?
+)
 
 @Composable
 private fun CyberToolGridCard(
