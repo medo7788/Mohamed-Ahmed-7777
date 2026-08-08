@@ -1,1 +1,191 @@
+name: Build Android APK
 
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+
+
+      - name: Install Gradle 9.3.1
+        run: |
+
+          GRADLE_VERSION=9.3.1
+
+          echo "Installing Gradle ${GRADLE_VERSION}"
+
+          wget -q \
+          https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip
+
+
+          unzip -q \
+          gradle-${GRADLE_VERSION}-bin.zip
+
+
+          echo "$PWD/gradle-${GRADLE_VERSION}/bin" >> $GITHUB_PATH
+
+
+          gradle --version
+
+
+
+      - name: Generate debug keystore
+        run: |
+
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -keypass android \
+            -alias androiddebugkey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+
+
+
+      - name: Repair Gradle Wrapper
+        run: |
+
+          GRADLE_VERSION=9.3.1
+
+
+          echo "Checking Gradle Wrapper..."
+
+          mkdir -p gradle/wrapper
+
+
+
+          REPAIR=false
+
+
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+
+              echo "Wrapper jar missing"
+
+              REPAIR=true
+
+          fi
+
+
+
+          if [ -f ./gradlew ]; then
+
+              chmod +x ./gradlew || true
+
+
+              if ! ./gradlew --version >/dev/null 2>&1; then
+
+                  echo "Wrapper is corrupted"
+
+                  REPAIR=true
+
+              fi
+
+          else
+
+              echo "gradlew missing"
+
+              REPAIR=true
+
+          fi
+
+
+
+
+          if [ "$REPAIR" = true ]; then
+
+              echo "Creating official Gradle Wrapper..."
+
+
+              gradle wrapper \
+              --gradle-version ${GRADLE_VERSION}
+
+
+
+              echo "Wrapper repaired"
+
+          else
+
+              echo "Wrapper is valid"
+
+          fi
+
+
+
+          ls -lh gradle/wrapper/
+
+
+
+
+      - name: Commit Wrapper Fix
+        run: |
+
+          git config user.name "github-actions[bot]"
+
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+
+
+          git add gradle/wrapper gradlew gradlew.bat || true
+
+
+
+          git commit \
+          -m "Repair Gradle Wrapper automatically" \
+          || echo "No changes"
+
+
+
+          git push \
+          || echo "Nothing to push"
+
+
+
+
+      - name: Build Debug APK
+        run: |
+
+          chmod +x ./gradlew
+
+
+          ./gradlew assembleDebug \
+          --stacktrace \
+          --no-daemon
+
+
+
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+
+          name: ClevCalc-Pro-debug-apk
+
+          path: app/build/outputs/apk/debug/*.apk
