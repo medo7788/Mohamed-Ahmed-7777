@@ -80,6 +80,7 @@ object AppIcons {
         CalcKey.NUM_WORDS -> Icons.Filled.EditNote
         CalcKey.GPA -> Icons.Filled.School
         CalcKey.HEX -> Icons.Filled.Tag
+        CalcKey.PAINT -> Icons.Filled.FormatPaint
         CalcKey.NOTES -> Icons.Filled.StickyNote2
         CalcKey.QR_TOOL -> Icons.Filled.QrCodeScanner
         CalcKey.NEWS_BROWSER -> Icons.Filled.Language

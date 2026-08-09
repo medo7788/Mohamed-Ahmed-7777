@@ -322,6 +322,7 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.NUM_WORDS.name) { NumberToWordsScreen(colors) }
                                 composable(CalcKey.GPA.name) { GPACalcScreen(colors) }
                                 composable(CalcKey.HEX.name) { HexConverterScreen(colors) }
+                                composable(CalcKey.PAINT.name) { PaintCalculatorScreen(colors) }
                                 composable(CalcKey.NOTES.name) { NotepadScreen(colors) }
                                 composable(CalcKey.QR_TOOL.name) { QrScannerToolScreen(colors) }
                                 composable(CalcKey.NEWS_BROWSER.name) { NewsAndWebBrowserScreen(colors) }

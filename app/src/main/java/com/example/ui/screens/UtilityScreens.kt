@@ -3,6 +3,11 @@ package com.example.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Divider
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -217,6 +222,165 @@ fun NumberToWordsScreen(colors: CustomThemeColors) {
             ),
             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
         )
+    }
+}
+
+@Composable
+fun PaintCalculatorScreen(colors: CustomThemeColors) {
+    var length by remember { mutableStateOf(5f) } // 2m to 20m
+    var width by remember { mutableStateOf(4f) }  // 2m to 20m
+    var height by remember { mutableStateOf(3f) } // 2m to 6m
+    var coats by remember { mutableStateOf(2) }   // 1, 2, 3 coats
+
+    val wallArea = 2 * (length + width) * height
+    val litersNeeded = (wallArea * coats) * 0.15f // 0.15 liters per sq meter per coat
+
+    ToolScreenScaffold(
+        colors = colors,
+        icon = AppIcons.forCalc(CalcKey.PAINT),
+        title = "حاسبة الدهان",
+        subtitle = "حساب دقيق لمساحة الجدران وكميات الطلاء المطلوبة للغرف والمنازل"
+    ) {
+        Surface(
+            color = colors.surface2.copy(alpha = 0.85f),
+            shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, colors.accent.copy(alpha = 0.4f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("النتائج التقديرية للطلاء", color = colors.textMuted, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "${String.format("%.1f", wallArea)} م²",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = colors.accent
+                )
+                Text(
+                    text = "المساحة الإجمالية للجدران",
+                    fontSize = 12.sp,
+                    color = colors.textMuted
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = colors.border.copy(alpha = 0.3f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "كمية الدهان المقدرة: ${String.format("%.1f", litersNeeded)} لتر",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1FD0C5) // Turquoise neon look
+                )
+                Text(
+                    text = "تقريباً ${String.format("%.1f", litersNeeded / 3.785f)} جالون دهان",
+                    fontSize = 11.sp,
+                    color = colors.textMuted
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Length Slider
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("طول الغرفة (متر)", color = colors.text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("${String.format("%.1f", length)} م", color = colors.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Slider(
+                value = length,
+                onValueChange = { length = it },
+                valueRange = 2f..20f,
+                colors = SliderDefaults.colors(
+                    thumbColor = colors.accent,
+                    activeTrackColor = colors.accent
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Width Slider
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("عرض الغرفة (متر)", color = colors.text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("${String.format("%.1f", width)} م", color = colors.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Slider(
+                value = width,
+                onValueChange = { width = it },
+                valueRange = 2f..20f,
+                colors = SliderDefaults.colors(
+                    thumbColor = colors.accent,
+                    activeTrackColor = colors.accent
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Height Slider
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("ارتفاع السقف (متر)", color = colors.text, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text("${String.format("%.1f", height)} م", color = colors.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Slider(
+                value = height,
+                onValueChange = { height = it },
+                valueRange = 2f..6f,
+                colors = SliderDefaults.colors(
+                    thumbColor = colors.accent,
+                    activeTrackColor = colors.accent
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Coats Selector Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("عدد طبقات الدهان (Coats)", color = colors.text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(1, 2, 3).forEach { coatVal ->
+                    val isSelected = coats == coatVal
+                    Surface(
+                        onClick = { coats = coatVal },
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isSelected) colors.accent else colors.surface,
+                        border = BorderStroke(1.dp, colors.border.copy(alpha = 0.4f)),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = coatVal.toString(),
+                                color = if (isSelected) Color.Black else colors.text,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
