@@ -70,6 +70,7 @@ enum class CalcKey(
     NUM_WORDS("num-words", "تفقيط الأرقام", "✍️", CategoryKey.UTILITIES, null, listOf("تفقيط", "كلمات", "حروف", "شيك")),
     GPA("gpa", "المعدل التراكمي", "🎓", CategoryKey.UTILITIES, null, listOf("gpa", "معدل", "دراسة", "جامعة")),
     HEX("hex", "محول سداسي عشري", "#", CategoryKey.UTILITIES, null, listOf("hex", "ثنائي", "عشري", "binary")),
+    PAINT("paint", "حاسبة الدهان", "🎨", CategoryKey.UTILITIES, null, listOf("دهان", "طلاء", "مساحة", "جدران")),
     NOTES("notes", "المفكرة الذكية", "📝", CategoryKey.UTILITIES, "جديد", listOf("نوت", "ملاحظات", "مفكرة", "دفتر", "مهام")),
     QR_TOOL("qr-tool", "قارئ ومولد الـ QR", "📷", CategoryKey.UTILITIES, "مطور", listOf("qr", "باركود", "مسح", "رمز", "توليد")),
     NEWS_BROWSER("news-browser", "الأخبار والمتصفح", "🌐", CategoryKey.UTILITIES, "جديد", listOf("أخبار", "متصفح", "إنترنت", "جريدة", "عاجل"))
