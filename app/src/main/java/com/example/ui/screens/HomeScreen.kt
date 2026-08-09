@@ -2,6 +2,10 @@ package com.example.ui.screens
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.DrawerValue
 import android.content.Intent
 import android.os.BatteryManager
 import android.os.Environment
@@ -132,6 +136,8 @@ fun HomeScreen(
     val haptic = LocalHapticFeedback.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val configuration = LocalConfiguration.current
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     // Reactive State Collections from ViewModel
     val favoriteTools by viewModel.favoriteTools.collectAsState()
@@ -293,29 +299,39 @@ fun HomeScreen(
         "15 ${hMonths[((hc.get(Calendar.MONTH) + 5) % 12)]} $hYear هـ"
     }
 
-    // Category Hub Overlay handle
-    if (activeHubCategory != null) {
-        BackHandler(enabled = true) {
-            activeHubCategory = null
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            AppDrawerContent(
+                colors = colors,
+                onNavigate = { onSelectCalc(it) },
+                onClose = { scope.launch { drawerState.close() } }
+            )
         }
-        HubScreen(
-            category = activeHubCategory!!,
-            colors = colors,
-            favoriteTools = favoriteTools,
-            onToggleFavorite = { viewModel.toggleFavorite(context, it.name) },
-            onToolClick = { onSelectCalc(it) },
-            onBackClick = { activeHubCategory = null }
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(ColorObsidianBgStart, ColorObsidianBgEnd)
+    ) {
+        // Category Hub Overlay handle
+        if (activeHubCategory != null) {
+            BackHandler(enabled = true) {
+                activeHubCategory = null
+            }
+            HubScreen(
+                category = activeHubCategory!!,
+                colors = colors,
+                favoriteTools = favoriteTools,
+                onToggleFavorite = { viewModel.toggleFavorite(context, it.name) },
+                onToolClick = { onSelectCalc(it) },
+                onBackClick = { activeHubCategory = null }
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(ColorObsidianBgStart, ColorObsidianBgEnd)
+                        )
                     )
-                )
-        ) {
+            ) {
             // Background Canvas Micro-Tech Grid Pattern
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val step = 64.dp.toPx()
@@ -406,20 +422,10 @@ fun HomeScreen(
                         userName = userNameSaved,
                         hijriDate = hijriDateStr,
                         gregorianDate = "$dayName، $dayOfMonth",
-                        batteryLevel = batteryLevel,
-                        availableStorage = availableStorage,
-                        isDarkTheme = currentThemeKey == AppThemeKey.ELEGANT_DARK,
-                        onToggleTheme = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            viewModel.toggleTheme(context)
-                        },
-                        onEditNameClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showEditNameDialog = true
-                        },
-                        onNotificationClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showNotificationsDialog = true
+                        onMenuClick = {
+                            scope.launch {
+                                drawerState.open()
+                            }
                         }
                     )
                 }
@@ -646,6 +652,7 @@ fun HomeScreen(
         }
     }
 }
+}
 
 // ==========================================
 // SHARED PREMIUM TOOL CARD FOR HUBSCREEN COMPATIBILITY
@@ -774,12 +781,7 @@ private fun HeaderGlassPanel(
     userName: String,
     hijriDate: String,
     gregorianDate: String,
-    batteryLevel: Int,
-    availableStorage: String,
-    isDarkTheme: Boolean,
-    onToggleTheme: () -> Unit,
-    onEditNameClick: () -> Unit,
-    onNotificationClick: () -> Unit
+    onMenuClick: () -> Unit
 ) {
     Surface(
         color = ColorGlassCard,
@@ -787,113 +789,55 @@ private fun HeaderGlassPanel(
         border = BorderStroke(1.dp, ColorGoldBorder.copy(alpha = 0.35f)),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Row 1: Greeting + Name + Quick Actions
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // 1. Hamburger Menu on the far left
+            IconButton(
+                onClick = onMenuClick,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1E2638))
+                    .border(1.dp, ColorGoldBorder.copy(alpha = 0.4f), CircleShape)
             ) {
-                Column(modifier = Modifier.clickable { onEditNameClick() }) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "$greeting $userName",
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = ColorAmberGlow
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(Icons.Outlined.Edit, contentDescription = "تعديل الاسم", tint = ColorSlateMuted, modifier = Modifier.size(14.dp))
-                    }
-                    Text("المنصة الذكية المتكاملة", fontSize = 11.sp, color = ColorSlateMuted)
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Theme Toggle Button (Moon/Sun)
-                    Surface(
-                        color = Color(0xFF1E2638),
-                        shape = CircleShape,
-                        border = BorderStroke(1.dp, ColorGoldBorder.copy(alpha = 0.4f)),
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clickable { onToggleTheme() }
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                if (isDarkTheme) "🌙" else "☀️",
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
-
-                    // Notification Icon with Gold Dot Badge
-                    Surface(
-                        color = Color(0xFF1E2638),
-                        shape = CircleShape,
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clickable { onNotificationClick() }
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Outlined.Notifications, contentDescription = "التنبيهات", tint = Color.White, modifier = Modifier.size(18.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(ColorAmberGlow)
-                                    .align(Alignment.TopEnd)
-                            )
-                        }
-                    }
-                }
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "القائمة",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
             }
 
-            Divider(color = Color.White.copy(alpha = 0.08f))
-
-            // Row 2: Live Date Banner + Device Status Indicators
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // 2. Greeting & Dates column on the far right
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Column {
-                    Text(gregorianDate, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = ColorHeadlineText)
-                    Text(hijriDate, fontSize = 11.sp, color = ColorGoldBorder)
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    // Battery indicator
-                    Surface(
-                        color = Color(0xFF1E2638),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("🔋 $batteryLevel%", fontSize = 10.sp, color = ColorEmeraldMint, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    // Storage indicator
-                    Surface(
-                        color = Color(0xFF1E2638),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("💾 $availableStorage", fontSize = 10.sp, color = ColorIceCyan, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
+                Text(
+                    text = "$greeting $userName",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = ColorAmberGlow,
+                    textAlign = TextAlign.End
+                )
+                Text(
+                    text = gregorianDate,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ColorHeadlineText,
+                    textAlign = TextAlign.End
+                )
+                Text(
+                    text = hijriDate,
+                    fontSize = 11.sp,
+                    color = ColorGoldBorder,
+                    textAlign = TextAlign.End
+                )
             }
         }
     }
@@ -979,22 +923,35 @@ private fun UnifiedHeroPrayerWeatherCard(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = ColorGlassCard,
         shape = RoundedCornerShape(24.dp),
         border = BorderStroke(
             1.5.dp,
             Brush.horizontalGradient(
                 colors = listOf(
-                    ColorEmeraldMint.copy(alpha = pulseAlpha),
-                    ColorGoldBorder.copy(alpha = 0.6f),
-                    ColorIceCyan.copy(alpha = 0.5f)
+                    Color(0xFF19A7A8).copy(alpha = pulseAlpha),
+                    Color(0xFFD4AF37).copy(alpha = 0.6f),
+                    Color(0xFF00F2FE).copy(alpha = 0.5f)
                 )
             )
         ),
         shadowElevation = 8.dp,
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(190.dp, 220.dp)
     ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color(0xFF102A43), // Night Blue
+                            Color(0xFF0E5661), // Deep Teal
+                            Color(0xFF19A7A8)  // Turquoise
+                        )
+                    )
+                )
+        ) {
             // Cinematic 3D Holographic Wireframe & Orbital Rings Background
             val infiniteTransition = rememberInfiniteTransition(label = "hero_bg")
             val rotation by infiniteTransition.animateFloat(
@@ -1227,10 +1184,14 @@ private fun AISearchBar(
         color = ColorGlassCard,
         shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, ColorSapphireBlue.copy(alpha = pulseAlpha)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(Icons.Filled.Search, contentDescription = "بحث", tint = ColorIceCyan, modifier = Modifier.size(20.dp))
@@ -1625,6 +1586,118 @@ private fun EditNameDialog(
         containerColor = Color(0xFF141926),
         shape = RoundedCornerShape(20.dp)
     )
+}
+
+@Composable
+fun AppDrawerContent(
+    colors: CustomThemeColors,
+    onNavigate: (CalcKey) -> Unit,
+    onClose: () -> Unit
+) {
+    ModalDrawerSheet(
+        drawerContainerColor = colors.appBg,
+        drawerContentColor = colors.text,
+        modifier = Modifier.width(300.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Drawer Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.accent.copy(alpha = 0.15f))
+                        .border(1.dp, colors.accent.copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mosque,
+                        contentDescription = null,
+                        tint = colors.accent,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        "أدوات المسلم",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = colors.text
+                    )
+                    Text(
+                        "المنصة الإسلامية الذكية",
+                        fontSize = 11.sp,
+                        color = colors.textMuted
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Divider(color = colors.border.copy(alpha = 0.2f))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Navigation Items
+            val items = listOf(
+                Triple("العملات والمصارف", Icons.Default.CurrencyExchange, CalcKey.CURRENCY),
+                Triple("الصحة واللياقة", Icons.Default.MonitorHeart, CalcKey.HEALTH),
+                Triple("الالكترونيات والحساب", Icons.Default.Calculate, CalcKey.BASIC),
+                Triple("المال والأسعار", Icons.Default.ShowChart, CalcKey.LIVE_PRICES),
+                Triple("جميع الأدوات والخدمات", Icons.Default.GridView, CalcKey.HOME)
+            )
+
+            items.forEach { (label, icon, key) ->
+                Surface(
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onClose()
+                            if (key != CalcKey.HOME) {
+                                onNavigate(key)
+                            }
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            tint = colors.accent,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = label,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.text
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                "ClevCalc Pro • إصدار 2.0 ⚜️",
+                fontSize = 10.sp,
+                color = colors.textMuted,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
+        }
+    }
 }
 
 @Composable

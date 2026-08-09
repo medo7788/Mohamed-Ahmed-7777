@@ -179,10 +179,30 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             )
 
-                                            // 2. الحاسبة
+                                            // 2. العبادات
+                                            val isPrayerSelected = currentCalcKey in listOf(
+                                                CalcKey.PRAYER, CalcKey.QIBLA, CalcKey.QURAN,
+                                                CalcKey.ADHKAR, CalcKey.TASBIH, CalcKey.ZAKAT
+                                            )
+                                            BottomNavItemColumn(
+                                                label = "العبادات",
+                                                icon = AppIcons.forCalc(CalcKey.PRAYER),
+                                                isSelected = isPrayerSelected,
+                                                onClick = {
+                                                    if (!isPrayerSelected) {
+                                                        navController.navigate(CalcKey.PRAYER.name) {
+                                                            popUpTo(CalcKey.HOME.name) { saveState = true }
+                                                            launchSingleTop = true
+                                                            restoreState = true
+                                                        }
+                                                    }
+                                                }
+                                            )
+
+                                            // 3. الخدمات
                                             val isCalcSelected = currentCalcKey == CalcKey.BASIC
                                             BottomNavItemColumn(
-                                                label = "الحاسبة",
+                                                label = "الخدمات",
                                                 icon = AppIcons.forCalc(CalcKey.BASIC),
                                                 isSelected = isCalcSelected,
                                                 onClick = {
@@ -196,49 +216,15 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             )
 
-                                            // 3. العملات
-                                            val isCurrencySelected = currentCalcKey == CalcKey.CURRENCY
+                                            // 4. حسابي
+                                            val isSettingsSelected = currentCalcKey == CalcKey.SETTINGS
                                             BottomNavItemColumn(
-                                                label = "العملات",
-                                                icon = AppIcons.forCalc(CalcKey.CURRENCY),
-                                                isSelected = isCurrencySelected,
+                                                label = "حسابي",
+                                                icon = AppIcons.forCalc(CalcKey.SETTINGS),
+                                                isSelected = isSettingsSelected,
                                                 onClick = {
-                                                    if (!isCurrencySelected) {
-                                                        navController.navigate(CalcKey.CURRENCY.name) {
-                                                            popUpTo(CalcKey.HOME.name) { saveState = true }
-                                                            launchSingleTop = true
-                                                            restoreState = true
-                                                        }
-                                                    }
-                                                }
-                                            )
-
-                                            // 4. الصحة
-                                            val isHealthSelected = currentCalcKey in listOf(CalcKey.HEALTH, CalcKey.OVULATION)
-                                            BottomNavItemColumn(
-                                                label = "الصحة",
-                                                icon = AppIcons.forCalc(CalcKey.HEALTH),
-                                                isSelected = isHealthSelected,
-                                                onClick = {
-                                                    if (!isHealthSelected) {
-                                                        navController.navigate(CalcKey.HEALTH.name) {
-                                                            popUpTo(CalcKey.HOME.name) { saveState = true }
-                                                            launchSingleTop = true
-                                                            restoreState = true
-                                                        }
-                                                    }
-                                                }
-                                            )
-
-                                            // 5. المساعد
-                                            val isAiSelected = currentCalcKey == CalcKey.AI
-                                            BottomNavItemColumn(
-                                                label = "المساعد",
-                                                icon = AppIcons.forCalc(CalcKey.AI),
-                                                isSelected = isAiSelected,
-                                                onClick = {
-                                                    if (!isAiSelected) {
-                                                        navController.navigate(CalcKey.AI.name) {
+                                                    if (!isSettingsSelected) {
+                                                        navController.navigate(CalcKey.SETTINGS.name) {
                                                             popUpTo(CalcKey.HOME.name) { saveState = true }
                                                             launchSingleTop = true
                                                             restoreState = true
