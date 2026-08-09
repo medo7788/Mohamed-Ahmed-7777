@@ -6,11 +6,11 @@ import android.net.NetworkCapabilities
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -25,12 +25,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -39,6 +41,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,57 +61,60 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 // ==========================================
-// 1. ROYAL GOLD & OBSIDIAN COLOR PALETTE
+// CHAMBER OF TIME BRANDING SEMANTICS
 // ==========================================
+private val ColorAmbientBg = Color(0xFF0B1119)
+private val ColorRoyalNightBlue = Color(0xFF0C1E33)
+private val ColorWarmGold = Color(0xFFC29C57)
+private val ColorLuminousTurquoise = Color(0xFF1FD0C5)
+private val ColorPrimaryText = Color(0xFFF8F4EA)
+private val ColorSecondaryText = Color(0xFF98A3AD)
 
-private val RoyalGold = Color(0xFFD4AF37)
-private val AmberGlow = Color(0xFFF59E0B)
-private val MintGlow = Color(0xFF4EECD5)
-private val DeepObsidianStart = Color(0xFF080A0F)
-private val DeepObsidianEnd = Color(0xFF121620)
-private val GlassSurfaceDark = Color(0xFF141926)
-private val CardHighlightDark = Color(0xFF1A1D2E)
-private val MutedSlateText = Color(0xFF94A3B8)
-private val SecondaryText = Color(0xFFBFC8D2)
+private val ColorGlassSurface = Color.White.copy(alpha = 0.03f)
+private val ColorGlassBorder = Color.White.copy(alpha = 0.08f)
 
-data class TimeDateToolItem(
+data class TimeToolModel(
+    val id: String,
+    val title: String,
+    val description: String,
     val calcKey: CalcKey,
-    val titleAr: String,
-    val descriptionAr: String,
-    val badgeType: String? = null // "LIVE", "TICKING", "SYNC"
+    val status: String? = null // "LIVE", "SYNC", "TICKING"
 )
 
-// The 4 Core Time & Dates Tools Definition
-val TIME_DATES_TOOLS_LIST = listOf(
-    TimeDateToolItem(
-        calcKey = CalcKey.WORLD_TIME,
-        titleAr = "التوقيت العالمي",
-        descriptionAr = "متابعة ساعات المدن العالمية، المناطق الزمنية وتحويل التوقيت الدولي",
-        badgeType = "LIVE"
-    ),
-    TimeDateToolItem(
+// Clean Data Model Separation
+val CHAMBER_TOOLS_LIST = listOf(
+    TimeToolModel(
+        id = "date-calc",
+        title = "حاسبة التاريخ",
+        description = "احسب الفواصل والتواريخ بدقة",
         calcKey = CalcKey.DATE,
-        titleAr = "حاسبة التاريخ",
-        descriptionAr = "حساب الفرق بين تاريخين باليوم والشهر والسنة وإضافة أو طرح أيام",
-        badgeType = "SYNC"
+        status = "SYNC"
     ),
-    TimeDateToolItem(
-        calcKey = CalcKey.AGE,
-        titleAr = "حاسبة العمر",
-        descriptionAr = "حساب دقيق للعمر بالتفصيل الهجري والميلادي واليوم المتبقي لميلادك المقبل"
+    TimeToolModel(
+        id = "world-clock",
+        title = "التوقيت العالمي",
+        description = "اعرف الوقت في مدن العالم",
+        calcKey = CalcKey.WORLD_TIME,
+        status = "LIVE"
     ),
-    TimeDateToolItem(
+    TimeToolModel(
+        id = "countdown",
+        title = "العد التنازلي",
+        description = "أنشئ مؤقتًا لأي موعد مهم",
         calcKey = CalcKey.COUNTDOWN,
-        titleAr = "العد التنازلي",
-        descriptionAr = "مؤقت تنازلي حي لتتبع المناسبات والأعياد والأحداث بالثواني والدقائق",
-        badgeType = "TICKING"
+        status = "TICKING"
+    ),
+    TimeToolModel(
+        id = "age-calc",
+        title = "حاسبة العمر",
+        description = "اعرف عمرك بالتفصيل",
+        calcKey = CalcKey.AGE
     )
 )
 
 // ==========================================
-// 2. MAIN TIME & DATES HUB SCREEN COMPOSABLE
+// MAIN CHAMBER OF TIME SCREEN
 // ==========================================
-
 @Composable
 fun TimeDatesHubScreen(
     colors: CustomThemeColors,
@@ -115,216 +124,151 @@ fun TimeDatesHubScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val coroutineScope = rememberCoroutineScope()
+    var isSearchExpanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
-    // Real-time ticking system clock state (updates every second)
+    // Live Clock ticking state (re-triggers every second)
     var currentTimeMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var triggerMidnightPulse by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         while (true) {
-            currentTimeMillis = System.currentTimeMillis()
+            val now = System.currentTimeMillis()
+            val calendar = Calendar.getInstance()
+            calendar.timeInMillis = now
+            val hour = calendar.get(Calendar.HOUR_OF_DAY)
+            val minute = calendar.get(Calendar.MINUTE)
+            val second = calendar.get(Calendar.SECOND)
+
+            // Trigger Midnight Pulse Event at 00:00:00
+            if (hour == 0 && minute == 0 && second == 0) {
+                triggerMidnightPulse = true
+                delay(1200)
+                triggerMidnightPulse = false
+            }
+
+            currentTimeMillis = now
             delay(1000)
         }
     }
 
-    // 5 Core Screen States
-    var isLoading by remember { mutableStateOf(true) }
-    var isError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isOffline by remember { mutableStateOf(false) }
-    var isSyncingTime by remember { mutableStateOf(false) }
-
-    // Search and View Controls
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearchExpanded by remember { mutableStateOf(false) }
-    var isCompactGrid by remember { mutableStateOf(false) } // false = 2-column grid, true = 1-column list
-
-    // Network check & high-end initial loading flow
-    fun checkAndLoad() {
-        coroutineScope.launch {
-            isLoading = true
-            isError = false
-            errorMessage = null
-
-            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            val activeNetwork = connectivityManager?.activeNetwork
-            val capabilities = connectivityManager?.getNetworkCapabilities(activeNetwork)
-            isOffline = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) != true
-
-            delay(350) // Smooth entrance delay
-            isLoading = false
+    // Filter tools based on search query
+    val filteredTools = remember(searchQuery) {
+        CHAMBER_TOOLS_LIST.filter { tool ->
+            searchQuery.isBlank() ||
+                    tool.title.contains(searchQuery, ignoreCase = true) ||
+                    tool.description.contains(searchQuery, ignoreCase = true)
         }
     }
 
-    fun syncNtpTime() {
-        coroutineScope.launch {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            isSyncingTime = true
-            delay(600)
-            currentTimeMillis = System.currentTimeMillis()
-            isSyncingTime = false
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        checkAndLoad()
-    }
-
-    // Process tools list based on search query and pinned status
-    val processedTools by remember(searchQuery, favoriteTools) {
-        derivedStateOf {
-            TIME_DATES_TOOLS_LIST.filter { item ->
-                searchQuery.isBlank() ||
-                        item.titleAr.contains(searchQuery, ignoreCase = true) ||
-                        item.descriptionAr.contains(searchQuery, ignoreCase = true) ||
-                        item.calcKey.keywords.any { it.contains(searchQuery, ignoreCase = true) }
-            }.sortedByDescending { favoriteTools.contains(it.calcKey.name) } // Pinned tools on top
-        }
-    }
-
-    // Responsive Adaptive Columns Count
+    // Responsive columns (2 columns on mobile, 4 on tablet)
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val columnsCount = remember(screenWidthDp, isCompactGrid) {
-        if (isCompactGrid) 1
-        else if (screenWidthDp >= 800) 4
-        else if (screenWidthDp >= 600) 3
-        else 2
-    }
+    val columnsCount = if (screenWidthDp >= 600) 4 else 2
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(DeepObsidianStart, DeepObsidianEnd)
-                )
-            )
+            .background(ColorAmbientBg)
     ) {
-        // --- A. Procedural Canvas Cosmic Time Rings Backdrop ---
-        ProceduralRoyalGoldClockCanvas()
+        // 1. Ambient Background Layer (Celestial glowing stars)
+        AmbientChamberStarsBackdrop()
 
-        // --- B. Main Content Layout ---
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // 1. Top Bar Navigation Header
-            TimeDatesHubTopBar(
-                colors = colors,
-                title = "الوقت والتواريخ",
+            // 2. Arch AppBar
+            TimeChamberAppBar(
+                title = "الوقت والتاريخ",
+                onBackClick = onBackClick,
                 isSearchExpanded = isSearchExpanded,
-                isCompactGrid = isCompactGrid,
-                isSyncing = isSyncingTime,
-                onBackClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onBackClick()
-                },
-                onToggleSearch = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    isSearchExpanded = !isSearchExpanded
-                },
-                onToggleViewMode = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    isCompactGrid = !isCompactGrid
-                },
-                onSyncClick = { syncNtpTime() }
+                onToggleSearch = { isSearchExpanded = !isSearchExpanded }
             )
 
-            // 2. Expandable Glass Search Bar
+            // Dynamic search field
             AnimatedVisibility(
                 visible = isSearchExpanded,
                 enter = fadeIn() + expandVertically(),
                 exit = fadeOut() + shrinkVertically()
             ) {
-                TimeDatesGlassSearchBar(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    onClearSearch = { searchQuery = "" },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                )
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 6.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = ColorRoyalNightBlue.copy(alpha = 0.6f),
+                    border = BorderStroke(1.dp, ColorGlassBorder)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Search, null, tint = ColorWarmGold, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("ابحث عن أي أداة زمنية...", fontSize = 12.sp, color = ColorSecondaryText) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedTextColor = ColorPrimaryText,
+                                unfocusedTextColor = ColorPrimaryText
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
             }
 
-            // 3. Non-Intrusive Offline Notice Banner
-            AnimatedVisibility(
-                visible = isOffline,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                TimeDatesOfflineNoticeBanner()
-            }
-
-            // 4. Category Hero Banner with Live Ticking System Clock
-            TimeDatesHeroBanner(
+            // 3. The Time Arch & Live Clock Core (Perspective 3D Skew)
+            TimeArchGateway(
                 currentTimeMillis = currentTimeMillis,
-                pinnedCount = favoriteTools.count { id -> TIME_DATES_TOOLS_LIST.any { it.calcKey.name == id } }
+                midnightPulse = triggerMidnightPulse
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
-            // 5. Category Header & Dynamic Tools Counter
-            TimeDatesSectionHeaderCounter(
-                title = "أدوات التصنيف المتاحة (${processedTools.size})"
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // 6. Content Views based on 5 Core UI States
+            // 4. Glassmorphic Squircle Tool Grid
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                when {
-                    // Loading State: Royal Gold Skeleton Grid
-                    isLoading -> {
-                        TimeDatesSkeletonLoadingGrid(columnsCount = columnsCount)
-                    }
-
-                    // Error State: Graceful Error UI
-                    isError -> {
-                        TimeDatesErrorStateCard(
-                            errorMessage = errorMessage ?: "حدث خطأ أثناء تحميل أدوات التوقيت والتقويم",
-                            onRetry = { checkAndLoad() }
-                        )
-                    }
-
-                    // Empty Search Results State
-                    processedTools.isEmpty() -> {
-                        TimeDatesEmptyStateCard(
-                            searchQuery = searchQuery,
-                            onClearSearch = { searchQuery = "" }
-                        )
-                    }
-
-                    // Success State: Interactive Royal Gold 2-Column Grid
-                    else -> {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(columnsCount),
-                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 28.dp, top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            items(processedTools, key = { it.calcKey.id }) { toolItem ->
-                                val isPinned = favoriteTools.contains(toolItem.calcKey.name)
-
-                                TimeDatesGlassToolCard(
-                                    toolItem = toolItem,
-                                    isPinned = isPinned,
-                                    isCompactList = isCompactGrid,
-                                    onTogglePin = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onToggleFavorite(toolItem.calcKey)
-                                    },
-                                    onClick = {
-                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        onToolClick(toolItem.calcKey)
-                                    },
-                                    modifier = Modifier.animateItem()
-                                )
-                            }
+                if (filteredTools.isEmpty()) {
+                    Text(
+                        text = "لم يتم العثور على نتائج للبحث",
+                        color = ColorSecondaryText,
+                        modifier = Modifier.align(Alignment.Center),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(columnsCount),
+                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 90.dp, top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(filteredTools, key = { it.id }) { tool ->
+                            TimeChamberToolCard(
+                                tool = tool,
+                                isPinned = favoriteTools.contains(tool.calcKey.name),
+                                onTogglePin = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onToggleFavorite(tool.calcKey)
+                                },
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onToolClick(tool.calcKey)
+                                }
+                            )
                         }
                     }
                 }
@@ -334,566 +278,326 @@ fun TimeDatesHubScreen(
 }
 
 // ==========================================
-// 3. PROCEDURAL ROYAL GOLD TIME CANVAS
+// 3. AMBIENT BACKGROUND WITH TWINKLING STARS
 // ==========================================
-
 @Composable
-fun ProceduralRoyalGoldClockCanvas() {
-    val infiniteTransition = rememberInfiniteTransition(label = "gearRotation")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
+fun AmbientChamberStarsBackdrop() {
+    val infiniteTransition = rememberInfiniteTransition(label = "stars")
+    val alphaAnim by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.95f,
         animationSpec = infiniteRepeatable(
-            animation = tween(60000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
+            animation = tween(2500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
         ),
-        label = "gearRotation"
+        label = "twinkle"
     )
 
-    Canvas(
-        modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer { alpha = 0.99f }
-    ) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
         val width = size.width
         val height = size.height
 
-        // Top-Right Royal Gold Radial Glow
+        // Subtle dark blue radial halo in the background center
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(RoyalGold.copy(alpha = 0.08f), Color.Transparent),
-                center = Offset(width * 0.85f, height * 0.15f),
+                colors = listOf(ColorRoyalNightBlue.copy(alpha = 0.35f), Color.Transparent),
+                center = Offset(width * 0.5f, height * 0.35f),
                 radius = width * 0.65f
             )
         )
 
-        // Bottom-Left Amber Radial Glow
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(AmberGlow.copy(alpha = 0.06f), Color.Transparent),
-                center = Offset(width * 0.15f, height * 0.85f),
-                radius = width * 0.7f
-            )
+        // Draw twinkling celestial points (clean procedural stars)
+        val stars = listOf(
+            Offset(width * 0.15f, height * 0.15f) to 2f,
+            Offset(width * 0.85f, height * 0.12f) to 2.5f,
+            Offset(width * 0.25f, height * 0.45f) to 1.5f,
+            Offset(width * 0.72f, height * 0.38f) to 3f,
+            Offset(width * 0.08f, height * 0.68f) to 1.8f,
+            Offset(width * 0.92f, height * 0.72f) to 2.2f,
+            Offset(width * 0.5f, height * 0.85f) to 2f
         )
 
-        // Procedural Celestial Clock Rings & Ticks
-        val centerX = width * 0.85f
-        val centerY = height * 0.18f
-        val pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 10f), 0f)
-
-        // Outer dashed temporal orbit ring
-        drawCircle(
-            color = RoyalGold.copy(alpha = 0.08f),
-            center = Offset(centerX, centerY),
-            radius = 160.dp.toPx(),
-            style = Stroke(width = 1.5f, pathEffect = pathEffect)
-        )
-
-        // Inner dashed temporal orbit ring
-        drawCircle(
-            color = AmberGlow.copy(alpha = 0.09f),
-            center = Offset(centerX, centerY),
-            radius = 100.dp.toPx(),
-            style = Stroke(width = 1f)
-        )
-
-        // Rotating clock tick marks around celestial gear center
-        val numTicks = 12
-        val tickRadius = 130.dp.toPx()
-        val tickLength = 10.dp.toPx()
-
-        for (i in 0 until numTicks) {
-            val angleRad = Math.toRadians((i * (360.0 / numTicks) + rotationAngle)).toFloat()
-            val startX = centerX + cos(angleRad) * tickRadius
-            val startY = centerY + sin(angleRad) * tickRadius
-            val endX = centerX + cos(angleRad) * (tickRadius - tickLength)
-            val endY = centerY + sin(angleRad) * (tickRadius - tickLength)
-
-            drawLine(
-                color = RoyalGold.copy(alpha = 0.1f),
-                start = Offset(startX, startY),
-                end = Offset(endX, endY),
-                strokeWidth = 2f
+        stars.forEach { (pos, sizeVal) ->
+            drawCircle(
+                color = ColorPrimaryText.copy(alpha = alphaAnim),
+                radius = sizeVal.dp.toPx(),
+                center = pos
             )
         }
     }
 }
 
 // ==========================================
-// 4. TOP BAR & SEARCH BAR COMPONENTS
+// 4. ARCH APP BAR COMPOSABLE
 // ==========================================
-
 @Composable
-fun TimeDatesHubTopBar(
-    colors: CustomThemeColors,
+fun TimeChamberAppBar(
     title: String,
-    isSearchExpanded: Boolean,
-    isCompactGrid: Boolean,
-    isSyncing: Boolean,
     onBackClick: () -> Unit,
-    onToggleSearch: () -> Unit,
-    onToggleViewMode: () -> Unit,
-    onSyncClick: () -> Unit
+    isSearchExpanded: Boolean,
+    onToggleSearch: () -> Unit
 ) {
-    val syncRotation by animateFloatAsState(
-        targetValue = if (isSyncing) 360f else 0f,
-        animationSpec = tween(600, easing = LinearOutSlowInEasing),
-        label = "syncRotation"
-    )
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Right side (RTL): Back button + Title & Subtitle
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(GlassSurfaceDark.copy(alpha = 0.85f))
-                    .border(1.dp, RoyalGold.copy(alpha = 0.35f), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "رجوع",
-                    tint = RoyalGold,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column {
-                Text(
-                    text = title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White
-                )
-                Text(
-                    text = "المركز الزمني والحاسبات الفلكية",
-                    fontSize = 10.sp,
-                    color = MutedSlateText,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-
-        // Left side action buttons
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            // NTP Sync / Refresh button
-            IconButton(
-                onClick = onSyncClick,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(GlassSurfaceDark.copy(alpha = 0.85f))
-                    .border(1.dp, RoyalGold.copy(alpha = 0.3f), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Sync,
-                    contentDescription = "مزامنة الوقت",
-                    tint = RoyalGold,
-                    modifier = Modifier
-                        .size(18.dp)
-                        .graphicsLayer { rotationZ = syncRotation }
-                )
-            }
-
-            // View mode toggle button
-            IconButton(
-                onClick = onToggleViewMode,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(GlassSurfaceDark.copy(alpha = 0.85f))
-                    .border(1.dp, RoyalGold.copy(alpha = 0.3f), CircleShape)
-            ) {
-                Icon(
-                    imageVector = if (isCompactGrid) Icons.Default.GridView else Icons.Default.ViewList,
-                    contentDescription = "تغيير العرض",
-                    tint = RoyalGold,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            // Search toggle button
-            IconButton(
-                onClick = onToggleSearch,
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(if (isSearchExpanded) RoyalGold.copy(alpha = 0.25f) else GlassSurfaceDark.copy(alpha = 0.85f))
-                    .border(1.dp, RoyalGold.copy(alpha = if (isSearchExpanded) 0.7f else 0.3f), CircleShape)
-            ) {
-                Icon(
-                    imageVector = if (isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
-                    contentDescription = "بحث",
-                    tint = RoyalGold,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun TimeDatesGlassSearchBar(
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onClearSearch: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        color = GlassSurfaceDark.copy(alpha = 0.85f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, RoyalGold.copy(alpha = 0.35f))
-    ) {
-        Row(
+        // Left Architectural Halo Menu button
+        IconButton(
+            onClick = onBackClick,
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(ColorRoyalNightBlue.copy(alpha = 0.25f), Color.Transparent)
+                    )
+                )
+                .border(1.dp, ColorGlassBorder, CircleShape)
         ) {
             Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = null,
-                tint = RoyalGold,
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "رجوع",
+                tint = ColorPrimaryText,
                 modifier = Modifier.size(20.dp)
             )
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                placeholder = {
-                    Text(
-                        "ابحث عن التوقيت، العمر، أو مؤقت تنازلي...",
-                        fontSize = 12.sp,
-                        color = MutedSlateText
-                    )
-                },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color.Transparent,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
-                modifier = Modifier.weight(1f)
-            )
-
-            if (query.isNotEmpty()) {
-                IconButton(onClick = onClearSearch) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "مسح",
-                        tint = MutedSlateText,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
         }
-    }
-}
 
-@Composable
-fun TimeDatesOfflineNoticeBanner() {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = AmberGlow.copy(alpha = 0.15f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, AmberGlow.copy(alpha = 0.4f))
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.WifiOff,
-                contentDescription = null,
-                tint = MintGlow,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-                text = "وضع عدم الاتصال: حاسبة العمر وفروق التواريخ والمؤقت تعمل محلياً بكفاءة 100%.",
-                fontSize = 11.sp,
-                color = Color.White,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
+        // Center centered title
+        Text(
+            text = title,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = ColorPrimaryText,
+            textAlign = TextAlign.Center
+        )
 
-// ==========================================
-// 5. CATEGORY HERO BANNER WITH LIVE CLOCK
-// ==========================================
-
-@Composable
-fun TimeDatesHeroBanner(
-    currentTimeMillis: Long,
-    pinnedCount: Int
-) {
-    val formattedTime = remember(currentTimeMillis) {
-        val sdf = SimpleDateFormat("hh:mm:ss a", Locale("ar"))
-        sdf.format(Date(currentTimeMillis))
-    }
-
-    val formattedDate = remember(currentTimeMillis) {
-        val sdf = SimpleDateFormat("EEEE، d MMMM yyyy", Locale("ar"))
-        sdf.format(Date(currentTimeMillis))
-    }
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        shape = RoundedCornerShape(24.dp),
-        color = GlassSurfaceDark.copy(alpha = 0.85f),
-        border = androidx.compose.foundation.BorderStroke(1.dp, RoyalGold.copy(alpha = 0.35f))
-    ) {
-        Box(
+        // Right Architectural Halo Search button
+        IconButton(
+            onClick = onToggleSearch,
             modifier = Modifier
-                .fillMaxWidth()
+                .size(44.dp)
+                .clip(CircleShape)
                 .background(
-                    Brush.horizontalGradient(
+                    Brush.radialGradient(
                         colors = listOf(
-                            RoyalGold.copy(alpha = 0.15f),
-                            GlassSurfaceDark.copy(alpha = 0.85f),
-                            CardHighlightDark.copy(alpha = 0.5f)
+                            if (isSearchExpanded) ColorLuminousTurquoise.copy(alpha = 0.15f) else ColorRoyalNightBlue.copy(alpha = 0.25f),
+                            Color.Transparent
                         )
                     )
                 )
-                .padding(18.dp)
+                .border(1.dp, if (isSearchExpanded) ColorLuminousTurquoise.copy(alpha = 0.5f) else ColorGlassBorder, CircleShape)
         ) {
+            Icon(
+                imageVector = if (isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
+                contentDescription = "بحث",
+                tint = if (isSearchExpanded) ColorLuminousTurquoise else ColorPrimaryText,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+// ==========================================
+// 5. THE TIME ARCH GATEWAY (PORTAL LOOK)
+// ==========================================
+@Composable
+fun TimeArchGateway(
+    currentTimeMillis: Long,
+    midnightPulse: Boolean
+) {
+    // Clock formatted string
+    val formattedTime = remember(currentTimeMillis) {
+        val sdf = SimpleDateFormat("HH:mm:ss", Locale("ar"))
+        sdf.format(Date(currentTimeMillis))
+    }
+
+    // Dates formatted string
+    val gregorianStr = remember(currentTimeMillis) {
+        val sdf = SimpleDateFormat("d MMMM yyyy", Locale("ar"))
+        sdf.format(Date(currentTimeMillis))
+    }
+
+    val hijriStr = remember(currentTimeMillis) {
+        val hc = GregorianCalendar()
+        val hYear = hc.get(Calendar.YEAR) - 579
+        val hMonths = listOf("محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة")
+        "15 ${hMonths[((hc.get(Calendar.MONTH) + 5) % 12)]} $hYear هـ"
+    }
+
+    // Midnight Pulse state transition
+    val pulseSize by animateFloatAsState(
+        targetValue = if (midnightPulse) 1.15f else 1.0f,
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
+        label = "pulse"
+    )
+
+    val pulseGlowAlpha by animateFloatAsState(
+        targetValue = if (midnightPulse) 0.9f else 0.25f,
+        animationSpec = tween(600, easing = LinearOutSlowInEasing),
+        label = "glow"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(210.dp)
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Arch Background Portal & Celestial Dots
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val width = size.width
+            val height = size.height
+
+            // Glow Behind the Arch Portal
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(ColorLuminousTurquoise.copy(alpha = pulseGlowAlpha), Color.Transparent),
+                    center = Offset(width / 2f, height / 2f),
+                    radius = 90.dp.toPx()
+                )
+            )
+
+            // Draw Celestial Arch Gateway path
+            val path = Path().apply {
+                val rect = Rect(width * 0.12f, height * 0.1f, width * 0.88f, height * 1.5f)
+                addOval(rect)
+            }
+
+            // Draw outer and inner portal lines
+            drawPath(
+                path = path,
+                color = ColorWarmGold.copy(alpha = 0.22f),
+                style = Stroke(width = 3.dp.toPx())
+            )
+            drawPath(
+                path = path,
+                color = ColorLuminousTurquoise.copy(alpha = 0.15f),
+                style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 15f), 0f))
+            )
+        }
+
+        // Live Clock Core with 3D Skew / Perspective Matrix transform
+        Column(
+            modifier = Modifier
+                .scale(pulseSize)
+                .graphicsLayer {
+                    // Apply 15-degree subtle structural skew as requested
+                    rotationX = 15f
+                    cameraDistance = 8 * density
+                },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Ticking time with Gold -> Turquoise gradient text look
+            Text(
+                text = formattedTime,
+                fontSize = 44.sp,
+                fontWeight = FontWeight.W900,
+                letterSpacing = 2.sp,
+                color = ColorPrimaryText,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.graphicsLayer { alpha = 0.95f }
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Gregorian • Hijri Date line
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
-                // Calendar/Clock Icon Container with radial gold glow halo
+                Text(
+                    text = gregorianStr,
+                    fontSize = 12.sp,
+                    color = ColorSecondaryText,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Golden Glowing Dot separator
                 Box(
                     modifier = Modifier
-                        .size(58.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(
-                            Brush.linearGradient(
-                                colors = listOf(RoyalGold.copy(alpha = 0.25f), AmberGlow.copy(alpha = 0.12f))
-                            )
-                        )
-                        .border(1.dp, RoyalGold.copy(alpha = 0.5f), RoundedCornerShape(18.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = null,
-                        tint = RoyalGold,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(ColorWarmGold)
+                )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "مركز الوقت والتواريخ",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-
-                        if (pinnedCount > 0) {
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = RoyalGold.copy(alpha = 0.18f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, RoyalGold.copy(alpha = 0.5f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.PushPin,
-                                        contentDescription = null,
-                                        tint = RoyalGold,
-                                        modifier = Modifier.size(11.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "$pinnedCount مثبت",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = RoyalGold
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "التوقيت العالمي، حاسبة العمر، فروق التواريخ، ومؤقت العد التنازلي",
-                        fontSize = 11.sp,
-                        color = SecondaryText,
-                        lineHeight = 16.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Live Ticking Clock Display Strip
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color.Black.copy(alpha = 0.45f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MintGlow.copy(alpha = 0.3f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Pulsing Mint Indicator Dot
-                            val infiniteTransition = rememberInfiniteTransition(label = "mintPulse")
-                            val pulseAlpha by infiniteTransition.animateFloat(
-                                initialValue = 0.4f,
-                                targetValue = 1.0f,
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween(800, easing = FastOutSlowInEasing),
-                                    repeatMode = RepeatMode.Reverse
-                                ),
-                                label = "pulseAlpha"
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .size(7.dp)
-                                    .clip(CircleShape)
-                                    .background(MintGlow.copy(alpha = pulseAlpha))
-                            )
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Text(
-                                text = formattedTime,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MintGlow
-                            )
-
-                            Spacer(modifier = Modifier.width(10.dp))
-
-                            Text(
-                                text = "•  $formattedDate",
-                                fontSize = 10.sp,
-                                color = MutedSlateText
-                            )
-                        }
-                    }
-                }
+                Text(
+                    text = hijriStr,
+                    fontSize = 11.sp,
+                    color = ColorWarmGold,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
 }
 
 // ==========================================
-// 6. SECTION HEADER & COUNTER
+// 6. ASYMMETRIC GLASS SQUIRCLE CARD
 // ==========================================
-
 @Composable
-fun TimeDatesSectionHeaderCounter(
-    title: String
-) {
-    // Dynamic pulsing vertical Royal Gold bar
-    val infiniteTransition = rememberInfiniteTransition(label = "indicatorPulse")
-    val barAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.7f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "barAlpha"
-    )
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .height(18.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(RoyalGold.copy(alpha = barAlpha))
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Text(
-            text = title,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-    }
-}
-
-// ==========================================
-// 7. INTERACTIVE TIME TOOL CARD (GRID & LIST)
-// ==========================================
-
-@Composable
-fun TimeDatesGlassToolCard(
-    toolItem: TimeDateToolItem,
+fun TimeChamberToolCard(
+    tool: TimeToolModel,
     isPinned: Boolean,
-    isCompactList: Boolean,
     onTogglePin: () -> Unit,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
-    // Tactile Scale Press Feedback (0.97x)
     var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1.0f,
+    val cardScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1.0f,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "pressScale"
+        label = "cardScale"
     )
 
-    // Micro-badge infinite pulse animation
-    val infiniteTransition = rememberInfiniteTransition(label = "badgePulse")
-    val badgeGlowAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
+    // Setup active glows depending on type
+    val infiniteTransition = rememberInfiniteTransition(label = "rim")
+
+    // LIVE Moving Pulse
+    val livePulse by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "live"
+    )
+
+    // SYNC Breathing Glow
+    val syncPulse by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
         targetValue = 1.0f,
         animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = LinearEasing),
+            animation = tween(2000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "badgePulse"
+        label = "sync"
+    )
+
+    // TICKING Seconds Hand Dot
+    val tickingDotAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ticking"
     )
 
     Surface(
-        modifier = modifier
-            .scale(scale)
+        modifier = Modifier
+            .scale(cardScale)
             .fillMaxWidth()
-            .then(if (isCompactList) Modifier.height(96.dp) else Modifier.height(140.dp))
-            .clip(RoundedCornerShape(22.dp))
+            .height(145.dp)
             .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
@@ -903,366 +607,147 @@ fun TimeDatesGlassToolCard(
                     },
                     onTap = { onClick() }
                 )
+            }
+            .semantics {
+                role = Role.Button
+                contentDescription = "${tool.title}: ${tool.description}"
             },
-        shape = RoundedCornerShape(22.dp),
-        color = GlassSurfaceDark.copy(alpha = 0.85f),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isPinned) AmberGlow.copy(alpha = 0.7f) else RoyalGold.copy(alpha = 0.3f)
+        color = ColorGlassSurface,
+        shape = RoundedCornerShape(
+            topStart = 25.dp, // Asymmetric Squircle curves
+            bottomEnd = 25.dp,
+            topEnd = 16.dp,
+            bottomStart = 16.dp
         ),
-        shadowElevation = if (isPinned) 4.dp else 2.dp
+        border = BorderStroke(1.dp, ColorGlassBorder)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            CardHighlightDark.copy(alpha = if (isPinned) 0.6f else 0.4f),
-                            GlassSurfaceDark.copy(alpha = 0.85f)
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Glowing Rim Systems (Using low overhead gradients instead of heavy filters)
+            if (tool.status == "LIVE") {
+                // Moving Turquoise Pulse border indicator
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val archPath = Path().apply {
+                        addRoundRect(
+                            androidx.compose.ui.geometry.RoundRect(
+                                rect = Rect(0f, 0f, size.width, size.height),
+                                topLeft = androidx.compose.ui.geometry.CornerRadius(25.dp.toPx()),
+                                bottomRight = androidx.compose.ui.geometry.CornerRadius(25.dp.toPx()),
+                                topRight = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx()),
+                                bottomLeft = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx())
+                            )
                         )
+                    }
+                    drawPath(
+                        path = archPath,
+                        brush = Brush.sweepGradient(
+                            colors = listOf(
+                                ColorLuminousTurquoise.copy(alpha = 0.7f),
+                                Color.Transparent,
+                                Color.Transparent
+                            ),
+                            center = Offset(size.width / 2f, size.height / 2f)
+                        ),
+                        style = Stroke(width = 1.5.dp.toPx())
                     )
-                )
-        ) {
-            // Top-Left Pin Action Button
+                }
+            }
+
+            if (tool.status == "SYNC") {
+                // Gold breathing rim indicator
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val archPath = Path().apply {
+                        addRoundRect(
+                            androidx.compose.ui.geometry.RoundRect(
+                                rect = Rect(0f, 0f, size.width, size.height),
+                                topLeft = androidx.compose.ui.geometry.CornerRadius(25.dp.toPx()),
+                                bottomRight = androidx.compose.ui.geometry.CornerRadius(25.dp.toPx()),
+                                topRight = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx()),
+                                bottomLeft = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx())
+                            )
+                        )
+                    }
+                    drawPath(
+                        path = archPath,
+                        color = ColorWarmGold.copy(alpha = syncPulse * 0.45f),
+                        style = Stroke(width = 1.5.dp.toPx())
+                    )
+                }
+            }
+
+            if (tool.status == "TICKING") {
+                // Single revolving turquoise dot trailing along boundary
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val rad = Math.toRadians(tickingDotAngle.toDouble()).toFloat()
+                    val pathCenterX = size.width / 2f
+                    val pathCenterY = size.height / 2f
+                    val dotX = pathCenterX + cos(rad) * (size.width / 2f)
+                    val dotY = pathCenterY + sin(rad) * (size.height / 2f)
+
+                    drawCircle(
+                        color = ColorLuminousTurquoise,
+                        radius = 4.dp.toPx(),
+                        center = Offset(dotX.coerceIn(4f, size.width - 4f), dotY.coerceIn(4f, size.height - 4f))
+                    )
+                }
+            }
+
+            // Pin / Favorite action button
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(8.dp)
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(DeepObsidianStart.copy(alpha = 0.7f))
                     .clickable { onTogglePin() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (isPinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
                     contentDescription = "تثبيت الأداة",
-                    tint = if (isPinned) RoyalGold else MutedSlateText,
+                    tint = if (isPinned) ColorWarmGold else ColorSecondaryText,
                     modifier = Modifier.size(14.dp)
                 )
             }
 
-            // Dynamic Micro-Badges ("LIVE", "TICKING", "SYNC")
-            if (toolItem.badgeType != null) {
-                val badgeColor = when (toolItem.badgeType) {
-                    "LIVE" -> MintGlow
-                    "TICKING" -> AmberGlow
-                    else -> RoyalGold
-                }
-
-                Surface(
-                    color = badgeColor.copy(alpha = badgeGlowAlpha * 0.25f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor.copy(alpha = badgeGlowAlpha)),
-                    shape = RoundedCornerShape(bottomStart = 10.dp, topEnd = 22.dp),
-                    modifier = Modifier.align(Alignment.TopStart)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(5.dp)
-                                .clip(CircleShape)
-                                .background(badgeColor)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = toolItem.badgeType,
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = badgeColor
-                        )
-                    }
-                }
-            }
-
-            // Card Inner Content
-            if (isCompactList) {
-                // Horizontal List Item Layout
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // 48dp Rounded Square Icon Container with Royal Gold / Amber gradient
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(RoyalGold.copy(alpha = 0.2f), AmberGlow.copy(alpha = 0.1f))
-                                )
-                            )
-                            .border(1.dp, RoyalGold.copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = AppIcons.forCalc(toolItem.calcKey),
-                            contentDescription = null,
-                            tint = RoyalGold,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(14.dp))
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = toolItem.titleAr,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = toolItem.descriptionAr,
-                            fontSize = 11.sp,
-                            color = MutedSlateText,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Icon(
-                        imageVector = Icons.Default.ChevronLeft,
-                        contentDescription = null,
-                        tint = RoyalGold.copy(alpha = 0.7f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            } else {
-                // Vertical 2-Column Grid Card Layout
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(14.dp),
-                    horizontalAlignment = Alignment.Start,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // 48dp Rounded Square Icon Container with Royal Gold / Amber gradient fill
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(RoyalGold.copy(alpha = 0.2f), AmberGlow.copy(alpha = 0.12f))
-                                )
-                            )
-                            .border(1.dp, RoyalGold.copy(alpha = 0.4f), RoundedCornerShape(16.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = AppIcons.forCalc(toolItem.calcKey),
-                            contentDescription = null,
-                            tint = RoyalGold,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Column {
-                        Text(
-                            text = toolItem.titleAr,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = toolItem.descriptionAr,
-                            fontSize = 10.sp,
-                            color = MutedSlateText,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            lineHeight = 14.sp
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ==========================================
-// 8. STATE IMPLEMENTATIONS (LOADING, EMPTY, ERROR)
-// ==========================================
-
-@Composable
-fun TimeDatesSkeletonLoadingGrid(columnsCount: Int) {
-    val infiniteTransition = rememberInfiniteTransition(label = "shimmer")
-    val shimmerAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shimmerAlpha"
-    )
-
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(columnsCount),
-        contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize()
-    ) {
-        items(4) {
-            Surface(
-                modifier = Modifier
-                    .height(140.dp)
-                    .fillMaxWidth(),
-                shape = RoundedCornerShape(22.dp),
-                color = GlassSurfaceDark.copy(alpha = shimmerAlpha),
-                border = androidx.compose.foundation.BorderStroke(1.dp, RoyalGold.copy(alpha = 0.15f))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(14.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(RoyalGold.copy(alpha = 0.1f))
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TimeDatesEmptyStateCard(
-    searchQuery: String,
-    onClearSearch: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = GlassSurfaceDark.copy(alpha = 0.85f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, RoyalGold.copy(alpha = 0.35f)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
+            // Main content
             Column(
-                modifier = Modifier.padding(28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
+                // Fine geometry vectors instead of flat icons
                 Icon(
-                    imageVector = Icons.Default.SearchOff,
+                    imageVector = AppIcons.forCalc(tool.calcKey),
                     contentDescription = null,
-                    tint = RoyalGold,
-                    modifier = Modifier.size(52.dp)
+                    tint = ColorWarmGold,
+                    modifier = Modifier.size(38.dp)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "لم نجد أداة مطابقة لـ \"$searchQuery\"",
+                    text = tool.title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    color = ColorPrimaryText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
-                    text = "تأكد من كتابة اسم الأداة مثل: العمر، التوقيت، التاريخ أو المؤقت",
+                    text = tool.description,
                     fontSize = 11.sp,
-                    color = MutedSlateText,
-                    textAlign = TextAlign.Center
+                    color = ColorSecondaryText,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 15.sp
                 )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                Button(
-                    onClick = onClearSearch,
-                    colors = ButtonDefaults.buttonColors(containerColor = RoyalGold),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Text("إعادة ضبط البحث", color = DeepObsidianStart, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun TimeDatesErrorStateCard(
-    errorMessage: String,
-    onRetry: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = GlassSurfaceDark.copy(alpha = 0.85f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF4D4D).copy(alpha = 0.4f)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(28.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = Color(0xFFFF4D4D),
-                    modifier = Modifier.size(48.dp)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "تعذر تحميل أدوات التوقيت والتواريخ",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = errorMessage,
-                    fontSize = 11.sp,
-                    color = MutedSlateText,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                Button(
-                    onClick = onRetry,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4D4D)),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("إعادة المحاولة", color = Color.White, fontWeight = FontWeight.Bold)
-                }
             }
         }
     }
