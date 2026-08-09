@@ -994,167 +994,222 @@ private fun UnifiedHeroPrayerWeatherCard(
         shadowElevation = 8.dp,
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // Top Bar: Location & Real-Time Badge
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFF1E2638))
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.LocationOn,
-                        contentDescription = null,
-                        tint = ColorIceCyan,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = cityName,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Cinematic 3D Holographic Wireframe & Orbital Rings Background
+            val infiniteTransition = rememberInfiniteTransition(label = "hero_bg")
+            val rotation by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(25000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "rotation"
+            )
 
-                Surface(
-                    color = ColorEmeraldMint.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, ColorEmeraldMint.copy(alpha = 0.4f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(ColorEmeraldMint)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "مباشر ودقيق 📍",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorEmeraldMint
-                        )
-                    }
+            Canvas(
+                modifier = Modifier
+                    .matchParentSize()
+                    .alpha(0.12f)
+            ) {
+                // Draw rotating outer orbital rings
+                val center = Offset(size.width * 0.85f, size.height * 0.5f)
+                val radius = 80.dp.toPx()
+                drawCircle(
+                    color = ColorIceCyan,
+                    radius = radius,
+                    center = center,
+                    style = Stroke(width = 1.dp.toPx())
+                )
+                drawCircle(
+                    color = ColorGoldBorder,
+                    radius = radius * 0.65f,
+                    center = center,
+                    style = Stroke(width = 1.5.dp.toPx())
+                )
+                val spokeCount = 8
+                for (i in 0 until spokeCount) {
+                    val angle = (i * (360f / spokeCount) + rotation) * (Math.PI / 180f)
+                    val x = center.x + radius * Math.cos(angle).toFloat()
+                    val y = center.y + radius * Math.sin(angle).toFloat()
+                    drawLine(
+                        color = ColorIceCyan.copy(alpha = 0.4f),
+                        start = center,
+                        end = Offset(x, y),
+                        strokeWidth = 1f
+                    )
                 }
+                drawCircle(
+                    color = ColorGoldBorder,
+                    radius = 6.dp.toPx(),
+                    center = center
+                )
             }
 
-            // Split Interactive Content Section (Prayer | Weather)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // PRAYER TIME COLUMN (Clickable)
-                Column(
-                    modifier = Modifier
-                        .weight(1.2f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF182030).copy(alpha = 0.6f))
-                        .border(1.dp, ColorEmeraldMint.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
-                        .clickable { onNavigateToPrayer() }
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                // Top Bar: Location & Real-Time Badge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF1E2638))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🕌", fontSize = 15.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("الصلاة القادمة", fontSize = 11.sp, color = ColorSlateMuted, fontWeight = FontWeight.Medium)
-                        }
-                        Text("➔", fontSize = 11.sp, color = ColorEmeraldMint, fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = Icons.Filled.LocationOn,
+                            contentDescription = null,
+                            tint = ColorIceCyan,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = cityName,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
                     }
 
-                    Text(
-                        text = "صلاة $prayerName",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("خلال: ", fontSize = 11.sp, color = ColorSlateMuted)
-                        Text(
-                            text = countdownText,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = ColorAmberGlow
-                        )
+                    Surface(
+                        color = ColorEmeraldMint.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, ColorEmeraldMint.copy(alpha = 0.4f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(ColorEmeraldMint)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "مباشر ودقيق 📍",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ColorEmeraldMint
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
-
-                // VERTICAL DIVIDER
-                Box(
-                    modifier = Modifier
-                        .height(68.dp)
-                        .width(1.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, ColorGoldBorder.copy(alpha = 0.5f), Color.Transparent)
-                            )
-                        )
-                )
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                // WEATHER COLUMN (Clickable)
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF182030).copy(alpha = 0.6f))
-                        .border(1.dp, ColorIceCyan.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
-                        .clickable { onNavigateToWeather() }
-                        .padding(12.dp),
-                    horizontalAlignment = Alignment.Start,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                // Split Interactive Content Section (Prayer | Weather)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
+                    // PRAYER TIME COLUMN (Clickable)
+                    Column(
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF182030).copy(alpha = 0.6f))
+                            .border(1.dp, ColorEmeraldMint.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                            .clickable { onNavigateToPrayer() }
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("☀️", fontSize = 15.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("الطقس", fontSize = 11.sp, color = ColorSlateMuted, fontWeight = FontWeight.Medium)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("🕌", fontSize = 15.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("الصلاة القادمة", fontSize = 11.sp, color = ColorSlateMuted, fontWeight = FontWeight.Medium)
+                            }
+                            Text("➔", fontSize = 11.sp, color = ColorEmeraldMint, fontWeight = FontWeight.Bold)
                         }
-                        Text("➔", fontSize = 11.sp, color = ColorIceCyan, fontWeight = FontWeight.Bold)
+
+                        Text(
+                            text = "صلاة $prayerName",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("خلال: ", fontSize = 11.sp, color = ColorSlateMuted)
+                            Text(
+                                text = countdownText,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = ColorAmberGlow
+                            )
+                        }
                     }
 
-                    Text(
-                        text = "$tempC°م",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Black,
-                        color = ColorIceCyan
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    // VERTICAL DIVIDER
+                    Box(
+                        modifier = Modifier
+                            .height(68.dp)
+                            .width(1.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, ColorGoldBorder.copy(alpha = 0.5f), Color.Transparent)
+                                )
+                            )
                     )
 
-                    Text(
-                        text = weatherCondition,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    // WEATHER COLUMN (Clickable)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF182030).copy(alpha = 0.6f))
+                            .border(1.dp, ColorIceCyan.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                            .clickable { onNavigateToWeather() }
+                            .padding(12.dp),
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("☀️", fontSize = 15.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("الطقس", fontSize = 11.sp, color = ColorSlateMuted, fontWeight = FontWeight.Medium)
+                            }
+                            Text("➔", fontSize = 11.sp, color = ColorIceCyan, fontWeight = FontWeight.Bold)
+                        }
+
+                        Text(
+                            text = "$tempC°م",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = ColorIceCyan
+                        )
+
+                        Text(
+                            text = weatherCondition,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
