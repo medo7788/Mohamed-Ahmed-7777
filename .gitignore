@@ -1,0 +1,51 @@
+# Gradle files
+.gradle/
+build/
+/*/build/
+.gradle-8.8/
+.gradle-9.3.1/
+
+# Android Studio / IntelliJ files
+.idea/
+*.iml
+*.ipr
+*.iws
+local.properties
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Gradle Wrapper cache / distributions
+gradle-wrapper.jar
+wrapper/dists/
+
+# Keystores
+*.keystore
+*.jks
+
+# Built artifacts
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+*.aar
+*.jar
+
+# Log files
+*.log
+log.txt
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Temp / backup files
+*~
+*.bak
+*.swp
+*.tmp

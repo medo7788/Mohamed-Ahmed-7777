@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import android.content.Intent
 import android.os.BatteryManager
 import android.os.Environment
@@ -294,6 +295,9 @@ fun HomeScreen(
 
     // Category Hub Overlay handle
     if (activeHubCategory != null) {
+        BackHandler(enabled = true) {
+            activeHubCategory = null
+        }
         HubScreen(
             category = activeHubCategory!!,
             colors = colors,
