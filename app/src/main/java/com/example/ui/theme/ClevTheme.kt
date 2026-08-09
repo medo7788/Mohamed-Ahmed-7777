@@ -34,30 +34,36 @@ data class CustomThemeColors(
 fun getThemeColors(key: AppThemeKey): CustomThemeColors {
     return when (key) {
         AppThemeKey.ELEGANT_DARK -> CustomThemeColors(
-            appBg = Color(0xFF121417),
-            headerBg = Color(0xFF1A1E22),
-            headerFg = Color(0xFFD4AF37),
-            surface = Color(0xFF20262B),
-            surface2 = Color(0xFF1A1E22),
-            border = Color(0x26D4AF37), // subtle gold
-            text = Color(0xFFFFFFFF),
-            textMuted = Color(0xFFC7CDD4),
-            accent = Color(0xFFD4AF37),
-            accentSecondary = Color(0xFF22B573),
-            isDark = true
+            appBg = Color(0xFF080A0F),            // Obsidian BG
+            headerBg = Color(0xFF0C1018),          // Deep Obsidian / Surface 2
+            headerFg = Color(0xFFD4AF37),          // Champagne Gold
+            surface = Color(0xFF121620),           // Surface
+            surface2 = Color(0xFF0C1018),          // Deep Obsidian
+            border = Color(0x33D4AF37),            // Subtle Champagne Gold
+            text = Color(0xFFF8FAFC),              // Text Primary
+            textMuted = Color(0xFF94A3B8),         // Muted
+            accent = Color(0xFFD4AF37),            // Champagne Gold
+            accentSecondary = Color(0xFF00F2FE),   // Ice Cyan
+            isDark = true,
+            positive = Color(0xFF10B981),          // Emerald
+            negative = Color(0xFFEF4444),          // Crimson
+            warning = Color(0xFFF59E0B)            // Amber
         )
         AppThemeKey.LIGHT -> CustomThemeColors(
-            appBg = Color(0xFFFAF8F5),
-            headerBg = Color(0xFFFAF8F5),
-            headerFg = Color(0xFFD4AF37),
-            surface = Color(0xFFFFFFFF),
-            surface2 = Color(0xFFF1EDE6),
-            border = Color(0xFFE2D8C7),
-            text = Color(0xFF121417),
-            textMuted = Color(0xFF5A6B6B),
-            accent = Color(0xFFD4AF37),
-            accentSecondary = Color(0xFF22B573),
-            isDark = false
+            appBg = Color(0xFFFAF9F6),            // Warm White / Pearl
+            headerBg = Color(0xFFFAF9F6),          // Pearl
+            headerFg = Color(0xFFB8972E),          // Champagne Gold Controlled
+            surface = Color(0xFFFFFFFF),           // Soft White
+            surface2 = Color(0xFFF1EDE6),          // Soft Surface 2
+            border = Color(0xFFE2D8C7),            // Pearl border
+            text = Color(0xFF1E293B),              // Soft Graphite
+            textMuted = Color(0xFF64748B),         // Muted light
+            accent = Color(0xFFB8972E),            // Champagne Gold Controlled
+            accentSecondary = Color(0xFF00B4D8),   // Controlled Cyan
+            isDark = false,
+            positive = Color(0xFF0D9488),          // Controlled Emerald
+            negative = Color(0xFFEF4444),          // Crimson
+            warning = Color(0xFFF59E0B)            // Amber
         )
     }
 }

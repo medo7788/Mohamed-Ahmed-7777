@@ -46,16 +46,16 @@ fun ToolScreenScaffold(
     val hazeState = remember { HazeState() }
     val backDispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
 
-    // 5. Visuals: Deep dark cyberpunk background (#0B1120 to #0F172A)
+    // 5. Visuals: Dynamic premium background supporting dark obsidian and light warm-pearl themes
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFF0B1120),
-                        Color(0xFF0F172A),
-                        Color(0xFF070A0F)
+                        colors.appBg,
+                        colors.surface2,
+                        colors.appBg
                     )
                 )
             )
@@ -67,7 +67,7 @@ fun ToolScreenScaffold(
                 .then(if (isScrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
         ) {
             // 1. Top App Bar (Compact & Space-Efficient):
-            // Minimalist header with back arrow, 24px neon icon, centered title. Zero vertical waste!
+            // Minimalist header with back arrow, centered title. Zero vertical waste!
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -88,7 +88,7 @@ fun ToolScreenScaffold(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "رجوع",
-                        tint = Color.White,
+                        tint = colors.text,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -101,21 +101,21 @@ fun ToolScreenScaffold(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF00FFCC).copy(alpha = 0.15f))
-                            .border(1.dp, Color(0xFF00FFCC).copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
+                            .background(colors.accent.copy(alpha = 0.15f))
+                            .border(1.dp, colors.accent.copy(alpha = 0.4f), RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = Color(0xFF00FFCC),
+                            tint = colors.accent,
                             modifier = Modifier.size(16.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = title,
-                        color = Color.White,
+                        color = colors.text,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.ExtraBold,
                         textAlign = TextAlign.Center
@@ -126,20 +126,20 @@ fun ToolScreenScaffold(
             }
 
             // 2. Main Workspace (Inputs & Interactive Controls):
-            // Begins immediately below top bar in modern Glassmorphism card (#1E293B, neon cyan border)
+            // Begins immediately below top bar in modern Glassmorphism card
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 shape = RoundedCornerShape(20.dp),
-                color = Color(0xFF1E293B).copy(alpha = 0.88f),
+                color = colors.surface.copy(alpha = 0.85f),
                 border = BorderStroke(
                     1.2.dp,
                     Brush.horizontalGradient(
                         listOf(
-                            Color(0xFF00FFCC).copy(alpha = 0.45f),
-                            Color(0xFF1E293B).copy(alpha = 0.2f),
-                            Color(0xFF00FFCC).copy(alpha = 0.3f)
+                            colors.accent.copy(alpha = 0.45f),
+                            colors.border.copy(alpha = 0.2f),
+                            colors.accent.copy(alpha = 0.3f)
                         )
                     )
                 )
@@ -154,13 +154,13 @@ fun ToolScreenScaffold(
                     }
 
                     // 3. Output & Results Card:
-                    // Distinct glowing card displaying calculations/results in bold golden digital typography (#FFB703)
+                    // Distinct glowing card displaying calculations/results in bold champagne gold digital typography
                     if (showResult || resultMainText != null) {
                         Spacer(modifier = Modifier.height(14.dp))
                         Surface(
-                            color = Color(0xFF0F172A).copy(alpha = 0.95f),
+                            color = colors.surface2.copy(alpha = 0.95f),
                             shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.5.dp, Color(0xFFFFB703).copy(alpha = 0.6f)),
+                            border = BorderStroke(1.5.dp, colors.accent.copy(alpha = 0.6f)),
                             shadowElevation = 6.dp,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -171,7 +171,7 @@ fun ToolScreenScaffold(
                                 if (resultMainText != null) {
                                     Text(
                                         text = resultMainText,
-                                        color = Color(0xFFFFB703),
+                                        color = colors.accent,
                                         fontSize = 24.sp,
                                         fontWeight = FontWeight.Black,
                                         textAlign = TextAlign.Center
@@ -181,7 +181,7 @@ fun ToolScreenScaffold(
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = resultSubText,
-                                        color = Color.White.copy(alpha = 0.9f),
+                                        color = colors.text.copy(alpha = 0.9f),
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Medium,
                                         textAlign = TextAlign.Center
@@ -191,7 +191,7 @@ fun ToolScreenScaffold(
                         }
                     }
 
-                    // Primary Action Button (Gold Cyberpunk Button)
+                    // Primary Action Button (Gold/Accent Cyberpunk Button)
                     if (primaryActionText != null && onPrimaryActionClick != null) {
                         Spacer(modifier = Modifier.height(14.dp))
                         Button(
@@ -200,8 +200,8 @@ fun ToolScreenScaffold(
                                 .fillMaxWidth()
                                 .height(48.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFFFB703),
-                                contentColor = Color(0xFF0B1120)
+                                containerColor = colors.accent,
+                                contentColor = if (colors.isDark) Color(0xFF080A0F) else Color.White
                             ),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -219,4 +219,3 @@ fun ToolScreenScaffold(
         }
     }
 }
-
