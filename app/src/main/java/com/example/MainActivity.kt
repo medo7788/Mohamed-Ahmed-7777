@@ -285,7 +285,7 @@ class MainActivity : ComponentActivity() {
                                         onBack = { navController.popBackStack() }
                                     )
                                 }
-                                composable(CalcKey.ADHKAR.name) { AdhkarScreen(colors) }
+                                composable(CalcKey.ADHKAR.name) { AdhkarScreen(colors, onBackClick = { navController.popBackStack() }) }
                                 composable(CalcKey.TASBIH.name) { TasbihScreen(colors) }
                                 composable(CalcKey.QURAN.name) { QuranScreen(colors) }
                                 composable(CalcKey.ZAKAT.name) { ZakatCalcScreen(colors) }
@@ -314,7 +314,7 @@ class MainActivity : ComponentActivity() {
                                 composable(CalcKey.WORLD_TIME.name) { WorldTimeScreen(colors) }
                                 composable(CalcKey.DATE.name) { DateCalcScreen(colors) }
                                 composable(CalcKey.AGE.name) { AgeCalcScreen(colors) }
-                                composable(CalcKey.COUNTDOWN.name) { CountdownScreen(colors) }
+                                composable(CalcKey.COUNTDOWN.name) { HijriTimelineScreen(colors, onBackClick = { navController.popBackStack() }) }
                                 composable(CalcKey.HEALTH.name) { UltimateHealthDashboard(colors) }
                                 composable(CalcKey.OVULATION.name) { UltimateHealthDashboard(colors) }
                                 composable(CalcKey.FUEL_COST.name) { FuelCostCalcScreen(colors) }

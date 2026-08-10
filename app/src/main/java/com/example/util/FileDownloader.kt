@@ -2,6 +2,8 @@ package com.example.util
 
 import android.content.Context
 import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
 import java.net.URL
 
 object FileDownloader {
@@ -13,19 +15,22 @@ object FileDownloader {
         "abdulbasit" to "https://cdn.aladhan.com/audio/adhan/Abdulbasit.mp3"
     )
 
-    fun downloadAdhanVoice(context: Context, voiceKey: String): File? {
+    fun downloadAdhanVoice(
+        context: Context,
+        voiceKey: String,
+        onProgress: (Int) -> Unit = {}
+    ): File? {
         val url = VOICE_URLS[voiceKey] ?: return null
-        android.util.Log.d("FileDownloader", "Attempting to download adhan voice: $voiceKey from $url")
-        val file = downloadFile(context, url, "$voiceKey.mp3")
-        if (file != null) {
-            android.util.Log.d("FileDownloader", "Successfully downloaded: ${file.absolutePath}")
-        } else {
-            android.util.Log.e("FileDownloader", "Failed to download adhan voice: $voiceKey")
-        }
+        val file = downloadFileWithProgress(context, url, "$voiceKey.mp3", onProgress)
         return file
     }
 
-    fun downloadFile(context: Context, fileUrl: String, fileName: String): File? {
+    private fun downloadFileWithProgress(
+        context: Context,
+        fileUrl: String,
+        fileName: String,
+        onProgress: (Int) -> Unit
+    ): File? {
         return try {
             val directory = File(context.filesDir, "adhan_sounds")
             if (!directory.exists()) {
@@ -33,15 +38,36 @@ object FileDownloader {
             }
             val file = File(directory, fileName)
             
-            android.util.Log.d("FileDownloader", "Starting download to: ${file.absolutePath}")
-            URL(fileUrl).openStream().use { input ->
-                file.outputStream().use { output ->
-                    input.copyTo(output)
-                }
+            val url = URL(fileUrl)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 8000
+            connection.readTimeout = 8000
+            connection.connect()
+
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                return null
             }
+
+            val fileLength = connection.contentLength
+            val input = connection.inputStream
+            val output = FileOutputStream(file)
+
+            val data = ByteArray(4096)
+            var total: Long = 0
+            var count: Int
+            while (input.read(data).also { count = it } != -1) {
+                total += count
+                if (fileLength > 0) {
+                    onProgress(((total * 100) / fileLength).toInt())
+                }
+                output.write(data, 0, count)
+            }
+
+            output.flush()
+            output.close()
+            input.close()
             file
         } catch (e: Exception) {
-            android.util.Log.e("FileDownloader", "Download error", e)
             e.printStackTrace()
             null
         }
@@ -49,6 +75,33 @@ object FileDownloader {
 
     fun getLocalFile(context: Context, fileName: String): File? {
         val file = File(File(context.filesDir, "adhan_sounds"), fileName)
-        return if (file.exists()) file else null
+        return if (file.exists() && file.length() > 1000) file else null
+    }
+
+    fun isVoiceCached(context: Context, voiceKey: String): Boolean {
+        return getLocalFile(context, "$voiceKey.mp3") != null
+    }
+
+    fun deleteVoiceCache(context: Context, voiceKey: String): Boolean {
+        val file = File(File(context.filesDir, "adhan_sounds"), "$voiceKey.mp3")
+        return if (file.exists()) {
+            file.delete()
+        } else {
+            false
+        }
+    }
+
+    fun getTotalCacheSizeInMb(context: Context): Double {
+        val directory = File(context.filesDir, "adhan_sounds")
+        if (!directory.exists() || !directory.isDirectory) return 0.0
+        val totalBytes = directory.listFiles()?.sumOf { it.length() } ?: 0L
+        return totalBytes.toDouble() / (1024 * 1024)
+    }
+
+    fun clearAllVoiceCache(context: Context) {
+        val directory = File(context.filesDir, "adhan_sounds")
+        if (directory.exists() && directory.isDirectory) {
+            directory.listFiles()?.forEach { it.delete() }
+        }
     }
 }

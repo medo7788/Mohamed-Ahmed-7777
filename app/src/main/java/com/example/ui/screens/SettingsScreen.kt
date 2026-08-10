@@ -16,7 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -58,6 +60,9 @@ fun SettingsScreen(
             onToggleTheme()
         }
     }
+
+    // Clipboard Manager
+    val clipboardManager = LocalClipboardManager.current
 
     // Gemini API Key state
     var apiKeyInput by remember { mutableStateOf(GeminiRepository.getStoredApiKey(context)) }
@@ -128,13 +133,40 @@ fun SettingsScreen(
                     singleLine = true,
                     visualTransformation = if (isKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
-                        IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
-                            Icon(
-                                imageVector = if (isKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = "تبديل الرؤية",
-                                tint = colors.textMuted,
-                                modifier = Modifier.size(18.dp)
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { isKeyVisible = !isKeyVisible }) {
+                                Icon(
+                                    imageVector = if (isKeyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = "تبديل الرؤية",
+                                    tint = colors.textMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            if (apiKeyInput.isNotBlank()) {
+                                IconButton(onClick = {
+                                    clipboardManager.setText(AnnotatedString(apiKeyInput))
+                                    Toast.makeText(context, "تم نسخ المفتاح للذاكرة", Toast.LENGTH_SHORT).show()
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "نسخ المفتاح",
+                                        tint = colors.textMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                IconButton(onClick = {
+                                    apiKeyInput = ""
+                                    GeminiRepository.clearApiKey(context)
+                                    Toast.makeText(context, "تم مسح المفتاح", Toast.LENGTH_SHORT).show()
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "مسح المفتاح",
+                                        tint = colors.textMuted,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                         }
                     },
                     colors = OutlinedTextFieldDefaults.colors(

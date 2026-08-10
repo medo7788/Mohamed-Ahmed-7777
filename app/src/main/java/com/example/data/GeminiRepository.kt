@@ -50,8 +50,15 @@ object GeminiRepository {
 
     fun getStoredApiKey(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val custom = prefs.getString(KEY_CUSTOM_API_KEY, "") ?: ""
-        if (custom.isNotBlank()) return custom.trim()
+        val customObfuscated = prefs.getString(KEY_CUSTOM_API_KEY, "") ?: ""
+        if (customObfuscated.isNotBlank()) {
+            return try {
+                val decodedBytes = android.util.Base64.decode(customObfuscated, android.util.Base64.DEFAULT)
+                String(decodedBytes, Charsets.UTF_8).trim()
+            } catch (e: Exception) {
+                customObfuscated.trim() // Fallback to plain text if older key was stored before obfuscation
+            }
+        }
         val buildKey = BuildConfig.GEMINI_API_KEY
         if (buildKey.isNotBlank() && buildKey != "MY_GEMINI_API_KEY") return buildKey.trim()
         return ""
@@ -59,7 +66,8 @@ object GeminiRepository {
 
     fun saveApiKey(context: Context, key: String) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        prefs.edit().putString(KEY_CUSTOM_API_KEY, key.trim()).apply()
+        val obfuscated = android.util.Base64.encodeToString(key.trim().toByteArray(Charsets.UTF_8), android.util.Base64.DEFAULT)
+        prefs.edit().putString(KEY_CUSTOM_API_KEY, obfuscated).apply()
     }
 
     fun clearApiKey(context: Context) {
